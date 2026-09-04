@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Game data (user-provided, large, and personal — see README)
+# The game's master database. ~16 MB binary, sourced per-user.
+master.mdb
+# A player's trained-character export. Contains that player's own save data.
+data.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local tooling state
+.gstack/
+.claude/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
