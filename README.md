@@ -3,9 +3,12 @@
 A companion tool for **Umamusume: Pretty Derby** that reads your own trained-character
 roster and helps you plan the next career run.
 
-The game gives you almost no help deciding which two veterans to inherit from. Affinity
-is hidden behind a ◎/〇/△ icon, and the odds that any given spark actually fires during
-inspiration are never shown at all. This tool computes both from the game's own data.
+The game gives you almost no help deciding which two veterans to inherit from. It shows a
+◎/〇/△ icon, which is the *pair total* bucketed by `succession_relation_rank` (◎ starts at
+151), and it never shows the number itself. It also never shows Individual Affinity, a
+different per-member quantity that is what actually drives spark rates, nor the odds that
+any given spark fires during inspiration. This tool computes all of it from the game's own
+data, and shows which rows produced each number.
 
 ## Goals
 
@@ -26,8 +29,10 @@ packages/
   web/    React + Vite + TypeScript. All UI.
 ```
 
-**Why a backend at all:** the game's master database is a 16 MB SQLite file. Shipping it
-to the browser is not viable, so the API owns it and the web app asks questions of it.
+**Why a backend at all:** because it is the version worth writing, not because a static
+build is impossible. A slim extract of `master.mdb` would fit in a browser — other tools in
+this space ship one at around 80 KB — so this is a preference, and it is recorded as one in
+`docs/designs/`. The API owns the database and the web app asks questions of it.
 
 **Data flow:** you export your trained characters as `data.json` and upload it. The API
 resolves the raw IDs into names, skills, sparks and race wins. The web app caches the
@@ -52,8 +57,13 @@ variables — seven Base Affinities and five Bonus Affinities.
   Trainee↔parent and parent↔parent are two-way. Parent↔grandparent is three-way: the
   trainee, the parent and the grandparent must *all* share the relation.
 - **Bonus Affinity** comes from overlapping G1 wins. Each shared G1 is worth +3 to both
-  members. Deduplicate on the win saddle's `group_id` — the master data ships several
-  rows for the same race, and counting them separately inflates the result.
+  members. **Match on the win saddle's `group_id`, not its `id`.** Some races run twice in
+  a career (Takarazuka Kinen, Arima Kinen), and `master.mdb` stores the same race under a
+  different `single_mode_wins_saddle.id` per year while keeping one `group_id` — Takarazuka
+  Kinen is both `14` and `147`. Two ancestors who won it in different years still share it,
+  so map ids to `group_id` *before* intersecting. Comparing raw ids silently misses those
+  shares: measured against a real roster it under-counts 344 of 1295 bonus links and changes
+  the total on 161 of 259 lineages, by up to +15.
 - **Individual Affinity** is the sum of the links feeding one member: four links for a
   parent, one for a grandparent. This is the number that drives spark rates.
 
@@ -111,12 +121,26 @@ from the code. Where a line encodes a non-obvious game rule, say which rule and 
   every request fails with a bare `Failed to fetch` that looks like the API is down. Check
   the port before debugging anything else.
 - **`succession_factor.rarity` is the star count**, 1–3. It is not a rarity tier.
+- **`single_mode_wins_saddle` has 7 `group_id`s holding more than one G1 row** — the same
+  race in different years. Deduplicating within one ancestor's wins is a no-op (no ancestor
+  holds two ids from one group); the group id matters when *matching across* two ancestors.
 - **`win_saddle_type`** is `0` for epithets requiring a set of G1 wins (Triple Crown and
   friends), `3` for a single G1, `2` for G2, `1` for G3. Race grade `100/200/300` maps to
   G1/G2/G3.
+
+## Design docs
+
+`docs/designs/` records how this project arrived at its direction, including the verified
+domain model, the two golden fixtures with expected values, and the open questions.
+Read `planner-that-shows-its-work.md` before implementing anything.
 
 ## Credits
 
 Affinity mechanics adapted from community research, in particular Crazyfellow's parenting
 and gene guide. Base inspiration rates from
 [@BourBon_Polaris](https://x.com/BourBon_Polaris/status/1952727338547814695).
+
+**[ayaliz/hakuraku](https://github.com/ayaliz/hakuraku)** (MIT), and its ancestor
+[SSHZ-ORG/hakuraku](https://github.com/SSHZ-ORG/hakuraku), are the reference implementation
+of the affinity engine and the correctness oracle this project tests against. Any ported
+code ships their `LICENSE` and copyright notice.
