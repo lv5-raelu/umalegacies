@@ -541,6 +541,9 @@ abandoned before their equivalent of M3; reaching it fast is the whole plan.
   build step, but it warns `SQLite is an experimental feature and might change at any
   time`. Opened as `new Database(path, { readonly: true, fileMustExist: true })`. CI and any
   Docker image need a build toolchain for `node-gyp`. README stays at Node 20+.
+  *Corrected in M0:* the README says 20.19+. `better-sqlite3` 12.11.1 does allow
+  20.x, so the reasoning above holds for the driver, but Vite 7 requires
+  `^20.19.0 || >=22.12.0` and sets the higher floor.
 
   **Boot validation, refuse to start dirty** (Issue 3). `master.mdb` is a single point of
   failure and a missing file, a drifted schema and a subtly wrong extraction currently all
@@ -572,6 +575,15 @@ abandoned before their equivalent of M3; reaching it fast is the whole plan.
   relation rows, 47 saddles, 7 cards, 3 rank rows), carrying a recorded `masterHash`
   constant since no hash is computable from a row slice, so the golden test runs in a clean
   clone and in CI with neither `data.json` nor `master.mdb` present. Also the `hakuraku` translation harness. **Test suite (CEO review Issues 3 and 6).**
+
+  *Superseded during M1.* The row slice was replaced by committing the whole
+  extract: `packages/api/data/master-extract.sql`, all 1,616 relation / 3,150
+  member / 181 saddle / 105 card / 3 rank / 291 name rows the app reads, 315 KB
+  of SQL text that git stores in ~31 KB. It costs ~26 KB more than the slice and
+  removes a second source of truth, since the API now *serves* from the same
+  file the tests read. The recorded `masterHash` constant went with it: the
+  extract has a real hash of its own, and `GET /master/meta` reports it
+  alongside the source `master.mdb` hash and the extraction date.
 
 *Runs in CI, from the committed slice, with no user files present:* golden fixture **5531
 (-> 447 / rank 3 / bonus 312**, the plain path with no suppressed terms); golden fixture

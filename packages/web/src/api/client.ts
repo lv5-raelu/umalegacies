@@ -2,7 +2,7 @@
  * The API base URL. The API's CORS allowlist is explicit and must contain the
  * origin this app is served from; see the README gotcha.
  */
-export const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000';
 
 /** Mirrors the API's ErrorResponse. Kept narrow until a shared types package earns its keep. */
 export interface ErrorResponse {

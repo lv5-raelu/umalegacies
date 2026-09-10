@@ -151,10 +151,6 @@ export class MasterData {
     if (!highest) throw new Error('succession_relation_rank is empty');
     return highest;
   }
-
-  get charaCount(): number {
-    return this.relationTypesByChara.size;
-  }
 }
 
 const EMPTY: ReadonlySet<number> = new Set<number>();

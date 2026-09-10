@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import Database from 'better-sqlite3';
+import { findPackageFile } from '../common/find-file';
 import { MasterData } from './master-data';
 import { MasterDbMissing } from './master.errors';
 
@@ -14,29 +14,24 @@ import { MasterDbMissing } from './master.errors';
  * subset built only for tests.
  */
 
-/**
- * Probed rather than resolved from `__dirname` or `import.meta`: this module is
- * compiled to CommonJS for NestJS and read as ESM by Vitest, and neither anchor
- * exists in both. MASTER_EXTRACT_PATH overrides.
- */
 export function findExtract(): string {
-  const candidates = [
+  const { path, tried } = findPackageFile(
     process.env.MASTER_EXTRACT_PATH,
-    resolve(__filename, '../../../data/master-extract.sql'),
-    resolve(process.cwd(), 'data/master-extract.sql'),
-    resolve(process.cwd(), 'packages/api/data/master-extract.sql'),
-  ].filter((c): c is string => typeof c === 'string');
-
-  for (const path of candidates) if (existsSync(path)) return path;
+    __filename,
+    '../../..',
+    'data/master-extract.sql',
+  );
+  if (path) return path;
   throw new MasterDbMissing(
-    candidates[0] ?? 'data/master-extract.sql',
+    tried[0] as string,
     new Error(
-      'no master extract found. Run: npm run build:master --workspace @umalegacies/api',
+      'no master extract found. Run: npm run build:master --workspace @umalegacies/api\n' +
+        `tried:\n  ${tried.join('\n  ')}`,
     ),
   );
 }
 
-export function readExtract(): string {
+function readExtract(): string {
   return readFileSync(findExtract(), 'utf8');
 }
 

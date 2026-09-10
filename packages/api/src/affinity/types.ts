@@ -6,9 +6,6 @@
  * docs/designs/planner-that-shows-its-work.md.
  */
 
-/** Derived client-side as `ruleId.split('.')[0]`. Never transmitted. */
-export type NodeKind = 'total' | 'individual' | 'link' | 'base' | 'bonus' | 'row';
-
 export type RuleId =
   | 'total.pair'
   | 'individual.member'
@@ -135,8 +132,8 @@ export const PARENT_POSITIONS = [10, 20] as const;
 export const GRANDPARENT_POSITIONS = [11, 12, 21, 22] as const;
 export const ALL_POSITIONS = [10, 20, 11, 12, 21, 22] as const;
 
-export type ParentPosition = (typeof PARENT_POSITIONS)[number];
-export type GrandparentPosition = (typeof GRANDPARENT_POSITIONS)[number];
+type ParentPosition = (typeof PARENT_POSITIONS)[number];
+type GrandparentPosition = (typeof GRANDPARENT_POSITIONS)[number];
 export type Position = (typeof ALL_POSITIONS)[number];
 
 /** Which parent each grandparent slot sits under. */

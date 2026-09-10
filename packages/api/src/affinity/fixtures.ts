@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { findPackageFile } from '../common/find-file';
 import type { ExplainRequest } from './types';
 
 /**
@@ -8,25 +8,16 @@ import type { ExplainRequest } from './types';
  * clone and in CI. The master data they run against lives in
  * master/master-extract.ts.
  */
-function findFixtureDir(): string {
-  const candidates = [
-    process.env.FIXTURE_DIR,
-    // from src/affinity (Vitest) or dist/affinity (compiled)
-    resolve(__filename, '../../../fixtures'),
-    resolve(process.cwd(), 'fixtures'),
-    resolve(process.cwd(), 'packages/api/fixtures'),
-  ].filter((c): c is string => typeof c === 'string');
-
-  for (const dir of candidates) {
-    if (existsSync(resolve(dir, '5531.json'))) return dir;
-  }
-  throw new Error(
-    `could not locate the fixtures directory. Tried:\n  ${candidates.join('\n  ')}`,
+function fixturePath(name: string): string {
+  const { path, tried } = findPackageFile(
+    process.env.FIXTURE_DIR ? `${process.env.FIXTURE_DIR}/${name}.json` : undefined,
+    __filename,
+    '../../..',
+    `fixtures/${name}.json`,
   );
+  if (path) return path;
+  throw new Error(`fixture ${name} not found. tried:\n  ${tried.join('\n  ')}`);
 }
-
-let cachedDir: string | undefined;
-const fixtureDir = (): string => (cachedDir ??= findFixtureDir());
 
 export interface Fixture {
   name: string;
@@ -37,7 +28,5 @@ export interface Fixture {
 }
 
 export function loadFixture(name: string): Fixture {
-  return JSON.parse(
-    readFileSync(resolve(fixtureDir(), `${name}.json`), 'utf8'),
-  ) as Fixture;
+  return JSON.parse(readFileSync(fixturePath(name), 'utf8')) as Fixture;
 }
