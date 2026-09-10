@@ -4,7 +4,7 @@ import type { Database } from 'better-sqlite3';
  * Every read of master.mdb the affinity rules need, loaded once into memory.
  *
  * This is a plain class over a Database rather than a Nest provider so the
- * engine can be tested against the committed fixture slice with no NestJS
+ * engine can be tested against the committed master extract with no NestJS
  * container and no 16 MB user file present.
  */
 export class MasterData {
