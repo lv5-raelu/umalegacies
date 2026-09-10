@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { explain, findSumViolations } from './engine';
-import { FIXTURE_MASTER_HASH, loadFixture, sliceMaster } from './fixtures';
+import { fixtureMasterHash, loadFixture, sliceMaster } from './fixtures';
 import type { ExplainNode, ExplainResponse } from './types';
 
 const master = sliceMaster();
 const run = (name: string): { fixture: ReturnType<typeof loadFixture>; result: ExplainResponse } => {
   const fixture = loadFixture(name);
-  return { fixture, result: explain(fixture.request, master, FIXTURE_MASTER_HASH) };
+  return { fixture, result: explain(fixture.request, master, fixtureMasterHash()) };
 };
 
 function walk(node: ExplainNode, visit: (n: ExplainNode) => void): void {

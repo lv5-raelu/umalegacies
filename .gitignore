@@ -18,7 +18,11 @@ coverage/
 # Globbed, not exact: patch-day backups (.old, .bak, dated copies) are the same
 # 16 MB of game data and the same personal save, and an exact-match rule misses
 # every one of them.
-# The game's master database. ~16 MB binary, sourced per-user.
+# The game's master database. ~16 MB binary, sourced per-user from the Steam
+# build's local files. It is the SOURCE for packages/api/data/master-extract.sql,
+# which IS committed; the app runs from that and never needs this file.
+# Kept out because 16 MB of binary that a patch rewrites wholesale would add
+# ~4.4 MB to history per game update, permanently, and delta badly.
 master.mdb*
 # A player's trained-character export. Contains that player's own save data,
 # including the trainer IDs of everyone they have borrowed from.

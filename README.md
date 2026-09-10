@@ -76,7 +76,7 @@ race 1/2/3%, other whites 3/6/9%.
 
 ## Getting started
 
-Requires Node 20.19+ and both data files placed in the repository root.
+Requires Node 20.19+. Nothing else: the master data the API needs is committed.
 (`better-sqlite3` allows 20.x, but Vite 7 requires `^20.19.0 || >=22.12.0`,
 and that is the higher floor.)
 
@@ -88,11 +88,37 @@ npm run dev:web     # http://localhost:5173
 
 Open the web app and upload your `data.json`.
 
-### Providing the data files
+### The two data files
 
-Neither file is in the repository. `master.mdb` is extracted from your game install.
-`data.json` is your own save export. Both are personal or large enough that committing
-them would be wrong, so `.gitignore` covers them explicitly.
+**`master.mdb` is not in the repository, and is not needed to run the app.**
+`packages/api/data/master-extract.sql` is, and the API serves from it by default.
+The extract holds 6 of `master.mdb`'s 416 tables and 291 of `text_data`'s 54,234
+rows: 315 KB of SQL text against a 16 MB binary, which git stores in ~31 KB.
+
+It is text rather than a `.mdb` on purpose. A game patch produces a reviewable
+line-by-line diff instead of an opaque blob, and it is *smaller in history* than
+the equivalent binary (~31 KB versus ~42 KB), because SQLite reorganises pages on
+write and consecutive extractions of the real file share only 24% of their bytes
+at the same offset.
+
+**`data.json` is yours and stays out.** It is your own save export, and it also
+carries the 12-digit trainer IDs of everyone you have borrowed an ancestor from.
+`.gitignore` covers it, and both files are globbed so patch-day backups
+(`.old`, `.bak`) are caught too.
+
+### After a game update
+
+Put the new `master.mdb` at the repository root, then:
+
+```bash
+npm run build:master   --workspace @umalegacies/api   # regenerate the extract
+npm run build:fixtures --workspace @umalegacies/api   # regenerate the fixtures
+npm test
+```
+
+If a patch moved anything the affinity rules read, the golden boot check fails
+loudly rather than quietly serving different numbers. To run the API against the
+full `master.mdb` instead of the extract, set `MASTER_DB_PATH`.
 
 ## Conventions
 

@@ -2,45 +2,36 @@ import Database from 'better-sqlite3';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MasterData } from '../master/master-data';
+import { findExtract } from '../master/master.service';
 import type { ExplainRequest } from './types';
 
 /**
- * Loads the committed master slice and fixtures. Everything here runs with
- * neither master.mdb nor data.json present, which is the point: the golden
- * tests must pass in a clean clone and in CI.
+ * Loads the committed fixtures and the committed master extract. Everything
+ * here runs with neither master.mdb nor data.json present, which is the point:
+ * the golden tests must pass in a clean clone and in CI.
  *
- * The directory is found by probing rather than by `import.meta.url` or
- * `__dirname`: this module is compiled to CommonJS for NestJS and read as
- * ESM by Vitest, and neither anchor exists in both. FIXTURE_DIR overrides.
+ * Tests read the SAME extract the server serves, so a passing test says
+ * something about the running product rather than about a bespoke subset.
  */
 function findFixtureDir(): string {
   const candidates = [
     process.env.FIXTURE_DIR,
     // from src/affinity (Vitest) or dist/affinity (compiled)
     resolve(__filename, '../../../fixtures'),
-    // from the package root, however the process was started
     resolve(process.cwd(), 'fixtures'),
     resolve(process.cwd(), 'packages/api/fixtures'),
   ].filter((c): c is string => typeof c === 'string');
 
   for (const dir of candidates) {
-    if (existsSync(resolve(dir, 'master-slice.sql'))) return dir;
+    if (existsSync(resolve(dir, '5531.json'))) return dir;
   }
   throw new Error(
-    `could not locate the fixtures directory. Tried:\n  ${candidates.join('\n  ')}\n` +
-      `Set FIXTURE_DIR to override.`,
+    `could not locate the fixtures directory. Tried:\n  ${candidates.join('\n  ')}`,
   );
 }
 
-let cached: string | undefined;
-const fixtureDir = (): string => (cached ??= findFixtureDir());
-
-/**
- * The masterHash the fixtures were extracted from. No hash is computable from
- * a row slice, so it is recorded rather than derived.
- */
-export const FIXTURE_MASTER_HASH =
-  '5f283f200c1bc5af7498929963920d0c040e60d05467e784ca210fc07db1e056';
+let cachedDir: string | undefined;
+const fixtureDir = (): string => (cachedDir ??= findFixtureDir());
 
 export interface Fixture {
   name: string;
@@ -56,13 +47,20 @@ export function loadFixture(name: string): Fixture {
   ) as Fixture;
 }
 
-/** An in-memory master.mdb stand-in built from the committed text slice. */
+/** An in-memory database built from the committed master extract. */
 export function sliceDatabase(): Database.Database {
   const db = new Database(':memory:');
-  db.exec(readFileSync(resolve(fixtureDir(), 'master-slice.sql'), 'utf8'));
+  db.exec(readFileSync(findExtract(), 'utf8'));
   return db;
 }
 
 export function sliceMaster(): MasterData {
   return new MasterData(sliceDatabase());
+}
+
+/** SHA-256 of the extract, matching what GET /master/meta reports. */
+export function fixtureMasterHash(): string {
+  // Imported lazily to keep this module free of a crypto import at load time.
+  const { createHash } = require('node:crypto') as typeof import('node:crypto');
+  return createHash('sha256').update(readFileSync(findExtract())).digest('hex');
 }
