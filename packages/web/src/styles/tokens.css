@@ -1,0 +1,43 @@
+/*
+ * Global stylesheet: design tokens and a minimal reset, nothing else.
+ * Per README, component styles live in a CSS Module beside the component.
+ *
+ * These tokens are deliberately plain. The design system (type scale, palette,
+ * spacing rhythm, the base/bonus/individual color assignment M4 needs) is a
+ * /design-consultation output and is not being invented here.
+ */
+:root {
+  --color-bg: #14151a;
+  --color-surface: #1c1e25;
+  --color-border: #2c2f38;
+  --color-text: #e8e9ed;
+  --color-text-dim: #9a9dab;
+  --color-accent: #7aa2f7;
+  --color-danger: #f7768e;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+
+  --radius: 6px;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}

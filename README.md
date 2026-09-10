@@ -76,7 +76,9 @@ race 1/2/3%, other whites 3/6/9%.
 
 ## Getting started
 
-Requires Node 20+ and both data files placed in the repository root.
+Requires Node 20.19+ and both data files placed in the repository root.
+(`better-sqlite3` allows 20.x, but Vite 7 requires `^20.19.0 || >=22.12.0`,
+and that is the higher floor.)
 
 ```bash
 npm install

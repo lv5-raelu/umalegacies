@@ -1,0 +1,67 @@
+.shell {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-3);
+}
+
+.title {
+  margin: 0 0 var(--space-1);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-dim);
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.panelTitle {
+  margin: 0 0 var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
+
+.hash {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  word-break: break-all;
+  color: var(--color-accent);
+}
+
+.rows {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-3) 0 0;
+  font-size: 0.875rem;
+}
+
+.rowName {
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+}
+
+.rowCount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.errorCode {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // NestJS is decorator-driven and its DI reads design-time type metadata,
+    // which only tsc's CommonJS + emitDecoratorMetadata path emits reliably.
+    // Vitest reads the TypeScript sources directly through esbuild, so tests
+    // never touch this output and the ESM/CJS split costs nothing.
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": false,
+    "sourceMap": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "**/*.test.ts"]
+}

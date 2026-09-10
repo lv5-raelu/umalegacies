@@ -1,0 +1,24 @@
+{
+  "name": "umalegacies",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Affinity planner for Umamusume: Pretty Derby that shows its work",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "workspaces": [
+    "packages/api",
+    "packages/web"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @umalegacies/api",
+    "dev:web": "npm run dev --workspace @umalegacies/web",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "overrides": {
+    "multer": "2.3.0"
+  }
+}
