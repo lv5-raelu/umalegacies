@@ -15,10 +15,14 @@ coverage/
 !.env.example
 
 # Game data (user-provided, large, and personal — see README)
+# Globbed, not exact: patch-day backups (.old, .bak, dated copies) are the same
+# 16 MB of game data and the same personal save, and an exact-match rule misses
+# every one of them.
 # The game's master database. ~16 MB binary, sourced per-user.
-master.mdb
-# A player's trained-character export. Contains that player's own save data.
-data.json
+master.mdb*
+# A player's trained-character export. Contains that player's own save data,
+# including the trainer IDs of everyone they have borrowed from.
+data.json*
 
 # Logs
 *.log
