@@ -9,7 +9,7 @@ import { MasterContentError } from './master.errors';
  * Schema presence (check 2) proves the tables exist; these prove the rows in
  * them still mean what the affinity rules assume.
  */
-export interface ContentCheck {
+interface ContentCheck {
   readonly name: string;
   run(db: Database): void;
 }

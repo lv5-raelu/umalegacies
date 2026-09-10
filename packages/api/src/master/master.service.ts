@@ -6,11 +6,7 @@ import Database from 'better-sqlite3';
 import { contentChecks } from './content-checks';
 import { MasterData } from './master-data';
 import { extractHeader, findExtract } from './master-extract';
-import {
-  MasterDbMissing,
-  MasterSchemaError,
-  type MasterBootError,
-} from './master.errors';
+import { MasterDbMissing, MasterSchemaError } from './master.errors';
 
 /**
  * Tables the affinity rules read. Presence is asserted at boot so a drifted
@@ -128,21 +124,8 @@ export class MasterService implements OnModuleInit {
   get data(): MasterData {
     return this.masterData;
   }
-
-  get database(): Database.Database {
-    return this.db;
-  }
-
-  /** Delegates to MasterData. See the note there: join card_data, never divide. */
-  charaIdFor(cardId: number): number | null {
-    return this.masterData.charaIdFor(cardId);
-  }
 }
 
 function sha256(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex');
-}
-
-export function isMasterBootError(e: unknown): e is MasterBootError {
-  return e instanceof Error && typeof (e as { code?: unknown }).code === 'string';
 }

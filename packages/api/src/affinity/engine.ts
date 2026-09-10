@@ -9,9 +9,7 @@ import {
   type ExplainNode,
   type ExplainRequest,
   type ExplainResponse,
-  type GrandparentPosition,
   type MasterRef,
-  type ParentPosition,
   type Position,
   type Resolution,
 } from './types';
@@ -377,6 +375,3 @@ export function findSumViolations(
   }
   return out;
 }
-
-export { LINKS, BONUS_PER_SHARED_G1 };
-export type { ParentPosition, GrandparentPosition };
