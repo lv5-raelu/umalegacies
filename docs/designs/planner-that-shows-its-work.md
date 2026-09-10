@@ -8,6 +8,14 @@ Mode: Builder
 Supersedes: `docs/designs/legacy-planner-direction-reset.md`
 (cross-session copy: `~/.gstack/projects/lv5-raelu-umalegacies/raelu-master-design-20260908-152941.md`)
 
+> **DATA REBASED 2026-09-10.** Every roster number below was recomputed after the builder
+> replaced `data.json` (the previous file was a friend's export, not theirs) and updated
+> `master.mdb` for a game patch. The patch added **+23 `succession_relation_member` rows and
+> +3 characters**; the 7 multi-id G1 groups, the rank thresholds and the two `card_id // 100`
+> exceptions all survived unchanged. Fixtures `4711`, `7149` and `8361` no longer exist and
+> have been replaced. Any number in this document not carrying the 2026-09-10 date should be
+> treated as unverified.
+
 ## Problem Statement
 
 Umamusume shows legacy compatibility as a ◎/〇/△ icon. That icon is the **pair total**
@@ -121,8 +129,9 @@ licensed; `IvoryTower48/Uma-affinity-optimizer` is recent but AGPL-3.0.
    and any earlier statement of a never-persist rule was the reviewer's, not the builder's.
 4. **README goal 3 predates all analysis:** *"Show the reasoning, not just a verdict. Every
    number is traceable back to the relations and race wins that produced it."*
-5. **Borrowed ancestors are not a blocker.** Measured on the real `data.json`: 499 of 1556
-   ancestor slots (32%) and 114 of 520 parent slots (22%) are borrowed
+5. **Borrowed ancestors are not a blocker, and they dominate.** Measured 2026-09-10 on the
+   builder's own `data.json`: **816 of 1554 ancestor slots (53%)** and **192 of 518 parent
+   slots (37%)** are borrowed
    (`owner_viewer_id != 0`). Every ancestor entry carries its own `factor_info_array` and
    `win_saddle_id_array` inline, so **no roster lookup is required** to score one. Ancestors
    carry no `trained_chara_id` at all — only `card_id`.
@@ -138,7 +147,7 @@ here on the grounds in premise 3, not on a rediscovered gap.
 ## Domain Model Corrections
 
 Five errors found in review. Four would have shipped as bugs. The fourth (`card_id`) is
-future-proofing: zero of the 52 distinct `card_id`s in this `data.json` are affected, so it
+future-proofing: zero of the 62 distinct `card_id`s in this `data.json` are affected, so it
 is a trap avoided rather than a bug caught.
 
 1. **Seven base affinities, five bonus affinities — not seven of each.** Bonus affinity is
@@ -164,9 +173,11 @@ Names come from `text_data` where `category = 6`; its key column is literally na
 WHERE category = 6 AND "index" = ?`). Win-saddle names are `category = 111` (184 rows, keyed by `single_mode_wins_saddle.id`, and they are epithets like `Classic Triple Crown` rather than race names). The ◎ threshold is
 `succession_relation_rank.rank_value_min = 151`.
 
-5. **One lineage in the roster has no grandparents.** `trained_chara_id 8361`
-   (`succession_num: 0`) carries only `position_id` 10 and 20. 259 of 260 are complete. Any
-   required 4-tuple of grandparents fails on it.
+5. **Incomplete lineages exist but are not in this roster.** The friend's export had one
+   (`8361`); the builder's real roster has **zero** — all 259 entries are six-member
+   complete. The nullable grandparent tuple stays (the game permits it) but it now has **no
+   natural test case**, so `base.absent_ancestor` needs a synthetic fixture. Do not detect
+   it via `succession_num`, which is 0 on lineages that are complete.
 
 ## Approaches Considered
 
@@ -186,6 +197,9 @@ WHERE category = 6 AND "index" = ?`). Win-saddle names are `category = 111` (184
 **B**, with the provenance spine first. The keystone is a type, not a screen:
 
 ```ts
+// NodeKind is DERIVED, not transmitted: ruleId.split('.')[0]. Eng review Issue 4 removed
+// `kind` and `ruleText` from the wire type — both were derivable from ruleId and could
+// disagree with it, on tens of thousands of nodes.
 type NodeKind = 'total' | 'individual' | 'link' | 'base' | 'bonus' | 'row';
 
 interface Citation { label: string; url?: string; quote?: string }  // link out, quote inline, or both
@@ -203,12 +217,18 @@ type RuleId =
   | 'row.relation' | 'row.saddle'
   | 'base.absent_ancestor' | 'bonus.absent_ancestor';
 
+type Resolution =
+  | { ok: true }
+  | { ok: false;
+      reason: 'unknown_chara' | 'unknown_card' | 'unknown_saddle' | 'no_relation_rows';
+      id: number };
+
 interface ExplainNode {
-  kind: NodeKind;
+  ruleId: RuleId;                // THE single discriminant. kind and display text derive
+                                 // from it client-side (RULE_TEXT[ruleId]), so they cannot
+                                 // drift out of sync with the rule they describe.
   label: string;                 // "Trainee <-> Parent A", "Kanto region", "Yasuda Kinen"
   value: number;
-  ruleId: RuleId;                // stable, localizable key; see union below
-  ruleText: string;              // human-readable, localizable off ruleId
   citation?: Citation;
   sources: MasterRef[];
   children: ExplainNode[];       // INVARIANT: value === sum(children.value) when non-empty
@@ -216,16 +236,17 @@ interface ExplainNode {
   // CEO review Issue 1: a 0 from "they share nothing" and a 0 from "I could not
   // resolve this id" must never look alike. This product's whole claim is that a
   // number opens; an unexplained 0 opening onto an empty drawer inverts it.
-  resolution:
-    | { ok: true }
-    | { ok: false;
-        reason: 'unknown_chara' | 'unknown_card' | 'unknown_saddle' | 'no_relation_rows';
-        id: number };
+  // Optional (eng review Issue 4): only leaf lookups can fail to resolve. Absent
+  // means "no lookup happened here", which is not the same as ok:true.
+  resolution?: Resolution;
 }
 
 interface AncestorRef {
   cardId: number;                // ancestors carry card_id only, never trained_chara_id
-  winSaddleIds: number[];        // inline on the ancestor; matched by RAW id, see below
+  winSaddleIds: number[];        // MATCH ON THESE RAW IDS. Do NOT normalise to group_id:
+                                 // the same race at a different racecourse is a DIFFERENT
+                                 // win (JBC Classic, Takarazuka Kinen). group_id looks like
+                                 // a matching key and is not. Verified 2026-09-10.
 }
 
 interface ExplainRequest {
@@ -253,42 +274,85 @@ interface ExplainResponse {
 interface ErrorResponse { code: string; message: string; field?: string }  // README: 400, never 500
 ```
 
-**G1 matching rule: group-normalised. SETTLED by domain knowledge 2026-09-09.** `master.mdb`
-records some G1s under several saddle ids sharing a `group_id` (7 such groups; Satsuki Sho is
-both 18 and 155). Two readings are possible and they are not decidable from `master.mdb`,
-`data.json`, or `hakuraku`:
+**G1 matching rule: RAW saddle id. VERIFIED EMPIRICALLY 2026-09-10 against
+`breeding-optimizer`.** Two ancestors share a G1 only if the **same
+`single_mode_wins_saddle.id`** appears on both. `group_id` is **not** a matching key.
 
-- **raw ids** — ancestors share a G1 only if the same saddle id appears on both. **WRONG.**
-- **group-normalised** — map to `group_id` first, so 18 and 155 count as one race. **CHOSEN.**
+`master.mdb` records some races under several ids sharing a `group_id`, differing by
+racecourse (7 such groups). Those are **different wins**: JBC Classic at one host track and
+JBC Classic at another do not count as shared. The builder confirmed in game that JBC
+Classic genuinely runs at different racecourses.
 
-**The builder settled it:** *"umas that win the same G1 count towards the +3 bonus affinity
-rule, regardless of the year the race was won."* Some races run twice in a career (Arima
-Kinen, Takarazuka Kinen), and the data matches that exactly — every `group_id` holding more
-than one G1 saddle id holds **the same named race**:
+**How it was verified.** Trainee Special Week; parents the builder's Inari One
+(`rank_score 18911`) and Tamamo Cross (`rank_score 23400`). Inari One is the rare veteran
+whose *both* grandparents diverge between the two readings, giving two independent
+discriminators plus two controls on one screen:
 
-```
-group 17  18 = Satsuki Sho         | 155 = Satsuki Sho
-group 18  13 = Tenno Sho (Spring)  | 153 = Tenno Sho (Spring)
-group 24  14 = Takarazuka Kinen    | 147 = Takarazuka Kinen
-group 28  16 = Kikuka Sho          | 148 = Kikuka Sho
-group 41  39 = JBC L. Classic      | 156, 159, 162 = JBC L. Classic
-group 42  37 = JBC Sprint          | 157, 160, 163 = JBC Sprint
-group 43  31 = JBC Classic         | 158, 161, 164 = JBC Classic
-```
+| grandparent | raw predicts | group predicts | reported |
+|---|---|---|---|
+| Inari One -> Gold Ship | **79** | 82 | **79** |
+| Inari One -> Oguri Cap | **76** | 79 | **76** |
+| Tamamo Cross -> Nishino Flower | 15 | 15 | **15** |
+| Tamamo Cross -> Taiki Shuttle | 17 | 17 | **17** |
 
-Multiple ids are the same race won in different years. Matching on raw ids therefore misses a
-genuinely shared G1 whenever two ancestors won it in different years.
+`breeding-optimizer` selected raw on both discriminators and matched on both controls.
+`hakuraku` agrees, though its agreement carries no information — its
+`countSharedG1RaceWins` intersects raw ids by construction, so it could not have said
+anything else.
 
-**This means `hakuraku` is wrong here**, and the port must deliberately diverge from its
-oracle. Measured: the two readings differ on **344 of 1295 bonus links** and change
-`pairTotal` on **161 of 259 lineages**, by +3 to +15. Fixture 4711 scores 135 bonus under
-both, so it cannot detect this; **fixture 7149 exists to**.
+**Three positions were wrong before this test, and the record matters more than the
+result.** README's original rule (deduplicate within one ancestor's wins on `group_id`) is
+dead code that fires zero times. This document then claimed multiple ids meant the same race
+in *different years* — falsified by Arima Kinen having one id while Classic-only Satsuki Sho
+has two. Re-framed as venue variants, the builder and this document concluded twice from
+memory that the race *name* was the identity. **The empirical test was available the entire
+time and settled it in one message.** Ask the tools before asking anyone to remember.
 
-**README's stated dedupe rule is dead code.** README says to deduplicate on `group_id`
-because "the master data ships several rows for the same race." Measured: **zero** ancestor
-slots hold two type-3 saddles from one group. Dedupe-after-selection never fires. README
-should be corrected; it describes a problem this data does not have and hides the real
-ambiguity above.
+**Consequence: there are now ZERO deliberate divergences from the oracle.** `hakuraku` is
+correct on G1 matching and correct on the self-link rule. The translation harness becomes a
+straight equivalence test rather than a differential one, and an earlier draft's claim that
+"hakuraku is wrong here" is withdrawn.
+
+**Still worth encoding as a gotcha:** `group_id` looks like a matching key and is not.
+Anyone reading `single_mode_wins_saddle` will find seven groups holding the same race name
+under several ids and reach for normalisation. Comment the intersection to say why it does
+not.
+
+**Self-link rule: a grandparent that IS the trainee loses its BASE term only. VERIFIED
+2026-09-10 against two independent implementations.** When a grandparent's `chara_id` equals
+the trainee's, the three-way base term for that parent-grandparent link is **0**; the G1
+**bonus term survives intact**. `hakuraku` is correct here — `calculateGrandparentAffinity`
+empties the grandparent's relation set, which zeroes base and leaves bonus alone.
+
+**How it was verified — the project's first external validation.** The builder read four
+Individual Affinity values off `hakuraku` and `breeding-optimizer` for a Gold Ship trainee
+with their Mejiro Dober (`rank_score 18998`) and Narita Brian (`rank_score 17666`) as
+parents. Both parents carry a Gold Ship grandparent (the self-link case) and an Inari One
+grandparent (the control):
+
+| grandparent | our base | our bonus | no zeroing | base zeroed | whole zeroed | reported |
+|---|---|---|---|---|---|---|
+| Dober's Inari One | 15 | 36 | **51** | 51 | 51 | **51** |
+| Brian's Inari One | 24 | 51 | **75** | 75 | 75 | **75** |
+| Dober's Gold Ship | 15 | 33 | 48 | **33** | 0 | **33** |
+| Brian's Gold Ship | 35 | 48 | 83 | **48** | 0 | **48** |
+
+Four for four. The controls confirm the base and bonus arithmetic against outside
+implementations; the self-links discriminate all three readings and select base-only.
+
+**Two earlier positions were wrong and are recorded as such:** the builder's recollection
+that "their affinity becomes 0", and this document's assumption that the whole link zeroes.
+The 33 and 48 visible in game *are* the surviving bonus.
+
+**There are therefore ZERO deliberate divergences from the oracle.** An earlier draft
+claimed two, then one. `hakuraku` is correct on both rules.
+
+Measured on the real roster 2026-09-10: the rule changes `pairTotal` on **66 of 259
+lineages (25%)**, by **13 to 65 points, median 24**, and flips the icon rank on 2.
+
+**Caveat on what this validation did NOT settle:** bonus is identical under group and raw
+matching for all four pairs above (36/36, 33/33, 51/51, 48/48), so this test does not
+exercise the G1 rule. That one still rests on the builder's play knowledge alone.
 
 **Resolution rules.** An id the *caller supplied* and the server cannot resolve is a `400`
 naming the offending id, per README's validate-at-the-boundary convention. An id found
@@ -303,9 +367,9 @@ the third.
 **A null grandparent** kills both a base and a bonus term, so it contributes *two* zero
 nodes (`base.absent_ancestor`, `bonus.absent_ancestor`) and the invariant holds.
 `individualAffinity` still emits keys 11/12/21/22 with value 0 rather than omitting them, so
-box browse can render a uniform six-slot tree. `trained_chara_id 8361` is the one roster
-lineage this applies to; it is detected by `succession_chara_array` position coverage, **not**
-by `succession_num`, which is 0 on 135 of 260 entries including the complete fixture 4711.
+box browse can render a uniform six-slot tree. No lineage in the current roster needs it, so
+it is guarded by a synthetic fixture only. Detect an absent ancestor by
+`succession_chara_array` position coverage, **never** by `succession_num`.
 
 **`pairTotal` and `individualAffinity` reconcile exactly, and the identity is a required M1
 assertion.** Every link is counted by both of its endpoints except the two trainee-parent
@@ -321,65 +385,82 @@ cheapest correctness check in the design and it needs no oracle. (An earlier dra
 document told the implementer *not* to cross-check them, on the strength of noticing
 606 != 337 and stopping there.)
 
-**Routes.** `GET /master/meta -> { masterHash, extractedAt }` (M0; how a client obtains the
-hash *before* issuing a request, since the response also returns it), `POST /affinity/explain` (M1), `POST /roster/resolve` (M3), and a
-batch explain for box browse (M3). **Size it before building it:** one `pairTotal`
-tree averages ~120 leaf rows and `individualAffinity` re-emits most of them, so 260 lineages
-is roughly **62,500 leaf nodes** — tens of MB on M3's opening screen. The type has no
-interning, no sources-by-reference and no lazy expansion. Return summaries and explain on
-demand, or add one of those three.
+**Routes.** `GET /master/meta -> { masterHash, extractedAt, bootChecks }` (M0; how a client
+obtains the hash *before* issuing a request, since the response also returns it), `POST /affinity/explain` (M1), `POST /roster/resolve` (M3), and a
+and **`GET /roster/summary` (M3)** — eng review Issue 6.
 
-### The golden fixture
+**Box browse asks for summaries, not trees.** A full batch explain over 260 lineages is
+tens of thousands of leaf nodes and tens of MB on the opening screen of the first release
+anyone can use. **Note the earlier 62,500 estimate double-counted:** roughly half of it was
+`individualAffinity` re-nesting subtrees `pairTotal` already contains. That doubling still
+applies to every single-lineage drill-down, so having `individualAffinity` reference node ids
+rather than re-nest is a second, independent win worth taking. `GET /roster/summary` returns one row per lineage — trainee name and
+`card_id`, `pairTotal`, `relationRank`, and the six `individualAffinity` numbers — with no
+nodes and no `sources`. Clicking a row calls `POST /affinity/explain` for that one lineage.
+Provenance is a drill-down, not a list view, and this is what the access pattern actually
+is.
 
-`trained_chara_id 4711` — Gold Ship (`card_id 100701`, `chara_id 1007`) — the first complete
-six-member tree in `data.json` containing Narita Brian:
+### The golden fixtures (rebased 2026-09-10 on the builder's real roster)
 
-| pos | card_id | chara_id | name | borrowed | win saddles | factors |
-|---|---|---|---|---|---|---|
-| 10 | 101502 | 1015 | T.M. Opera O | no | 35 | 11 |
-| 11 | 106801 | 1068 | Kitasan Black | **yes** | 16 | 8 |
-| 12 | 102401 | 1024 | Mayano Top Gun | no | 19 | 10 |
-| 20 | 101601 | 1016 | Narita Brian | **yes** | 18 | 12 |
-| 21 | 101401 | 1014 | El Condor Pasa | **yes** | 14 | 9 |
-| 22 | 101701 | 1017 | Symboli Rudolf | **yes** | 5 | 8 |
+Two, and between them they guard both disputed rules. `4711`, `7149` and `8361` are gone —
+they lived in a friend's export.
 
-Four borrowed ancestors makes it a better fixture than an all-owned tree.
+**Fixture A — `trained_chara_id 5531`, Gold Ship (chara 1007, card 100701).** No self-link,
+so it exercises the plain path: 7 base terms and 5 bonus terms, nothing suppressed.
 
-**Expected values, computed independently twice against this `master.mdb`:**
-
-```
-base    T-10 33   T-20 35   10-20 31   10-11 30   10-12 31   20-21 15   20-22 27   = 202
-bonus             10-20 36   10-11 30   10-12 33   20-21 24   20-22 12             = 135
-pairTotal 337     relationRank 3 (rank_value_min 151)
-
-individualAffinity  { 10: 224, 20: 180, 11: 60, 12: 64, 21: 39, 22: 39 }
-```
-
-### Second fixture: 7149, the one that distinguishes the G1 readings
-
-`trained_chara_id 7149` — Agnes Digital (`chara_id 1019`, `card_id 101901`). All six
-ancestors owned, and it is a **loop** lineage: three umas filling six slots.
-
-| pos | chara | name |
-|---|---|---|
-| 10 | 1014 | El Condor Pasa |
-| 11 | 1006 | Oguri Cap |
-| 12 | 1040 | Gold City |
-| 20 | 1006 | Oguri Cap |
-| 21 | 1040 | Gold City |
-| 22 | 1014 | El Condor Pasa |
+| pos | card | chara | name | borrowed |
+|---|---|---|---|---|
+| 10 | 101401 | 1014 | El Condor Pasa | no |
+| 11 | 103401 | 1034 | Inari One | no |
+| 12 | 100601 | 1006 | Oguri Cap | **yes** |
+| 20 | 103401 | 1034 | Inari One | no |
+| 21 | 101401 | 1014 | El Condor Pasa | no |
+| 22 | 100601 | 1006 | Oguri Cap | no |
 
 ```
-base                     172
-bonus  group-normalised  288        raw (hakuraku)  273
-pairTotal                460 rank 3        raw       445 rank 3   <- rank does NOT flip
-individualAffinity       { 10:288, 20:259, 11:86, 12:82, 21:68, 22:74 }
-identity                 857 === 2*460 - 33 - 30   OK
+base   T-10 19  T-20 35  10-20 18  10-11 15  10-12 16  20-21 15  20-22 17   = 135
+bonus           10-20 63  10-11 63  10-12 60  20-21 63  20-22 63            = 312
+pairTotal 447   relationRank 3
+individualAffinity  { 10:254, 20:274, 11:78, 12:76, 21:78, 22:80 }
+identity            840 === 2*447 - 19 - 35
 ```
 
-All five bonus links differ, every one of them **JBC Classic** won in different years. The
-icon rank is 3 under both readings, which is precisely why a wrong rule here would ship
-unnoticed while Individual Affinity ran 15 points light.
+**Fixture B — `trained_chara_id 5774`, Oguri Cap (chara 1006, card 100601).** Positions 12
+and 22 are **both Oguri Cap, the trainee itself**, so it is the **self-link rule guard**.
+
+| pos | card | chara | name | borrowed | |
+|---|---|---|---|---|---|
+| 10 | 101401 | 1014 | El Condor Pasa | no | |
+| 11 | 103401 | 1034 | Inari One | no | |
+| 12 | 100601 | 1006 | Oguri Cap | **yes** | **SELF** |
+| 20 | 103401 | 1034 | Inari One | no | |
+| 21 | 101401 | 1014 | El Condor Pasa | no | |
+| 22 | 100601 | 1006 | Oguri Cap | no | **SELF** |
+
+```
+base   T-10 24  T-20 26  10-20 18  10-11 15  10-12 0  20-21 15  20-22 0     = 98
+bonus           10-20 63  10-11 63  10-12 60  20-21 63  20-22 63            = 312
+                                    ^^^^^^^^ bonus SURVIVES on a self-link
+pairTotal 410   relationRank 3        (without the self-link rule: 443)
+individualAffinity  { 10:243, 20:248, 11:78, 12:60, 21:78, 22:63 }
+identity            770 === 2*410 - 24 - 26
+```
+
+**The signature of the self-link rule is `base['10-12'] === 0` and `base['20-22'] === 0`
+with their bonus terms non-zero.** Drop the rule and `pairTotal` goes to 443. Zero the whole
+link instead — a mistake an earlier draft made — and it drops further.
+
+**Coverage gaps needing synthetic fixtures**, since no roster lineage reaches them:
+
+- **A `group_id` regression guard.** Raw matching is correct, so build a synthetic pair where
+  one ancestor holds saddle 18 (Satsuki Sho, Nakayama) and the other holds 155 (Satsuki Sho,
+  Tokyo). Correct behaviour is **no shared G1, bonus 0**. Anyone who "helpfully" normalises to
+  `group_id` breaks this test immediately.
+- **Absent ancestors.** The real roster has **zero** incomplete lineages, so
+  `base.absent_ancestor` / `bonus.absent_ancestor` have no natural test case at all.
+
+The committed slice must carry rows for both fixtures plus the synthetic ones. It is no
+longer sized for one lineage.
 
 ### Correctness oracle, with its caveats
 
@@ -391,34 +472,41 @@ false failures at M1:
   `master.mdb`. The same objection that demotes `breeding-optimizer` to a secondary check
   applies to it.
 - **It derives `chara_id` as `Math.floor(card_id / 100)`** — the thing Correction 4 says not
-  to do. Harmless on this data (0 of 52 card_ids affected), but it means the oracle and this
+  to do. Harmless on this data (0 of 62 card_ids affected), but it means the oracle and this
   implementation can diverge on a card neither has seen.
 - **It does not dedupe G1s on `group_id`;** it uses a race-instance-ID range heuristic
-  because the bundled snapshot omits grade fields. Both rules select the same 47 saddles
-  here and never differ across the roster's 1296 bonus links, but 7 `group_id`s do contain
-  multiple `win_saddle_type = 3` rows, so the divergence is latent rather than impossible.
+  because the bundled snapshot omits grade fields. Both rules select the same 47 saddles,
+  and both intersect on raw ids, which is the verified-correct rule. Its selection heuristic
+  and this project's `win_saddle_type = 3` filter pick the same 47 saddles, so the two agree
+  on both selection and matching.
 - **Incompatible signature.** It takes full `Veteran` records and reads a parent's own
   `succession_chara_array` for the race bonus; `ExplainRequest` passes flat `AncestorRef`s. A
   translation harness is needed and is part of M1's scope.
-- **Undocumented quirk to replicate:** when `gpCharaId === targetCharaId` it treats that
-  grandparent's relations as empty. This is not rare: **84 of 259 lineages (32%)** have at
-  least one grandparent sharing the trainee's `chara_id`, so on roughly a third of the box
-  "we agree with hakuraku" partly means "we copied it correctly." Say so rather than calling
-  it independent verification.
-- **The G1 matching rule is a deliberate divergence.** `hakuraku` matches raw saddle ids and
-  is wrong (see Recommended Approach). The harness must **expect** disagreement on exactly
-  the links where an ancestor pair's shared G1 sits in one of the 7 multi-id groups, and
-  assert agreement everywhere else. That is a stronger test than blanket agreement was: a
-  divergence anywhere else is a real bug in the port.
+- **The `gpCharaId === targetCharaId` behaviour is CORRECT, not a quirk to tolerate.**
+  Verified 2026-09-10 against `hakuraku` AND `breeding-optimizer` on four Individual Affinity
+  values (see the self-link rule above): the base term zeroes, the bonus survives, and both
+  agree with this engine to the point. It affects **66 of 259 lineages (25%)**. Replicate it
+  deliberately. Agreement here is genuine rather than circular, because two independent
+  implementations were checked.
+- **The G1 matching rule is NOT a divergence.** `hakuraku` matches raw saddle ids and is
+  correct — verified empirically 2026-09-10 (see Recommended Approach). The harness is a
+  straight equivalence test: any disagreement anywhere is a bug in the port.
 
 **How to actually call the oracle**, since `hakuraku` has no pair-total function and no rank
 bucketing at all:
 
 ```
-calculateAffinity(p1, T) 157 + calculateAffinity(p2, T) 113 + calculatePairAffinity(p1, p2) 67 = 337
+calculateAffinity(p1, T) + calculateAffinity(p2, T) + calculatePairAffinity(p1, p2) = pairTotal
 ```
 
 `relationRank` has no oracle beyond `master.mdb` itself.
+
+**A cheaper oracle exists and should be used first.** Both `hakuraku` and
+`breeding-optimizer` display **per-grandparent Individual Affinity** in their UI. Reading
+four numbers off a screen validated this engine's base and bonus arithmetic and settled the
+self-link rule in one pass — no harness, no ESM boundary, no hand-populated singleton. Do
+that before building the translation harness. The harness is for breadth, not first
+contact.
 
 **M1 passes when** this implementation and `hakuraku` agree *given the same relation and
 saddle tables extracted from this `master.mdb`*, and the fixture matches the golden numbers
@@ -433,11 +521,41 @@ post-success and optional, ordered by appetite rather than need** — each re-im
 required for this project to have succeeded. The graveyard in Prior Art is full of projects
 abandoned before their equivalent of M3; reaching it fast is the whole plan.
 
-- **M0 — Scaffold.** npm workspaces, NestJS bootstrap, Vite web app, read-only `master.mdb`
-  loading, `GET /master/meta`, the `card_data` join, the CORS allowlist README warns about,
-  and the `ErrorResponse` shape. No features.
-- **M1 — The spine.** `POST /affinity/explain` and the `ExplainNode` tree for fixture 4711.
-  **Deliverables include a committed `fixtures/4711.json`** (the six `AncestorRef`s — public
+- **M0 — Scaffold.** npm workspaces, NestJS bootstrap, Vite web app, the `card_data` join
+  via a single `charaIdFor()`, the CORS allowlist README warns about, and the
+  `ErrorResponse` shape. No features. Three decisions from the eng review land here:
+
+  **SQLite driver: `better-sqlite3`, pinned** (Issue 2). Mature, synchronous, and the
+  correctness of every number in the product sits on this layer, which is not where to
+  spend an innovation token. `node:sqlite` exists on Node 22.5+ and would remove the native
+  build step, but it warns `SQLite is an experimental feature and might change at any
+  time`. Opened as `new Database(path, { readonly: true, fileMustExist: true })`. CI and any
+  Docker image need a build toolchain for `node-gyp`. README stays at Node 20+.
+
+  **Boot validation, refuse to start dirty** (Issue 3). `master.mdb` is a single point of
+  failure and a missing file, a drifted schema and a subtly wrong extraction currently all
+  present as 500s on every endpoint. `MasterService.onModuleInit()` runs four checks and
+  fails startup with a distinct named error:
+
+  ```
+  1. open ro, fileMustExist                    -> MasterDbMissing
+  2. assert 6 tables present: succession_relation, _member, _rank,
+     single_mode_wins_saddle, card_data, text_data
+                                               -> MasterSchemaError(<table>)
+  3. run fixture 5774 in-process, assert 410   -> MasterContentError
+     (5774 guards BOTH disputed rules; 5531 alone would miss the self-link rule)
+  4. compute and cache masterHash              -> exposed on GET /master/meta
+  ```
+
+  **Test runner: Vitest, both workspaces** (Issue 5). ESM-native, so the `hakuraku` port
+  does not hit a CommonJS boundary — hakuraku is `"type": "module"` on `yarn@4.12.0` while
+  Jest defaults to CJS. Shares config with the Vite package. The cost is diverging from
+  NestJS docs, which assume Jest; acceptable because these tests are plain functions
+  against fixtures rather than Nest testing-module setups.
+- **M1 — The spine.** `POST /affinity/explain` and the `ExplainNode` tree for fixtures 5531
+  and 5774.
+  **Deliverables include committed `fixtures/5531.json` and `fixtures/5774.json`** plus the
+  synthetic latent-group and absent-ancestor fixtures (the six `AncestorRef`s each — public
   game ids only, `owner_viewer_id` stripped) **and a committed slice of the needed
   `succession_relation`, `succession_relation_member`, `single_mode_wins_saddle`,
   `card_data`, `succession_relation_rank` and `text_data` rows** (~350 member rows, 251
@@ -445,10 +563,13 @@ abandoned before their equivalent of M3; reaching it fast is the whole plan.
   constant since no hash is computable from a row slice, so the golden test runs in a clean
   clone and in CI with neither `data.json` nor `master.mdb` present. Also the `hakuraku` translation harness. **Test suite (CEO review Issues 3 and 6).**
 
-*Runs in CI, from the committed slice, with no user files present:* golden fixture 4711
-(-> 337 / rank 3 / all twelve link terms); **golden fixture 7149 (-> 460 / rank 3 / bonus
-288), which fails under raw-id matching and is the only test that can catch a regression to
-`hakuraku`'s rule**; lineage `8361` producing
+*Runs in CI, from the committed slice, with no user files present:* golden fixture **5531
+(-> 447 / rank 3 / bonus 312**, the plain path with no suppressed terms); golden fixture
+**5774 (-> 410 / rank 3**, whose zeroed BASE terms at links 10-12 and 20-22 with their bonus
+terms intact are the self-link rule's signature; 443 without the rule, lower still if the whole link
+is wrongly zeroed) — 5774 guards the self-link rule; synthetic fixtures for the `group_id`
+regression guard and
+for an absent ancestor, since no roster lineage reaches either; a synthetic lineage producing
 `base.absent_ancestor` / `bonus.absent_ancestor` zero nodes; the unresolved-id cases emitting
 `resolution.ok === false` rather than a bare `0`.
 
@@ -485,7 +606,7 @@ raise them exist.
   Affinity, formula.
 - **M6 — The permalink.** *Non-goal until somebody asks to share a link.* Ancestors have no
   stable public id, so the URL must encode the whole lineage: 6 x (`card_id` +
-  `win_saddle_id_array`, observed max 53 ids) plus `traineeCharaId` and a payload version. That is a
+  `win_saddle_id_array`, observed max 45 ids) plus `traineeCharaId` and a payload version. That is a
   versioned codec, and **a shared link embeds save-derived data**, which no server-side
   policy can cover because the sharing happens outside the server. Say so next to the share
   button whatever the data-handling decision turns out to be.
@@ -501,8 +622,8 @@ raise them exist.
    run from parse-and-discard, through a short-lived cache keyed by content hash, to storing
    resolved rosters against accounts. This is a real product decision with real upside
    (returning users skip re-upload; a corpus becomes possible) and it is the builder's call.
-   It gains weight from a measured fact: a real `data.json` carries **94 distinct 12-digit
-   `owner_viewer_id` values across 499 borrowed ancestor slots** — other trainers' IDs, in
+   It gains weight from a measured fact: the builder's own `data.json` carries **183 distinct
+   12-digit `owner_viewer_id` values across 816 borrowed ancestor slots** (2026-09-10) — other trainers' IDs, in
    the same ID space uma.moe resolves people by. Whatever is decided applies to those too.
 4. Does the corpus idea (Approach C) return later, and does publishing save-derived records
    clear privacy and ToS?
@@ -517,10 +638,10 @@ raise them exist.
 
 ## Success Criteria
 
-- **M1 passes when** fixture 4711 produces `pairTotal 337`, `relationRank 3`, and
-  `individualAffinity {10:224, 20:180, 11:60, 12:64, 21:39, 22:39}` (see the golden fixture),
-  every leaf cites a natural key plus `relation_point`, and the committed slice makes that
-  test runnable without either user file.
+- **M1 passes when** fixture 5531 produces `pairTotal 447` / `individualAffinity
+  {10:254, 20:274, 11:78, 12:76, 21:78, 22:80}` and fixture 5774 produces `pairTotal 410` /
+  `{10:243, 20:248, 11:78, 12:60, 21:78, 22:63}`, every leaf cites a natural key plus
+  `relation_point`, and the committed slice makes both runnable without either user file.
 - **M3 passes when** the builder can upload their own `data.json` and open any of their 260
   lineages.
 - **The project succeeds when** the builder opens this tool at least once during a real
@@ -545,8 +666,9 @@ Hosted web app with the NestJS API.
 - **Drift canary (CEO review Issue 4).** A bad `master.mdb` extraction, or a game patch that
   renumbers ids, produces *silently wrong answers* rather than errors — and a provenance
   drawer makes a wrong number look more trustworthy, not less. The golden fixture is the
-  detector and it already exists: run `explain(4711)` post-deploy and on a schedule, assert
-  `pairTotal === 337` and `relationRank === 3`, and record `masterHash` from
+  detector and it already exists: run `explain(5774)` post-deploy and on a schedule, assert
+  `pairTotal === 410` and `relationRank === 3` (5774 is the right canary because it exercises
+  both disputed rules; a fixture that exercises neither cannot detect a regression in either), and record `masterHash` from
   `GET /master/meta`. Emit `unresolved_nodes_total` as the drift metric; it spikes when ids
   move. Alert on either. **Rollback is redeploying the prior `master.mdb` artifact**, which
   requires deciding now whether the file ships inside the image or is mounted at runtime —
@@ -563,7 +685,7 @@ tested against, and it is the answer to "is my engine right" that this project o
 has no way to get. Reading it first is the difference between M1 taking an evening and
 taking a weekend.
 
-Then M0, then M1 against fixture 4711.
+Then M0, then M1 against fixtures 5531 and 5774.
 
 ## Reviewer Concerns
 

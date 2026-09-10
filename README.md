@@ -57,13 +57,13 @@ variables — seven Base Affinities and five Bonus Affinities.
   Trainee↔parent and parent↔parent are two-way. Parent↔grandparent is three-way: the
   trainee, the parent and the grandparent must *all* share the relation.
 - **Bonus Affinity** comes from overlapping G1 wins. Each shared G1 is worth +3 to both
-  members. **Match on the win saddle's `group_id`, not its `id`.** Some races run twice in
-  a career (Takarazuka Kinen, Arima Kinen), and `master.mdb` stores the same race under a
-  different `single_mode_wins_saddle.id` per year while keeping one `group_id` — Takarazuka
-  Kinen is both `14` and `147`. Two ancestors who won it in different years still share it,
-  so map ids to `group_id` *before* intersecting. Comparing raw ids silently misses those
-  shares: measured against a real roster it under-counts 344 of 1295 bonus links and changes
-  the total on 161 of 259 lineages, by up to +15.
+  members. **Match on the raw `single_mode_wins_saddle.id`. Do NOT normalise to `group_id`.**
+  Some races are stored under several ids sharing one `group_id`, differing by racecourse —
+  Takarazuka Kinen is `14` at Hanshin and `147` at Kyoto, JBC Classic has four. Those are
+  **different wins** and do not count as shared. Verified 2026-09-10 against
+  `breeding-optimizer` on a lineage where the two readings predicted different per-grandparent
+  Individual Affinity; it reported the raw-id values on both discriminators and matched on
+  both controls.
 - **Individual Affinity** is the sum of the links feeding one member: four links for a
   parent, one for a grandparent. This is the number that drives spark rates.
 
@@ -121,9 +121,12 @@ from the code. Where a line encodes a non-obvious game rule, say which rule and 
   every request fails with a bare `Failed to fetch` that looks like the API is down. Check
   the port before debugging anything else.
 - **`succession_factor.rarity` is the star count**, 1–3. It is not a rarity tier.
-- **`single_mode_wins_saddle` has 7 `group_id`s holding more than one G1 row** — the same
-  race in different years. Deduplicating within one ancestor's wins is a no-op (no ancestor
-  holds two ids from one group); the group id matters when *matching across* two ancestors.
+- **`group_id` looks like a matching key and is not.** `single_mode_wins_saddle` has 7
+  `group_id`s holding more than one G1 row — the same race at a different racecourse (not a
+  different year: Arima Kinen runs twice per career and has one id, while Classic-only
+  Satsuki Sho has two). Those are different wins. Deduplicating within one ancestor's wins is
+  also a no-op — no ancestor holds two ids from one group. `group_id` is useful for grouping
+  in a UI and for nothing in the affinity math.
 - **`win_saddle_type`** is `0` for epithets requiring a set of G1 wins (Triple Crown and
   friends), `3` for a single G1, `2` for G2, `1` for G3. Race grade `100/200/300` maps to
   G1/G2/G3.
