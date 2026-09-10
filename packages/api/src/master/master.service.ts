@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import Database from 'better-sqlite3';
@@ -25,36 +25,30 @@ const REQUIRED_TABLES = [
 ] as const;
 
 export interface MasterMeta {
-  /** SHA-256 of the master.mdb file. Clients echo it to detect staleness. */
+  /** SHA-256 of the source actually loaded. Clients echo it to detect staleness. */
   masterHash: string;
-  /** Row counts for the tables the rules read, as a coarse extraction sanity signal. */
+  /** Which source produced the data being served. */
+  source: 'extract' | 'master.mdb';
+  /** SHA-256 of the game's master.mdb the extract was generated from. */
+  sourceMasterHash: string | null;
+  /** Extraction date recorded in the extract header. */
+  extractedAt: string | null;
+  /** Row counts for the tables the rules read, as a coarse sanity signal. */
   tables: Record<string, number>;
 }
 
 @Injectable()
 export class MasterService implements OnModuleInit {
   private readonly logger = new Logger(MasterService.name);
-  private readonly path = resolve(
-    process.env.MASTER_DB_PATH ?? resolve(process.cwd(), '../../master.mdb'),
-  );
 
   private db!: Database.Database;
   private meta!: MasterMeta;
   private masterData!: MasterData;
 
   async onModuleInit(): Promise<void> {
-    // 1. Open read-only. fileMustExist turns a missing file into an error here
-    //    rather than an empty database that fails every later query.
-    try {
-      this.db = new Database(this.path, {
-        readonly: true,
-        fileMustExist: true,
-      });
-    } catch (cause) {
-      throw new MasterDbMissing(this.path, cause);
-    }
+    const loaded = this.load();
 
-    // 2. Every table the rules read must exist.
+    // Every table the rules read must exist.
     const present = new Set(
       (
         this.db
@@ -66,42 +60,70 @@ export class MasterService implements OnModuleInit {
       if (!present.has(table)) throw new MasterSchemaError(table);
     }
 
-    // 3. The rows still mean what the rules assume. M1 appends the fixture-5774
-    //    check here once the affinity engine exists to run it.
+    // The rows still mean what the rules assume, up to and including running
+    // a real lineage through the real engine.
     for (const check of contentChecks) check.run(this.db);
 
-    // 4. Hash the file and cache it. There is no version table in master.mdb
-    //    (all 416 table names checked), so the hash plus an extraction date is
-    //    the only stable identity a citation can carry.
-    const masterHash = await sha256File(this.path);
-
     this.masterData = new MasterData(this.db);
-
     this.meta = {
-      masterHash,
+      ...loaded,
       tables: Object.fromEntries(
         REQUIRED_TABLES.map((t) => [
           t,
           (
-            this.db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as {
-              n: number;
-            }
+            this.db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as { n: number }
           ).n,
         ]),
       ),
     };
 
     this.logger.log(
-      `master.mdb ok: ${masterHash.slice(0, 12)} (${this.path}), ` +
-        `${contentChecks.length} content checks passed`,
+      `master data ok: ${loaded.source} ${loaded.masterHash.slice(0, 12)}` +
+        (loaded.extractedAt ? ` (extracted ${loaded.extractedAt})` : '') +
+        `, ${contentChecks.length} content checks passed`,
     );
+  }
+
+  /**
+   * Default source is the committed extract: 6 of master.mdb's 416 tables as
+   * SQL text, so a clone can run the API with no 16 MB user file. Set
+   * MASTER_DB_PATH to serve a real master.mdb instead, which is what you want
+   * when checking whether a game patch moved anything.
+   */
+  private load(): Omit<MasterMeta, 'tables'> {
+    const override = process.env.MASTER_DB_PATH;
+    if (override) {
+      const path = resolve(override);
+      try {
+        this.db = new Database(path, { readonly: true, fileMustExist: true });
+      } catch (cause) {
+        throw new MasterDbMissing(path, cause);
+      }
+      return {
+        masterHash: sha256(readFileSync(path)),
+        source: 'master.mdb',
+        sourceMasterHash: null,
+        extractedAt: null,
+      };
+    }
+
+    const path = findExtract();
+    const sql = readFileSync(path, 'utf8');
+    this.db = new Database(':memory:');
+    this.db.exec(sql);
+    return {
+      masterHash: sha256(Buffer.from(sql)),
+      source: 'extract',
+      sourceMasterHash: headerValue(sql, 'source master.mdb sha256'),
+      extractedAt: headerValue(sql, 'extracted'),
+    };
   }
 
   getMeta(): MasterMeta {
     return this.meta;
   }
 
-  /** Every master.mdb lookup the affinity rules need, loaded once. */
+  /** Every master lookup the affinity rules need, loaded once. */
   get data(): MasterData {
     return this.masterData;
   }
@@ -116,18 +138,38 @@ export class MasterService implements OnModuleInit {
   }
 }
 
-export function isMasterBootError(e: unknown): e is MasterBootError {
-  return (
-    e instanceof Error && typeof (e as { code?: unknown }).code === 'string'
+/**
+ * The extract ships inside the api package. Probed rather than resolved from
+ * `__dirname` or `import.meta`, since this module is compiled to CommonJS for
+ * NestJS and read as ESM by Vitest and neither anchor exists in both.
+ */
+export function findExtract(): string {
+  const candidates = [
+    process.env.MASTER_EXTRACT_PATH,
+    resolve(__filename, '../../../data/master-extract.sql'),
+    resolve(process.cwd(), 'data/master-extract.sql'),
+    resolve(process.cwd(), 'packages/api/data/master-extract.sql'),
+  ].filter((c): c is string => typeof c === 'string');
+
+  for (const path of candidates) if (existsSync(path)) return path;
+  throw new MasterDbMissing(
+    candidates[0] ?? 'data/master-extract.sql',
+    new Error(
+      'no master extract found. Run: npm run build:master --workspace @umalegacies/api',
+    ),
   );
 }
 
-function sha256File(path: string): Promise<string> {
-  return new Promise((resolvePromise, reject) => {
-    const hash = createHash('sha256');
-    createReadStream(path)
-      .on('error', reject)
-      .on('data', (chunk) => hash.update(chunk))
-      .on('end', () => resolvePromise(hash.digest('hex')));
-  });
+function sha256(buffer: Buffer): string {
+  return createHash('sha256').update(buffer).digest('hex');
+}
+
+/** Reads a `-- key: value` line out of the generated header. */
+function headerValue(sql: string, key: string): string | null {
+  const match = sql.match(new RegExp(`^-- ${key}: (.+)$`, 'm'));
+  return match?.[1]?.trim() ?? null;
+}
+
+export function isMasterBootError(e: unknown): e is MasterBootError {
+  return e instanceof Error && typeof (e as { code?: unknown }).code === 'string';
 }
