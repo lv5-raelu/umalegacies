@@ -1,0 +1,40 @@
+{
+  "name": "synthetic-absent-ancestor",
+  "description": "A lineage with every grandparent slot empty. Each absent slot kills a base AND a bonus term, so it contributes two zero nodes and the sum invariant still holds. individualAffinity still emits keys 11/12/21/22 so box browse can render a uniform six-slot tree.",
+  "provenance": "Synthetic. All 259 lineages in the builder's roster are six-member complete, so this case has no natural test.",
+  "request": {
+    "traineeCharaId": 1007,
+    "parents": [
+      {
+        "cardId": 101401,
+        "winSaddleIds": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cardId": 103401,
+        "winSaddleIds": [
+          10,
+          11,
+          13
+        ]
+      }
+    ],
+    "grandparents": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "expected": {
+    "absentSlots": [
+      11,
+      12,
+      21,
+      22
+    ]
+  }
+}

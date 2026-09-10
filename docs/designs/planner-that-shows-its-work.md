@@ -215,7 +215,8 @@ type RuleId =
   | 'total.pair' | 'individual.member' | 'link.pair'
   | 'base.two_way' | 'base.three_way' | 'bonus.shared_g1'
   | 'row.relation' | 'row.saddle'
-  | 'base.absent_ancestor' | 'bonus.absent_ancestor';
+  | 'base.absent_ancestor' | 'bonus.absent_ancestor'
+  | 'base.self_link';   // ADDED IN M1, see note below
 
 type Resolution =
   | { ok: true }
@@ -273,6 +274,15 @@ interface ExplainResponse {
 
 interface ErrorResponse { code: string; message: string; field?: string }  // README: 400, never 500
 ```
+
+**`base.self_link` was added during M1 and is an eleventh rule id.** The doc
+shipped ten. CEO review Issue 1 requires that a 0 from "they share nothing" never
+look like a 0 from "I could not resolve this id"; a suppressed self-link is a
+*third* kind of zero, and without its own id fixture 5774's entire diagnostic
+signature is invisible in the rendered tree. hakuraku implements the same rule by
+substituting an empty relation set (`VeteransHelper.ts:188`), which produces the
+correct number and no explanation, which is exactly the gap this project exists
+to close.
 
 **G1 matching rule: RAW saddle id. VERIFIED EMPIRICALLY 2026-09-10 against
 `breeding-optimizer`.** Two ancestors share a G1 only if the **same

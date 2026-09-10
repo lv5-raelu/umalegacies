@@ -1,4 +1,7 @@
 import type { Database } from 'better-sqlite3';
+import { explain } from '../affinity/engine';
+import { loadFixture } from '../affinity/fixtures';
+import { MasterData } from './master-data';
 import { MasterContentError } from './master.errors';
 
 /**
@@ -104,15 +107,51 @@ const nameLookup: ContentCheck = {
 };
 
 /**
- * Checks that run at every boot.
+ * The end-to-end check: run a real lineage through the real engine against
+ * this master.mdb and assert the externally verified answer.
  *
- * M1 adds the check the design doc specifies: run fixture 5774 through the
- * affinity engine in-process and assert it produces 410. That check cannot
- * exist before the engine does, so M0 ships the assertions that need only the
- * database, and M1 appends the fixture check to this array.
+ * Fixture 5774 rather than 5531 because it guards BOTH disputed rules at once.
+ * Its grandparents in slots 12 and 22 are the trainee, so:
+ *   - scoring the self-link as an ordinary three-way gives 443, not 410
+ *   - zeroing the whole self-link instead of only its base gives less than 410
+ *   - normalising shared G1 wins to group_id moves the bonus off 312
+ * 5531 alone would miss the self-link rule entirely.
+ *
+ * This catches a master.mdb whose rows parse and whose schema is intact but
+ * whose CONTENT has moved under the rules, which is the failure the other
+ * three checks cannot see.
  */
+const goldenLineage: ContentCheck = {
+  name: 'golden_lineage_5774',
+  run(db) {
+    const fixture = loadFixture('5774');
+    const expected = (fixture.expected as { pairTotal: number }).pairTotal;
+    let actual: number;
+    try {
+      actual = explain(fixture.request, new MasterData(db), 'boot-check').pairTotal.value;
+    } catch (cause) {
+      throw new MasterContentError(
+        this.name,
+        `the engine threw on fixture 5774: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
+      );
+    }
+    if (actual !== expected) {
+      throw new MasterContentError(
+        this.name,
+        `fixture 5774 produced ${actual}, expected ${expected}. Either this ` +
+          `master.mdb is not the extraction the fixture was verified against, ` +
+          `or an affinity rule has regressed.`,
+      );
+    }
+  },
+};
+
+/** Checks that run at every boot, cheapest first. */
 export const contentChecks: readonly ContentCheck[] = [
   rankBuckets,
   cardJoinExceptions,
   nameLookup,
+  goldenLineage,
 ];

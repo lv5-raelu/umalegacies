@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import Database from 'better-sqlite3';
 import { contentChecks } from './content-checks';
+import { MasterData } from './master-data';
 import {
   MasterDbMissing,
   MasterSchemaError,
@@ -39,8 +40,7 @@ export class MasterService implements OnModuleInit {
 
   private db!: Database.Database;
   private meta!: MasterMeta;
-  /** card_id -> chara_id, built once from card_data. See charaIdFor(). */
-  private charaIdByCardId!: Map<number, number>;
+  private masterData!: MasterData;
 
   async onModuleInit(): Promise<void> {
     // 1. Open read-only. fileMustExist turns a missing file into an error here
@@ -75,7 +75,7 @@ export class MasterService implements OnModuleInit {
     //    the only stable identity a citation can carry.
     const masterHash = await sha256File(this.path);
 
-    this.charaIdByCardId = buildCharaIdMap(this.db);
+    this.masterData = new MasterData(this.db);
 
     this.meta = {
       masterHash,
@@ -101,40 +101,19 @@ export class MasterService implements OnModuleInit {
     return this.meta;
   }
 
+  /** Every master.mdb lookup the affinity rules need, loaded once. */
+  get data(): MasterData {
+    return this.masterData;
+  }
+
   get database(): Database.Database {
     return this.db;
   }
 
-  /**
-   * The ONE place card_id becomes chara_id.
-   *
-   * The roster and every ancestor carry card_id (101601); succession relations
-   * key on chara_id (1016). `card_id / 100` holds for 103 of 105 cards and
-   * fails on 9100101 -> 1001 and 9101101 -> 1011. hakuraku inlines the division
-   * in at least three functions, which means fixing it means fixing it three
-   * times and missing the third. Join, do not divide.
-   *
-   * Returns null for an unknown card so callers can emit
-   * `resolution: { ok: false, reason: 'unknown_card' }` rather than a bare 0.
-   */
+  /** Delegates to MasterData. See the note there: join card_data, never divide. */
   charaIdFor(cardId: number): number | null {
-    return this.charaIdByCardId.get(cardId) ?? null;
+    return this.masterData.charaIdFor(cardId);
   }
-}
-
-/**
- * card_id -> chara_id for every card in the database. Extracted so it can be
- * tested against a fixture database without a 16 MB master.mdb present.
- */
-export function buildCharaIdMap(db: Database.Database): Map<number, number> {
-  return new Map(
-    (
-      db.prepare('SELECT id, chara_id FROM card_data').all() as Array<{
-        id: number;
-        chara_id: number;
-      }>
-    ).map((r) => [r.id, r.chara_id]),
-  );
 }
 
 export function isMasterBootError(e: unknown): e is MasterBootError {

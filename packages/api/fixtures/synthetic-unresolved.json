@@ -1,0 +1,41 @@
+{
+  "name": "synthetic-unresolved",
+  "description": "An ancestor whose card_id is not in card_data, and a win saddle id master.mdb has never heard of. Both must surface as resolution.ok === false rather than as a bare 0: this product's claim is that a number opens, and an unexplained 0 opening onto an empty drawer inverts it.",
+  "provenance": "Synthetic. CEO review Issue 1.",
+  "request": {
+    "traineeCharaId": 1007,
+    "parents": [
+      {
+        "cardId": 999999,
+        "winSaddleIds": [
+          10,
+          1,
+          888888
+        ]
+      },
+      {
+        "cardId": 103401,
+        "winSaddleIds": [
+          10,
+          1,
+          888888
+        ]
+      }
+    ],
+    "grandparents": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "expected": {
+    "unknownCardId": 999999,
+    "unknownSaddleId": 888888,
+    "sharedEpithetId": 1,
+    "sharedKnownG1": [
+      10
+    ],
+    "expectedBonusBetweenParents": 3
+  }
+}

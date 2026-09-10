@@ -1,0 +1,36 @@
+{
+  "name": "synthetic-group-id",
+  "description": "Two parents whose only G1 wins are Takarazuka Kinen at different racecourses (ids 14 and 147, group_id 24). Raw-id matching scores 0 shared. group_id normalisation scores 1 shared, worth +3. Regression guard for the rule this project got wrong three times.",
+  "provenance": "Synthetic. Verified 2026-09-10 against breeding-optimizer.",
+  "request": {
+    "traineeCharaId": 1007,
+    "parents": [
+      {
+        "cardId": 101401,
+        "winSaddleIds": [
+          14
+        ]
+      },
+      {
+        "cardId": 103401,
+        "winSaddleIds": [
+          147
+        ]
+      }
+    ],
+    "grandparents": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "expected": {
+    "sharedG1BetweenParents": 0,
+    "bonusTotal": 0,
+    "forbiddenSaddleIds": [
+      14,
+      147
+    ]
+  }
+}
