@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureDb } from './fixture-db';
 import { MasterData } from './master-data';
+import { extractDatabase } from './master-extract';
 
 describe('charaIdFor', () => {
   it('joins card_data rather than dividing by 100', () => {
-    const master = new MasterData(fixtureDb());
+    const master = new MasterData(extractDatabase());
 
     // The ordinary case, where division would also have worked.
     expect(master.charaIdFor(101601)).toBe(1016);
@@ -19,6 +19,6 @@ describe('charaIdFor', () => {
   it('returns null for an unknown card, so callers can report it', () => {
     // This null becomes resolution { ok: false, reason: 'unknown_card' } in
     // the explain tree, never a bare 0.
-    expect(new MasterData(fixtureDb()).charaIdFor(999999)).toBeNull();
+    expect(new MasterData(extractDatabase()).charaIdFor(999999)).toBeNull();
   });
 });

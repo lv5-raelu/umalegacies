@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { explain, findSumViolations } from './engine';
-import { fixtureMasterHash, loadFixture, sliceMaster } from './fixtures';
+import { extractHash, extractMaster } from '../master/master-extract';
+import { loadFixture } from './fixtures';
 import type { ExplainNode, ExplainResponse } from './types';
 
-const master = sliceMaster();
+const master = extractMaster();
 const run = (name: string): { fixture: ReturnType<typeof loadFixture>; result: ExplainResponse } => {
   const fixture = loadFixture(name);
-  return { fixture, result: explain(fixture.request, master, fixtureMasterHash()) };
+  return { fixture, result: explain(fixture.request, master, extractHash()) };
 };
 
 function walk(node: ExplainNode, visit: (n: ExplainNode) => void): void {
@@ -145,7 +146,7 @@ describe('synthetic: group_id is not a matching key', () => {
     expect(saddleRows).toHaveLength(0);
   });
 
-  it('proves both ids ARE in the slice, so the 0 is a rule and not a gap', () => {
+  it('proves both ids ARE in the extract, so the 0 is a rule and not a gap', () => {
     for (const id of expected.forbiddenSaddleIds) {
       expect(master.knowsSaddle(id), `saddle ${id}`).toBe(true);
       expect(master.isG1(id), `saddle ${id} is G1`).toBe(true);

@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import Database from 'better-sqlite3';
 import { contentChecks } from './content-checks';
 import { MasterData } from './master-data';
+import { extractHeader, findExtract } from './master-extract';
 import {
   MasterDbMissing,
   MasterSchemaError,
@@ -114,8 +115,8 @@ export class MasterService implements OnModuleInit {
     return {
       masterHash: sha256(Buffer.from(sql)),
       source: 'extract',
-      sourceMasterHash: headerValue(sql, 'source master.mdb sha256'),
-      extractedAt: headerValue(sql, 'extracted'),
+      sourceMasterHash: extractHeader(sql, 'source master.mdb sha256'),
+      extractedAt: extractHeader(sql, 'extracted'),
     };
   }
 
@@ -138,36 +139,8 @@ export class MasterService implements OnModuleInit {
   }
 }
 
-/**
- * The extract ships inside the api package. Probed rather than resolved from
- * `__dirname` or `import.meta`, since this module is compiled to CommonJS for
- * NestJS and read as ESM by Vitest and neither anchor exists in both.
- */
-export function findExtract(): string {
-  const candidates = [
-    process.env.MASTER_EXTRACT_PATH,
-    resolve(__filename, '../../../data/master-extract.sql'),
-    resolve(process.cwd(), 'data/master-extract.sql'),
-    resolve(process.cwd(), 'packages/api/data/master-extract.sql'),
-  ].filter((c): c is string => typeof c === 'string');
-
-  for (const path of candidates) if (existsSync(path)) return path;
-  throw new MasterDbMissing(
-    candidates[0] ?? 'data/master-extract.sql',
-    new Error(
-      'no master extract found. Run: npm run build:master --workspace @umalegacies/api',
-    ),
-  );
-}
-
 function sha256(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex');
-}
-
-/** Reads a `-- key: value` line out of the generated header. */
-function headerValue(sql: string, key: string): string | null {
-  const match = sql.match(new RegExp(`^-- ${key}: (.+)$`, 'm'));
-  return match?.[1]?.trim() ?? null;
 }
 
 export function isMasterBootError(e: unknown): e is MasterBootError {
