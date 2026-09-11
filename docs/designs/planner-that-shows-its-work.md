@@ -611,6 +611,131 @@ The ten error paths from the CEO review's Section 2 map defer to M3, when the en
 raise them exist.
 - **M2 — Provenance rendering.** Every node expands to its `sources`, with `relation_point`
   visible and citations resolved. README goal 3, done, for one lineage.
+
+  **Interaction states for the two node cases (design review, 2026-09-10).** M1 ships
+  an engine that emits both of these and a test suite that asserts they are
+  distinguishable from a plain zero. Nothing said what either looks like, so today
+  they are not. There are **three** zeros on this screen and each needs its own
+  treatment:
+
+  | zero | `ruleId` | means | treatment |
+  |---|---|---|---|
+  | **Genuine** | `base.two_way`, `bonus.shared_g1` with no children | they share nothing | Normal styling, value `0`. A fact, stated plainly. No decoration. |
+  | **Absent** | `base.absent_ancestor`, `bonus.absent_ancestor` | the slot is empty | **Calm, not an error.** Tree node renders as a dashed outline with no colour band and the cap `empty slot`; its edge is a dashed connector labelled `0`. `individualAffinity` still emits keys 11/12/21/22 so the tree keeps six slots and never reflows. |
+  | **Unresolved** | any node with `resolution.ok === false` | the lookup failed | **Amber, and it names itself.** The value slot shows an em dash, never `0`. The row reads `could not resolve <reason> <id>` using the `resolution.reason` and `resolution.id` the engine already sends. The ancestor node and the edge above it carry an amber dot, so an unresolved leaf is findable without expanding every link. |
+
+  **Node identity and sparks (design review, 2026-09-10).** A node shows a portrait
+  from `portraits/<chara_id>.png` and nothing else decorative; the missing-image state
+  is a neutral disc with initials, which is what a fresh clone and every newly-patched
+  uma looks like until its portrait is added. Only the **66** characters in `card_data`
+  can ever appear, since the trainee and every ancestor arrive as a `card_id`. Brand
+  colours from `chara_data` were prototyped and rejected: 17 of 96 fall below 3:1 on a
+  dark surface (Manhattan Cafe `#3D3935` at 1.34:1), so colour cannot carry identity.
+
+  **Sparks are three named slots and a bag.** Across all 1,554 ancestors in the roster,
+  `succession_factor.factor_type` distributes as: type 1 (blue) 1,554, type 2 (pink)
+  1,554, type 3 (green) 1,514, types 4/5/6 (white skill/race/scenario) 14,184.
+  **Every ancestor carries exactly one blue, one pink and one green.** All the variance
+  is in the whites, 12 to 19 per ancestor. Competing tools read as cluttered because
+  they render ~15 sparks as one uniform list, which hides that three of them are
+  structural and guaranteed.
+
+  Blue sparks are omitted from the summary whenever they compute to 100%, which they
+  do for every parent and most grandparents: a guaranteed row is not information.
+  hakuraku drops category 1 unconditionally; showing it when it falls below certain is
+  strictly better, since a low-affinity grandparent's blue is a real variable.
+
+  So the node renders four lines: the blue, pink and green named with their star count,
+  always in that order and always present, then the whites as a **count only**. No summed
+  star total: a sum across a bag of unrelated whites is not a quantity anyone acts on,
+  and it invites comparing two ancestors on a number that means nothing. The pattern is identical on all six nodes, so it is learned once and thereafter
+  only the values change. Selecting a node opens the full list: the three as prominent
+  cards, then whites grouped race / skill / scenario, each with its own count. Individual
+  sparks keep their own star level, which is a real quality difference; only the
+  aggregates are dropped. `succession_factor.rarity` is the star count, 1-3 (README gotcha).
+  `succession_factor` is not yet in the extract's table list and must be added.
+
+  **Lineage-wide spark summary, and the odds question (design review, 2026-09-11).**
+  A per-node spark list cannot support the decision, because the decision is about
+  the lineage as a whole. Measured on fixture 5531: **52 distinct sparks across the
+  six ancestors, and 30 of them sit on more than one ancestor** (`Leap Forward` is on
+  all six). A per-node view shows that spark six separate times and never answers
+  "what can this lineage give me".
+
+  So M2 gains an always-visible summary: one row per distinct spark, grouped blue /
+  pink / green / white-race / white-skill / white-scenario, sorted by chance
+  descending, each row showing which of the six slots carry it.
+
+  **The odds are M5 pulled forward**, because the summary is a list of names without
+  them. Per ancestor the README's documented formula applies: `base rate x (1 +
+  that ancestor's Individual Affinity / 100)`, capped at 100%, then `1 - (1-p)^2`
+  for two inspirations per career.
+
+  **The combining rule is settled against hakuraku's source (2026-09-11).** It is a
+  Poisson-binomial over the carriers within ONE inspiration, then squared for the two
+  a career gives: `p0 = product(1 - p_i)`, `atLeast1 = 1 - p0^2`. hakuraku's
+  `SparkProcModal` computes exactly this, and it also yields `atLeast2` from
+  `p1 = 2*p0*dp1`, which is worth showing because a doubled spark stacks. This project
+  first implemented `1 - product(1 - career_i)` with the doubling applied per carrier;
+  the two are **algebraically identical** (verified to 1e-16 over random inputs), so no
+  number changed. Still an independent implementation and not the game, so an in-game
+  check remains wanted, but it is no longer an unsupported guess.
+
+  **A parent's Individual Affinity includes the parent-parent link. Verified against
+  both oracles, 2026-09-11.** On the Oguri Cap verification lineage, breeding-optimizer
+  reports Mejiro Dober 127 and Narita Brian 166 where this engine reports 186 and 225.
+  Both differences are **exactly 59**, which is the parent-parent link (base 26 +
+  bonus 33). Every other number agrees: the four grandparents and the 352 pair total
+  match all three implementations.
+
+  These are two different, both-legitimate quantities, and hakuraku computes both:
+  `calculateAffinity(parent, target)` is the 127-style figure (trainee-parent plus the
+  two three-way grandparent terms) and is used only for display panels and the sort
+  key, while `calculateIndividualParentAffinity` adds `calculatePairAffinity` to give
+  the 186-style figure. **`SparkProcModal` feeds the 186-style figure into
+  `calculateSparkChance`.** So for spark odds this engine's number is the right one;
+  breeding-optimizer is displaying the other quantity under an unqualified "affinity"
+  label. Do not "fix" the engine to match it.
+
+  **Blue caps for parents and not for grandparents.** A 1-star blue needs Individual
+  Affinity >= 43 to reach 100%; 2-star needs 25; 3-star needs 12. Measured across all
+  259 lineages: parent slots have median IA 138 and fall below the 1-star threshold
+  **0.4%** of the time, while grandparent slots have median IA 36 and fall below it
+  **61.8%** of the time. So parent blues are effectively guaranteed and grandparent
+  blues are a real variable. **Fixture 5531 is not representative for odds**: its
+  grandparents sit at IA 76-80, roughly double the roster median, which is why every
+  blue in it caps. Any odds fixture needs a second lineage with ordinary grandparent
+  affinity.
+
+  **Edges show base and bonus, not the link total (design review, 2026-09-10).**
+  A connector renders two numbers: `base` and `+bonus`. The link total is
+  deliberately absent. It is derivable (the two parts sum to it) and it competes
+  with the numbers that carry meaning: base is fixed by which two characters these
+  are, bonus is what you can go and earn. Three numbers on a connector also crowd
+  the edge label enough to force collisions where edges converge on a parent.
+
+  **Relations show a total, races show names (design review, 2026-09-10).**
+  `master.mdb` holds no name for any of its 1,616 relation types, and only **8% of
+  the relation rows a reader actually meets** can be derived from character
+  attributes: `3201`-`3206` map exactly to birth month (100% pure) and `28xx` to
+  birth year, while `2901`-`2904` correlate with `card_data.running_style` at 80-89%
+  and remain a hypothesis. The six most frequently seen relations are all
+  underivable — `3101` alone appears 1,718 times across the roster.
+
+  So the base term renders as a count and a total (`5 shared succession relations =
+  18`) with **no expander**, and the bonus term keeps every race name and stays
+  fully expandable. This is not a consolation. Base affinity is a fixed property of
+  which two characters these are: the number informs which parents you pick, the
+  reason never can. A shared G1 is something you can go and race for. **Detail
+  belongs where a decision lives.** Note the earlier idea of substituting group
+  membership for a name was tested and dropped: the first members of every large
+  group are the same low-id characters, so three different relations all render as
+  "shared by ~50 characters incl. Special Week, Silence Suzuka, Tokai Teio".
+
+  The rule behind the table: **absent is a fact and reads calm; unresolved is a
+  defect and reads loud.** Collapsing them into one grey `0` is the failure CEO
+  review Issue 1 named, and it silently contradicts the invariant M1 tests.
+
 - **M3 — The roster. First usable release, and the one that satisfies the success
   criterion.** `data.json` upload, `POST /roster/resolve`, in-memory resolution, IndexedDB
   caching, box browse, the **trainee picker** (sourced from `card_data` joined to `text_data`
@@ -620,7 +745,12 @@ raise them exist.
   veterans from the box, compose their own ancestors into an `ExplainRequest`, explain the
   result. Without it M3 only replays runs already done, which is inspection rather than
   planning, and the success criterion says *during a real planning run*.
-- **M4 — The tree.** *Post-success, optional.* Vertical pedigree: trainee at the bottom, two
+- **M4 — The tree.** *Design review 2026-09-10 moved this into M2: it is not optional
+  decoration, it is the organising frame.* A list of seven links needs `position_id`
+  tags to disambiguate (fixture 5531's six slots hold only three distinct characters,
+  so `El Condor Pasa <-> Inari One` appears twice with different values). In a
+  pedigree, position in the tree does that work and no internal id reaches the
+  screen. Vertical pedigree: trainee at the bottom, two
   parents above, four grandparents above them, measured SVG connectors. Base blue, bonus red,
   individual purple.
 - **M5 — The odds.** *Post-success, optional.* Per-spark activation with the per-inspiration
@@ -760,3 +890,76 @@ inheritance, not oversights:
   reason.
 - You rejected a question mid-flight rather than pick from a menu of things I had invented.
   That menu was the same move that had already been wrong six times.
+
+## GSTACK REVIEW REPORT
+
+Design review, 2026-09-10, against M2 and M3 only (M4-M6 out of scope by the
+builder's choice, D2). Classifier: **OPERATE / App UI** — a data-dense planning
+tool, so App UI rules apply and landing-page rules do not.
+
+Evidence base: both golden fixtures run through the shipped M1 engine, plus an
+interactive wireframe at `~/.gstack/projects/lv5-raelu-umalegacies/designs/explain-screen-20260910/`
+rendering real 161-node output. Every number below is measured, not estimated.
+
+| Run | Status | Findings |
+|---|---|---|
+| Pre-review audit | done | No `DESIGN.md`, no `PRODUCT.md`, no prior design review. 5 prior reviews, all CEO/eng/codex. |
+| Step 0 rating | done | 3/10 design completeness |
+| Mockups | degraded | gstack designer installed but has no OpenAI key; fell back to hand-built wireframes driven by real API output, which suited a 161-node data problem better than generated imagery |
+| Pass 1 Information architecture | 4/10 | M2 now 8 after the tree; M3 is four nouns with no hierarchy |
+| Pass 2 Interaction states | 1/10 → **fixed for nodes** | Zero states specified. Two were contradicted by shipped code. Now specified as the three-zeros table in M2. |
+| Pass 3 User journey | 2/10 | No emotional arc; the upload moment is unaddressed and gated on OQ3 |
+| Pass 4 AI slop risk | 5/10 | No hard rejections. Two hits: `system-ui` as primary face (blacklist 11); "base blue, bonus red, individual purple" is the default palette |
+| Pass 5 Design system | 1/10 | No `DESIGN.md` to calibrate against |
+| Pass 6 Responsive + a11y | 0/10 | Tree needs 1038px, four grandparents alone need 600px, phone is 375px. 17 of 96 brand colours fall below 3:1 on the card surface (Manhattan Cafe `#3D3935` at 1.34:1) |
+| Pass 7 Unresolved decisions | done | 6 surfaced, 1 resolved |
+
+**Defects found by rendering real data, not by reading the plan:**
+
+1. **`ExplainNode.label` collides.** Fixture 5531's six ancestor slots hold three
+   distinct characters, so `El Condor Pasa <-> Inari One` names two different links
+   worth 81 and 78. A list cannot disambiguate them without leaking `position_id`.
+   The pedigree layout does it spatially. This is why M4 moved into M2.
+2. **The tree is 65% one repeated row.** 104 of 161 nodes are an identical `+3`
+   `row.saddle`; 37 more are unnamed relation ids. Only 20 nodes carry structure.
+   Max depth is 3, so this is breadth, not nesting.
+3. **Relation naming is far smaller than the plan implies.** 1,616 types exist but
+   the builder's 259 lineages surface only **132**, and the top 40 cover **95%** of
+   occurrences. `card_data.running_style` correlates with relations 2901-2904 at
+   80-89% purity, which is a labelling hint, not a derivation.
+4. **Rebuilding a panel on resize destroys user state.** The wireframe's layout pass
+   rebuilt the detail panel and ran on `resize`, silently discarding whatever the
+   reader had expanded. Separate reposition from re-render in M2.
+5. **`chara_data` carries brand colours for all 96 characters** and is not in the
+   extract's six tables. Adding five columns costs ~2 KB in git.
+
+**Decisions taken this review (continued):** relations render as a count and total with
+no breakdown, races keep full names (D6) — taken after measuring that 92.1% of the
+relation rows a reader meets cannot be named from any table in `master.mdb`.
+
+**Decisions taken this review:** the pedigree tree replaces the link list and absorbs
+M4 (D3 supplanted by the builder's tree direction); portraits will be bundled in the
+repo with the colour band as fallback (D4, chosen against the reviewer's
+recommendation — the copyright and repo-weight case is recorded and was not
+re-argued); the two node states are now specified (D5).
+
+VERDICT: **APPROVED WITH CONDITIONS.** M2 is designed well enough to build: the tree,
+the three-zeros table, and the summarise-then-open pattern are settled and grounded in
+real output. M3 is not — it scores 4/10 or below on every pass and it is the milestone
+the success criterion is written against. Do not start M3 without a states pass.
+
+CODEX / CROSS-MODEL: not run (declined in favour of measurement against the shipped
+engine and the builder's own roster).
+
+**UNRESOLVED DECISIONS:**
+
+- Upload states and the copy that describes retention, blocked on Open Question 3
+- What box browse shows for 260 lineages: sort order, columns, empty and loading
+- The tree at 375px, where the layout needs 1038px and stacking destroys the pedigree
+- Display typeface, currently `system-ui`, which is the "gave up on typography" signal
+- Whether `/design-consultation` runs before M2 markup, given there is no `DESIGN.md`
+- Portrait extraction toolchain and per-patch refresh, now that bundling is the chosen path
+- **In-game confirmation of the spark odds model.** The formula and the combining rule
+  now match hakuraku's source exactly, but both are one implementation's belief. The
+  per-inspiration vs full-run toggle (hakuraku's `isFullRun`) is unbuilt.
+- Whether the odds panel stays in M2 or reverts to M5, given it pulled M5's core forward
