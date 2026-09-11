@@ -18,6 +18,12 @@ const REQUIRED_TABLES = [
   'succession_relation_rank',
   'single_mode_wins_saddle',
   'card_data',
+  // Sparks (factor_type = colour, rarity = star count) and per-character
+  // metadata. No affinity rule reads these yet; they are asserted because the
+  // extract now ships them and M2 renders sparks on every tree node, so an
+  // extract without them is a broken extract, not a lean one.
+  'succession_factor',
+  'chara_data',
   'text_data',
 ] as const;
 

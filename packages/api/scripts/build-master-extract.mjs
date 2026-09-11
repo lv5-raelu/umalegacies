@@ -54,7 +54,21 @@ const TABLES = [
   { name: 'succession_relation_rank', where: null },
   { name: 'single_mode_wins_saddle', where: null },
   { name: 'card_data', where: null },
-  { name: 'text_data', where: 'WHERE category IN (6, 111)' },
+  // Sparks. factor_type is the colour (1 blue, 2 pink, 3 green, 4/5/6 white
+  // skill/race/scenario) and rarity is the star count 1-3, NOT a rarity tier.
+  { name: 'succession_factor', where: null },
+  // Per-character metadata: birth date, physical attributes, and each uma's
+  // brand colours. Nothing reads it yet -- the tree uses portraits, not colours,
+  // and relation labelling was dropped -- but it is 7 KB and the roster screens
+  // in M3 are the likely first consumer.
+  { name: 'chara_data', where: null },
+  // 6 chara names, 111 win-saddle epithets, 147 spark names. 147 names 100% of
+  // the 663 factor ids a real roster surfaces; succession_factor without it is
+  // star counts with nothing to call them.
+  // Category 172 holds spark DESCRIPTIONS ("A Spark that increases Guts and max
+  // Guts value."). Left out deliberately: 10.7 KB in git and nothing reads it.
+  // Add it to this list when a tooltip actually needs it.
+  { name: 'text_data', where: 'WHERE category IN (6, 111, 147)' },
 ];
 
 const db = new Database(masterPath, { readonly: true, fileMustExist: true });
