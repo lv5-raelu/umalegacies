@@ -1,0 +1,144 @@
+/* The page body never scrolls horizontally; wide content gets its own region. */
+.scroll {
+  overflow-x: auto;
+  margin: 0 calc(var(--space-md) * -1);
+  padding: 0 var(--space-md);
+}
+
+.scroll .table {
+  min-width: 560px;
+}
+
+/* Dense on purpose: roughly 50 rows should be scannable without pagination.
+ * The tree gets air, the table gets density. */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+
+.table thead th {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  font-weight: 400;
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  text-align: left;
+  padding: 0 var(--space-sm) var(--space-tight);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.right {
+  text-align: right;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+
+.table tbody tr:hover {
+  background: var(--surface);
+}
+
+.selected {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--ink);
+}
+
+.table tbody td {
+  padding: var(--space-tight) var(--space-sm);
+  height: 30px;
+}
+
+.tickCell {
+  width: 3px;
+  padding: 0 !important;
+}
+
+.tick,
+.tickOutlined {
+  display: block;
+  width: 3px;
+  height: 16px;
+}
+
+.tickOutlined {
+  box-shadow: inset 0 0 0 1px var(--spark-white);
+}
+
+.name {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.figure,
+.carriers {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+}
+
+.carriers {
+  letter-spacing: var(--tracking-label);
+  white-space: nowrap;
+}
+
+.barCell {
+  width: 110px;
+}
+
+.track {
+  height: 4px;
+  background: var(--track);
+}
+
+.bar {
+  display: block;
+  height: 100%;
+}
+
+.pct {
+  font-family: var(--font-data);
+  text-align: right;
+  width: 50px;
+}
+
+.pctFaint {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  text-align: right;
+  width: 50px;
+}
+
+.groupTitle {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  padding: var(--space-md) var(--space-sm) var(--space-tight) !important;
+  height: auto !important;
+}
+
+.note {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  background: var(--surface);
+  border-left: 2px solid var(--rule-strong);
+  padding: var(--space-sm) var(--space-snug);
+  margin: var(--space-lg) 0 0;
+}
+
+.note b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.note code {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+}

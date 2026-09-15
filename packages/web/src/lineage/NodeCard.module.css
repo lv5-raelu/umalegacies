@@ -1,0 +1,150 @@
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 216px;
+  justify-self: center;
+  padding: var(--space-snug) var(--space-snug) var(--space-sm);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.button {
+  display: block;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--duration-micro) var(--ease-enter);
+}
+
+/* Hover lifts one surface step. No transform: a card that moves under the
+ * pointer is decoration, and this is a decision surface. */
+.button:hover {
+  background: var(--track);
+}
+
+.selected {
+  border-color: var(--ink);
+}
+
+/* Unresolved is a defect and reads loud. Red, not amber: amber already means
+ * "added" on the connectors in the same surface. */
+.unresolved {
+  border-color: var(--error);
+}
+
+.unresolved .caption {
+  color: var(--error);
+}
+
+/* Absent is a fact and reads calm. Dashed, muted, no colour. */
+.empty {
+  border-style: dashed;
+  background: none;
+}
+
+.empty .affinity,
+.empty .caption {
+  color: var(--ink-faint);
+}
+
+/* The portrait sits at the card's top-right; name and affinity run to its left,
+ * and the caption clears its lower edge. Builder's call, 2026-09-15: larger and
+ * beside the name rather than above it. */
+.portrait {
+  position: absolute;
+  top: var(--space-snug);
+  right: var(--space-snug);
+  display: block;
+}
+
+.name {
+  font-size: var(--text-xs);
+  min-height: 18px;
+  padding-right: 58px;
+}
+
+.affinity {
+  font-family: var(--font-data);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  line-height: 1.2;
+  padding-right: 58px;
+  /* Name + affinity together must clear the 48px portrait, so the provenance
+     line below can run the card's full width and never wrap mid-sum. */
+  min-height: 30px;
+}
+
+/* An aggregate prints its addends beneath it, permanently, full width and
+ * clear of the portrait's lower edge. */
+.caption {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  margin: var(--space-xs) 0 var(--space-sm);
+  min-height: 14px;
+  white-space: nowrap;
+}
+
+.trainee {
+  border-color: var(--rule-strong);
+  text-align: center;
+}
+
+.trainee .portrait {
+  position: static;
+  margin: 0 auto var(--space-tight);
+  display: flex;
+  justify-content: center;
+}
+
+.trainee .name,
+.trainee .affinity,
+.trainee .caption {
+  padding-right: 0;
+}
+
+.sparks {
+  display: grid;
+  gap: 1px;
+}
+
+.sparkLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-tight);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  padding: 0.5px 0;
+}
+
+.absent {
+  color: var(--ink-faint);
+}
+
+.tick {
+  width: 3px;
+  height: 10px;
+  flex: none;
+  transform: translateY(1px);
+}
+
+/* The three whites share one hue, so their tick is outlined rather than filled
+ * and the category still reads at a glance. */
+.outlined {
+  box-shadow: inset 0 0 0 1px var(--spark-white);
+}
+
+.sparkName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sparkStars {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink);
+}
