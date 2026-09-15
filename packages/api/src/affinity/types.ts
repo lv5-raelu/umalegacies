@@ -87,6 +87,14 @@ export interface AncestorRef {
    * group_id looks like a matching key and is not. Verified 2026-09-10.
    */
   winSaddleIds: number[];
+  /**
+   * succession_factor.factor_id per spark this ancestor carries, from the save's
+   * `factor_info_array`. Optional: no affinity rule reads it, and the engine
+   * computes every number in ExplainResponse without it. Only the spark summary
+   * needs it. The save's sibling `level` field is always 0 across all 1,554
+   * ancestor slots in the builder's roster, so it is not carried.
+   */
+  factorIds?: number[];
 }
 
 /** Grandparent slots, in order: 11, 12 (under parent 10), 21, 22 (under parent 20). */

@@ -6,6 +6,8 @@
  *   node scripts/build-fixtures.mjs
  *
  * What it writes:
+ *   verify-oguri.json  Oguri Cap trainee over a hand-picked pair, for
+ *                      side-by-side checking against breeding-optimizer
  *   5531.json          Gold Ship trainee, the plain path
  *   5774.json          Oguri Cap trainee, whose grandparents at 12 and 22 ARE
  *                      the trainee: the self-link rule's signature
@@ -40,9 +42,22 @@ const charaIdByCard = new Map(
   db.prepare('SELECT id, chara_id FROM card_data').all().map((r) => [r.id, r.chara_id]),
 );
 
-/** Ancestors carry personal data. Take the two public game fields and nothing else. */
+/**
+ * Ancestors carry personal data. Take the three public game fields and nothing
+ * else: card_id, the win list, and the spark list. All three are ids into
+ * master.mdb that describe the character, not the player who trained them.
+ * Deliberately NOT taken: owner_viewer_id (another player's 12-digit trainer
+ * id), rank, rarity and talent_level.
+ *
+ * factor_info_array's sibling `level` field is 0 on all 1,554 ancestor slots in
+ * the roster, so only the ids are carried.
+ */
 function ancestorRef(slot) {
-  return { cardId: slot.card_id, winSaddleIds: [...slot.win_saddle_id_array] };
+  return {
+    cardId: slot.card_id,
+    factorIds: slot.factor_info_array.map((f) => f.factor_id),
+    winSaddleIds: [...slot.win_saddle_id_array],
+  };
 }
 
 function lineageOf(trainedCharaId) {
@@ -62,6 +77,81 @@ function lineageOf(trainedCharaId) {
 }
 
 // ---------------------------------------------------------------- fixtures
+
+/** A top-level roster entry carries the same three public fields as a slot. */
+function veteranRef(entry) {
+  return {
+    cardId: entry.card_id,
+    factorIds: entry.factor_info_array.map((f) => f.factor_id),
+    winSaddleIds: [...entry.win_saddle_id_array],
+  };
+}
+
+/** The one veteran of this character with this rank_score. Fails loudly otherwise. */
+function veteran(charaId, rankScore) {
+  const hits = roster.filter(
+    (e) => charaIdByCard.get(e.card_id) === charaId && e.rank_score === rankScore,
+  );
+  if (hits.length !== 1) {
+    throw new Error(
+      `expected exactly 1 veteran of chara ${charaId} with rank_score ${rankScore}, ` +
+        `found ${hits.length}`,
+    );
+  }
+  return hits[0];
+}
+
+/**
+ * Two chosen veterans composed into a lineage, which is what M3's pair
+ * selection will do and what M7 calls a package: taking a veteran as a parent
+ * also fixes that veteran's own two parents as the grandparents beneath it.
+ */
+function lineageFromPair(traineeCharaId, a, b) {
+  const own = (entry, position) => {
+    const slot = entry.succession_chara_array.find((s) => s.position_id === position);
+    if (!slot) throw new Error(`veteran ${entry.trained_chara_id} has no slot ${position}`);
+    return ancestorRef(slot);
+  };
+  return {
+    traineeCharaId,
+    parents: [veteranRef(a), veteranRef(b)],
+    grandparents: [own(a, 10), own(a, 20), own(b, 10), own(b, 20)],
+  };
+}
+
+const MEJIRO_DOBER = 1059;
+const NARITA_BRIAN = 1016;
+const OGURI_CAP = 1006;
+
+const fOguri = {
+  name: 'verify-oguri',
+  description:
+    'Oguri Cap trainee; parents Mejiro Dober (rank_score 18998) and Narita ' +
+    'Brian (17666), each bringing its own parents as the grandparents beneath ' +
+    'it. Both pairs are Inari One and Gold Ship, so a per-slot discrepancy ' +
+    'cannot hide behind a different name. No self-link: Oguri Cap appears ' +
+    'nowhere among the six.',
+  provenance:
+    "Builder's own roster, chosen 2026-09-11 for side-by-side checking against " +
+    'breeding-optimizer. Public game fields only.',
+  request: lineageFromPair(
+    OGURI_CAP,
+    veteran(MEJIRO_DOBER, 18998),
+    veteran(NARITA_BRIAN, 17666),
+  ),
+  expected: {
+    pairTotal: 352,
+    baseTotal: 151,
+    bonusTotal: 201,
+    relationRank: 3,
+    // 186 and 225 are the four-link parent figures. breeding-optimizer shows
+    // 127 and 166 for the same lineage; both differences are exactly 59, the
+    // parent-parent link (base 26 + bonus 33), which it omits. hakuraku
+    // computes both and feeds the four-link figure into its spark odds, so
+    // this is the right quantity here. Do not "fix" it to match.
+    individualAffinity: { 10: 186, 20: 225, 11: 50, 12: 47, 21: 68, 22: 69 },
+  },
+};
 
 const f5531 = {
   name: '5531',
@@ -186,22 +276,35 @@ const f_unresolved = {
   },
 };
 
-const fixtures = [f5531, f5774, f_group, f_absent, f_unresolved];
+const fixtures = [fOguri, f5531, f5774, f_group, f_absent, f_unresolved];
 
 // Fixtures are derived from a personal save. Assert what leaves this script
 // rather than trust it: an ancestor may carry the two public game fields and
 // nothing else. data.json's slots also hold owner_viewer_id (another player's
 // 12-digit trainer id), rank, rarity, talent_level and factor_info_array, and
 // none of those may reach a committed file.
-const ALLOWED_ANCESTOR_KEYS = ['cardId', 'winSaddleIds'];
+// An allowlist, not an exact shape: the synthetic fixtures carry no sparks
+// because no spark rule is under test there. What matters is that nothing
+// OUTSIDE this set can ever reach a committed file.
+const ALLOWED_ANCESTOR_KEYS = new Set(['cardId', 'factorIds', 'winSaddleIds']);
+const REQUIRED_ANCESTOR_KEYS = ['cardId', 'winSaddleIds'];
 for (const f of fixtures) {
   for (const a of [...f.request.parents, ...f.request.grandparents]) {
     if (!a) continue;
     const keys = Object.keys(a).sort();
-    if (keys.join() !== ALLOWED_ANCESTOR_KEYS.join()) {
-      throw new Error(`fixture ${f.name}: ancestor has keys [${keys}], expected [${ALLOWED_ANCESTOR_KEYS}]`);
+    const extra = keys.filter((k) => !ALLOWED_ANCESTOR_KEYS.has(k));
+    if (extra.length) {
+      throw new Error(`fixture ${f.name}: ancestor carries disallowed keys [${extra}]`);
     }
-    if (!Number.isInteger(a.cardId) || !a.winSaddleIds.every(Number.isInteger)) {
+    const missing = REQUIRED_ANCESTOR_KEYS.filter((k) => !keys.includes(k));
+    if (missing.length) {
+      throw new Error(`fixture ${f.name}: ancestor is missing [${missing}]`);
+    }
+    if (
+      !Number.isInteger(a.cardId) ||
+      !a.winSaddleIds.every(Number.isInteger) ||
+      !(a.factorIds ?? []).every(Number.isInteger)
+    ) {
       throw new Error(`fixture ${f.name}: ancestor fields must be integers`);
     }
   }
@@ -211,6 +314,10 @@ for (const f of fixtures) {
   if (leak.test(JSON.stringify(f.request))) {
     throw new Error(`fixture ${f.name}: request carries a personal field`);
   }
+}
+
+for (const f of fixtures) {
+  writeFileSync(resolve(outDir, `${f.name}.json`), `${JSON.stringify(f, null, 2)}\n`);
 }
 
 console.log(`wrote ${fixtures.length} fixtures to ${outDir}`);

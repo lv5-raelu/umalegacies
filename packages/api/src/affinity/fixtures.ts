@@ -27,6 +27,19 @@ export interface Fixture {
   expected: Record<string, unknown>;
 }
 
+/**
+ * The committed fixtures. An allowlist rather than a directory scan, because
+ * this feeds a URL parameter: a scan would let `../../data.json` through.
+ */
+export const FIXTURE_NAMES = [
+  'verify-oguri',
+  '5531',
+  '5774',
+  'synthetic-absent-ancestor',
+  'synthetic-group-id',
+  'synthetic-unresolved',
+] as const;
+
 export function loadFixture(name: string): Fixture {
   return JSON.parse(readFileSync(fixturePath(name), 'utf8')) as Fixture;
 }

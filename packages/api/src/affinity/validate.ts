@@ -93,7 +93,25 @@ function parseAncestor(
     intField(id, `${field}.winSaddleIds[${i}]`),
   );
 
-  return { cardId, winSaddleIds };
+  const ancestor: AncestorRef = { cardId, winSaddleIds };
+
+  // Optional because no affinity rule reads it: a request without sparks still
+  // gets every number in the affinity tree, just no summary rows from that slot.
+  if (raw.factorIds !== undefined) {
+    if (!Array.isArray(raw.factorIds)) {
+      throw new DomainError(
+        'INVALID_FACTOR_IDS',
+        `${field}.factorIds must be an array of integers when present.`,
+        400,
+        `${field}.factorIds`,
+      );
+    }
+    ancestor.factorIds = raw.factorIds.map((id, i) =>
+      intField(id, `${field}.factorIds[${i}]`),
+    );
+  }
+
+  return ancestor;
 }
 
 function intField(value: unknown, field: string): number {
