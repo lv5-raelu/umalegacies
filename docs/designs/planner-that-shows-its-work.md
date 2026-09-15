@@ -824,6 +824,86 @@ raise them exist.
   veterans from the box, compose their own ancestors into an `ExplainRequest`, explain the
   result. Without it M3 only replays runs already done, which is inspection rather than
   planning, and the success criterion says *during a real planning run*.
+
+
+  **Revised by /plan-eng-review, 2026-09-15.** Scope cut to a usable core and
+  twelve decisions taken. M3 now ships exactly this: **upload -> pick a trainee ->
+  pick two veterans -> the tree renders.** Deferred to **M3.1**: IndexedDB
+  caching, and filtering/sorting over the veteran list. Note the wording above:
+  "box browse" deferred does NOT mean no picker. You cannot choose two of 259
+  veterans without a list, so M3 ships a minimal one and M3.1 makes it
+  searchable.
+
+  *Architecture.*
+  1. **No body-size limit on the roster route.** Builder's call. The save is
+     5,283,444 bytes and the global JSON limit is 256kb; even stripped to only
+     what M3 reads it is 363kb, so no reasonable slimming fits. **Before any
+     deploy**, revisit: an unbounded body on an unauthenticated route is a
+     memory-exhaustion vector, and the outside voice argued for
+     bounded-but-larger scoped to this route.
+  2. **The server composes; the client never builds an ExplainRequest.**
+     `POST /affinity/explain-pair` takes `{traineeCharaId, traineeCardId,
+     veteranA, veteranB}` where each veteran carries its own three-slot package.
+     Measured at **772 bytes**, against 5,745 for a composed ExplainRequest.
+     `lineageFromPair` is lifted out of `scripts/build-fixtures.mjs` into
+     tested source, and the fixture builder then consumes that same code
+     instead of its own copy.
+  3. **The upload's own error paths ship with it**, closing part of the
+     ten-error-path deferral recorded above. An unknown `card_id` is a
+     **row-level** failure, not an upload-level one: that veteran is marked
+     unresolved and the other 258 stay usable, with a banner naming how many
+     failed and pointing at the extract rebuild. A patch that adds one uma must
+     not brick the roster during the window before re-extraction.
+  4. **`ExplainRequest` gains `traineeCardId`.** A card is a costume and costumes
+     carry different unique skills. It changes no computed number -- the trainee
+     shows no sparks -- but it is the difference between the tree drawing the
+     costume you are training and the base one. The picker therefore **labels
+     costumes**: 66 characters span 105 cards, so an unlabelled list shows
+     "Oguri Cap" twice, identically.
+  5. **`lineageFromPair` composes missing ancestor slots as `null`** rather than
+     throwing. The engine already models absent ancestors deliberately
+     (`base.absent_ancestor`, the dashed empty-slot node), so rejecting a veteran
+     for a missing parent would contradict the engine and refuse usable data.
+  6. **The `/roster/resolve` response shape is specified explicitly**, naming
+     which save fields are retained and which are guaranteed stripped. That
+     response is what actually enforces parse-and-discard, so leaving it implicit
+     would leave the privacy claim unenforced.
+
+  *Types.* A new **`@umalegacies/types`** workspace holds the wire types,
+  replacing the hand-mirrored copy in `packages/web/src/api/types.ts` (17 types,
+  158 lines, which M3 would grow by four). **This reverses the README's stated
+  position** that a shared package is a build-order dependency not worth paying;
+  the README must be corrected rather than left contradicting the repo. Both the
+  outside voice and this review recommended type-only cross-imports instead; the
+  builder chose the package.
+
+  *Tests.* All **27 identified paths** are required at implementation time, not
+  deferred. Two carry the weight:
+  - **Equivalence, non-circular.** Comparing `explainPair(x)` to
+    `explain(lineageFromPair(x))` proves nothing, because both call the same
+    helper. Instead `explain-pair` is fed the two veterans behind `verify-oguri`
+    and asserted against that fixture's externally verified numbers (352 total,
+    151 base, 201 bonus, all six individual affinities) -- values read off
+    breeding-optimizer by hand, not produced by any code here.
+  - **A deliberately asymmetric second pair**, chosen so that swapping A and B,
+    or mis-mapping a grandparent slot, yields DIFFERENT numbers. `verify-oguri`
+    is the control that agrees; this is the discriminator. Slot mapping is
+    exactly what a lift-and-reuse refactor breaks.
+
+  *Deploy checklist, not M3.* Response compression (the roster response is 363kb
+  raw and 29kb gzipped, and nothing is configured). And the parse-and-discard
+  promise is only as good as the hosting: proxies, error reporters and platform
+  logs can retain request bodies unless explicitly configured not to.
+
+  *Measured while reviewing:* save 5.2 MB; `JSON.parse` 10.7 ms; roster response
+  363kb raw / 29kb gzipped; 259 veterans; 1,554 ancestor slots; 36 distinct
+  trainee cards; ~1 MB transient heap. Performance found no issues at this scale.
+
+  *Two counts in this section are stale:* it says "all **65** chara_ids in
+  `card_data`" (actual 66) and "**9** relation charas have no card" (actual 8).
+  The conclusion holds -- 0 card characters are missing from
+  `succession_relation_member`, so the picker needs no empty state.
+
 - **M4 — The tree.** *Design review 2026-09-10 moved this into M2: it is not optional
   decoration, it is the organising frame.* A list of seven links needs `position_id`
   tags to disambiguate (fixture 5531's six slots hold only three distinct characters,
@@ -1033,83 +1113,37 @@ inheritance, not oversights:
   reason.
 - You rejected a question mid-flight rather than pick from a menu of things I had invented.
   That menu was the same move that had already been wrong six times.
-
 ## GSTACK REVIEW REPORT
 
-Design review, 2026-09-10, against M2 and M3 only (M4-M6 out of scope by the
-builder's choice, D2). Classifier: **OPERATE / App UI** — a data-dense planning
-tool, so App UI rules apply and landing-page rules do not.
-
-Evidence base: both golden fixtures run through the shipped M1 engine, plus an
-interactive wireframe at `~/.gstack/projects/lv5-raelu-umalegacies/designs/explain-screen-20260910/`
-rendering real 161-node output. Every number below is measured, not estimated.
+**Skill:** /plan-eng-review · **Date:** 2026-09-15 · **Target:** M3 (reduced) ·
+**Commit:** b7d57cf
 
 | Run | Status | Findings |
-|---|---|---|
-| Pre-review audit | done | No `DESIGN.md`, no `PRODUCT.md`, no prior design review. 5 prior reviews, all CEO/eng/codex. |
-| Step 0 rating | done | 3/10 design completeness |
-| Mockups | degraded | gstack designer installed but has no OpenAI key; fell back to hand-built wireframes driven by real API output, which suited a 161-node data problem better than generated imagery |
-| Pass 1 Information architecture | 4/10 | M2 now 8 after the tree; M3 is four nouns with no hierarchy |
-| Pass 2 Interaction states | 1/10 → **fixed for nodes** | Zero states specified. Two were contradicted by shipped code. Now specified as the three-zeros table in M2. |
-| Pass 3 User journey | 2/10 | No emotional arc; the upload moment is unaddressed and gated on OQ3 |
-| Pass 4 AI slop risk | 5/10 | No hard rejections. Two hits: `system-ui` as primary face (blacklist 11); "base blue, bonus red, individual purple" is the default palette |
-| Pass 5 Design system | 1/10 | No `DESIGN.md` to calibrate against |
-| Pass 6 Responsive + a11y | 0/10 | Tree needs 1038px, four grandparents alone need 600px, phone is 375px. 17 of 96 brand colours fall below 3:1 on the card surface (Manhattan Cafe `#3D3935` at 1.34:1) |
-| Pass 7 Unresolved decisions | done | 6 surfaced, 1 resolved |
+|-----|--------|----------|
+| Step 0 scope challenge | complete | Complexity gate tripped (8+ files, 2+ services). Scope cut to a usable core; IndexedDB and list filtering deferred to M3.1. Found `lineageFromPair` already written in `build-fixtures.mjs` — lift, do not rewrite. |
+| 1. Architecture | complete | 4 findings, 4 resolved (1A body limit, 1B composition ownership, 1C error paths, 1D traineeCardId) |
+| 2. Code quality | complete | 1 finding, 1 resolved (2A hand-mirrored types → shared workspace) |
+| 3. Tests | complete | 27 paths traced, 0 pre-existing. All 27 required at implementation. Equivalence test redesigned after the outside voice showed it was circular. |
+| 4. Performance | complete | No issues found. Measured: parse 10.7 ms, response 363kb/29kb gzipped, ~1 MB heap. |
+| Outside voice (Codex, gpt-5.5) | complete | 14 findings. 2 already answered by 1B. 2 overturned approved decisions and were re-decided. 6 recorded as corrections. 2 stand as cross-model tension. |
 
-**Defects found by rendering real data, not by reading the plan:**
+**OUTSIDE COVERAGE:** completed. Provider codex, model gpt-5.5, high reasoning.
+gstack's pinned `gpt-6-astra` is rejected by this account (`model_unusable`);
+the override was dropped rather than falling back to a same-harness subagent,
+which would have lost the outside-model read entirely.
 
-1. **`ExplainNode.label` collides.** Fixture 5531's six ancestor slots hold three
-   distinct characters, so `El Condor Pasa <-> Inari One` names two different links
-   worth 81 and 78. A list cannot disambiguate them without leaking `position_id`.
-   The pedigree layout does it spatially. This is why M4 moved into M2.
-2. **The tree is 65% one repeated row.** 104 of 161 nodes are an identical `+3`
-   `row.saddle`; 37 more are unnamed relation ids. Only 20 nodes carry structure.
-   Max depth is 3, so this is breadth, not nesting.
-3. **Relation naming is far smaller than the plan implies.** 1,616 types exist but
-   the builder's 259 lineages surface only **132**, and the top 40 cover **95%** of
-   occurrences. `card_data.running_style` correlates with relations 2901-2904 at
-   80-89% purity, which is a labelling hint, not a derivation.
-4. **Rebuilding a panel on resize destroys user state.** The wireframe's layout pass
-   rebuilt the detail panel and ran on `resize`, silently discarding whatever the
-   reader had expanded. Separate reposition from re-render in M2.
-5. **`chara_data` carries brand colours for all 96 characters** and is not in the
-   extract's six tables. Adding five columns costs ~2 KB in git.
+**CROSS-MODEL TENSION:**
+- *Body-size limit (1A).* Builder chose no limit; Codex and this review both
+  argued bounded-but-larger scoped to the route. Builder's decision stands,
+  recorded with a before-deploy trigger.
+- *Shared types package (2A).* Builder chose the package; Codex and this review
+  independently preferred type-only cross-imports, already proven working in
+  `contract.test.ts`. Builder's decision stands; README to be corrected.
 
-**Decisions taken this review (continued):** relations render as a count and total with
-no breakdown, races keep full names (D6) — taken after measuring that 92.1% of the
-relation rows a reader meets cannot be named from any table in `master.mdb`.
+**VERDICT: REVISE-THEN-BUILD.** The plan is sound and the scope is right, but it
+is not yet buildable as written: the response shape for `/roster/resolve`, the
+picker's costume labels, and the two verified test fixtures all need specifying
+before implementation starts. Everything needed to do that is decided and
+recorded above.
 
-**Decisions taken this review:** the pedigree tree replaces the link list and absorbs
-M4 (D3 supplanted by the builder's tree direction); portraits will be bundled in the
-repo with the colour band as fallback (D4, chosen against the reviewer's
-recommendation — the copyright and repo-weight case is recorded and was not
-re-argued); the two node states are now specified (D5).
-
-VERDICT: **APPROVED WITH CONDITIONS.** M2 is designed well enough to build: the tree,
-the three-zeros table, and the summarise-then-open pattern are settled and grounded in
-real output. M3 is not — it scores 4/10 or below on every pass and it is the milestone
-the success criterion is written against. Do not start M3 without a states pass.
-
-CODEX / CROSS-MODEL: not run (declined in favour of measurement against the shipped
-engine and the builder's own roster).
-
-**UNRESOLVED DECISIONS:**
-
-- Upload states and the copy that describes retention, blocked on Open Question 3
-- What box browse shows for 260 lineages: sort order, columns, empty and loading
-- The tree at 375px, where the layout needs 1038px and stacking destroys the pedigree
-- Display typeface, currently `system-ui`, which is the "gave up on typography" signal
-- Whether `/design-consultation` runs before M2 markup, given there is no `DESIGN.md`
-- Portrait extraction toolchain and per-patch refresh, now that bundling is the chosen path
-- **In-game confirmation of the spark odds model.** The formula and the combining rule
-  now match hakuraku's source exactly, but both are one implementation's belief. The
-  per-inspiration vs full-run toggle (hakuraku's `isFullRun`) is unbuilt.
-- Whether the odds panel stays in M2 or reverts to M5, given it pulled M5's core forward
-- **M7's uma.moe dependency**: API shape, terms of use and rate limits, all unchecked. The
-  own-only half of the search needs none of it and should ship independently.
-- **How affinity enters M7's ranking.** The best spark match may be a poor affinity pair,
-  and nothing currently trades those off. A user who gets their sparks and a rank-1 icon
-  has been failed.
-- **Total blues as a target**, requested separately by a friend. Believed already covered
-  by M7's lineage-wide scope, but not confirmed with the person who asked.
+NO UNRESOLVED DECISIONS
