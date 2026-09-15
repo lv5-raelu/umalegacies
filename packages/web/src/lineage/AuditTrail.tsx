@@ -106,8 +106,8 @@ export function AuditTrail({
                       two must agree. */}
                   <td className={styles.figure}>{row.stars}★</td>
                   {/* A fixed six-slot grid so the column can still be scanned
-                      downward, but NAMED: 11 and 12 are P1's parents and 21 and
-                      22 are P2's, and nothing about the digits says so. */}
+                      downward, but NAMED: the raw position_ids say nothing, and
+                      GP1..GP4 run left to right as the tree draws them. */}
                   <td className={styles.carriers}>
                     {ALL_POSITIONS.map((position) => {
                       const carries = row.carriers.some((c) => c.position === position);

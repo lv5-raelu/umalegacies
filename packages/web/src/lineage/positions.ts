@@ -12,10 +12,10 @@ export const POSITION_LABEL: Readonly<Record<Member, string>> = {
   T: 'Trainee',
   10: 'P1',
   20: 'P2',
-  11: 'GP1-1',
-  12: 'GP1-2',
-  21: 'GP2-1',
-  22: 'GP2-2',
+  11: 'GP1',
+  12: 'GP2',
+  21: 'GP3',
+  22: 'GP4',
 };
 
 export const positionLabel = (member: Member): string => POSITION_LABEL[member];
