@@ -150,6 +150,12 @@
 /* A ruled region, not a filled callout: the only card in the system is a tree
  * node, and a surface-filled block with a coloured left border is the shape
  * this design explicitly does not use. */
+.omitted {
+  color: var(--rule-strong);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .note {
   font-size: var(--text-xs);
   color: var(--ink-muted);

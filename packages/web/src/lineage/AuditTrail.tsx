@@ -68,11 +68,24 @@ export function AuditTrail({
         <tbody>
           {SPARK_KIND_ORDER.flatMap((kind) => {
             const group = shown.filter((row) => row.kind === kind);
-            if (group.length === 0) return [];
+            const omitted = sparks.filter(
+              (row) => row.kind === kind && !shown.includes(row),
+            ).length;
+            // A group whose rows were ALL dropped still gets its heading, and
+            // the heading says why. Without this the category simply vanished:
+            // a reader looking for blue found no rows, no header and no gap,
+            // and the explanation sat at the foot of fifty rows.
+            if (group.length === 0 && omitted === 0) return [];
             return [
               <tr key={kind}>
                 <td className={styles.groupTitle} colSpan={7}>
-                  {SPARK_GROUP_LABEL[kind]} · {group.length}
+                  {SPARK_GROUP_LABEL[kind]}
+                  {group.length > 0 && ` · ${group.length}`}
+                  {omitted > 0 && (
+                    <span className={styles.omitted}>
+                      {` · ${omitted} guaranteed, omitted`}
+                    </span>
+                  )}
                 </td>
               </tr>,
               // Rows are the table's primary control -- ~50 of them, each
