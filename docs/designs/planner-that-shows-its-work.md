@@ -794,7 +794,19 @@ raise them exist.
      warming the cache appeared to do nothing for a day. Caught by rendering
      against an empty cache rather than reasoning about it.
 
-  8. **The preview's tree was wrong about one star count.** `board.html` showed
+  8. **Portraits key on card_id, corrected 2026-09-15.** The first cut keyed
+     them by `chara_id`, one image per character. That is wrong: a card is a
+     costume and a costume carries its own unique skill, which IS the green
+     spark this very node prints under the portrait. 35 of 66 characters have
+     more than one card and 15 appear in the roster with two different greens.
+     It was live in the default view: `verify-oguri`'s Mejiro Dober is card
+     105902 and the tree drew 105901's art above *Wherever This Wonder Leads*,
+     which belongs to 105902. Only the trainee still falls back to a base card,
+     because the request carries `traineeCharaId` and no card; the trainee shows
+     no sparks, so no number depends on it. **If the trainee's costume ever needs
+     to be right, `ExplainRequest` needs a trainee card id.**
+
+  9. **The preview's tree was wrong about one star count.** `board.html` showed
      the Gold Ship at slot 12 with a 2-star blue; the save says 1 star and 17
      whites. The audit-trail table in that preview was generated from the engine
      and was right; the tree nodes beside it were hand-written and were not. Same

@@ -230,6 +230,7 @@ export function Tree({
                 identity={lineage.ancestors[position] ?? null}
                 affinity={lineage.individualAffinity[position] ?? null}
                 caption="individual"
+                portraitCard={lineage.ancestors[position]?.cardId ?? null}
                 selected={isSelected(position)}
                 onSelect={() => onSelect({ kind: 'member', position })}
               />
@@ -250,6 +251,7 @@ export function Tree({
                 identity={lineage.ancestors[position] ?? null}
                 affinity={lineage.individualAffinity[position] ?? null}
                 caption={addends(lineage.individualAffinity[position])}
+                portraitCard={lineage.ancestors[position]?.cardId ?? null}
                 selected={isSelected(position)}
                 onSelect={() => onSelect({ kind: 'member', position })}
               />
@@ -275,6 +277,9 @@ export function Tree({
               }}
               affinity={lineage.pairTotal}
               caption="trainee · pair total"
+              // The request carries no trainee card, so this is the base
+              // costume. The trainee shows no sparks, so no number depends on it.
+              portraitCard={lineage.trainee.portraitCardId}
               selected={isSelected('T')}
               onSelect={() => onSelect({ kind: 'total' })}
             />

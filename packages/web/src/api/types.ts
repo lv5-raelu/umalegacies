@@ -108,7 +108,13 @@ export interface LineageResponse {
   rankBounds: { min: number; max: number };
   masterHash: string;
   /** `resolution` says whether the trainee's chara_id is one master.mdb knows. */
-  trainee: { charaId: number; name: string; resolution: Resolution };
+  trainee: {
+    charaId: number;
+    name: string;
+    /** Base costume, for the portrait only. The request carries no trainee card. */
+    portraitCardId: number | null;
+    resolution: Resolution;
+  };
   /** Always all six keys. `null` is an empty slot, and the tree keeps its shape. */
   ancestors: Record<number, AncestorIdentity | null>;
   sparks: SparkSummaryRow[];

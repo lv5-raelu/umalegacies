@@ -83,9 +83,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  * Portraits are served by the API, not from the web app's own public/ folder,
  * because the cache they come from is a gitignored directory beside the master
  * extract. A miss is a 404 and the component falls back to initials.
+ *
+ * Keyed by CARD id, which is the costume. 35 of 66 characters have more than
+ * one, and a costume carries its own unique skill -- the green spark printed
+ * directly under this image.
  */
-export const portraitUrl = (charaId: number): string =>
-  `${API_BASE}/portraits/${charaId}.png`;
+export const portraitUrl = (cardId: number): string =>
+  `${API_BASE}/portraits/${cardId}.png`;
 
 export const fetchMasterMeta = (): Promise<MasterMeta> =>
   get<MasterMeta>('/master/meta');

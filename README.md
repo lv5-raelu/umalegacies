@@ -99,16 +99,24 @@ selector at the top right; `data.json` upload is M3 and does not exist yet.
 
 ### Portraits are cached, not committed
 
-`packages/api/data/portraits/<chara_id>.png` is **gitignored on purpose.** These
+`packages/api/data/portraits/<card_id>.png` is **gitignored on purpose.** These
 are Cygames' character illustrations; gametora, which the script fetches from,
 rehosts them rather than owning them, so nobody in that chain can grant
 redistribution rights. Caching them on the machine that runs the app is a
 different act from shipping them in git history and serving them publicly.
 
+**Keyed by card, not by character.** A card is a costume, and a costume carries
+its own unique skill, which IS the green spark. 35 of the 66 characters have
+more than one card, and on a real roster 15 appear with two different greens:
+Oguri Cap `100601` is *Triumphant Pulse*, `100602` is *Festive Miracle*. Keying
+by `chara_id` drew one costume's face directly above another costume's spark.
+
 `scripts/fetch-portraits.mjs` reads `card_data` from the committed extract,
-takes the lowest card id per character (the base outfit), verifies PNG magic
-bytes rather than trusting a 200, and skips anything already on disk, so a
-re-run after a patch fetches only what is new. 66 files, about 560 KB.
+verifies PNG magic bytes rather than trusting a 200, and skips anything already
+on disk, so a re-run after a patch fetches only what is new. 103 of 105 cards,
+about 900 KB. The two misses are `9100101` and `9101101` — the same pair the
+`card_id / 100` gotcha below calls out — which gametora does not host under this
+naming; they render as initials.
 
 ### The two data files
 
@@ -187,6 +195,11 @@ that twice.
   per group; look names up per factor.
 - **`factor_info_array[].level` is always 0** across all 1,554 ancestor slots in the
   builder's roster. The star count comes from `succession_factor.rarity`, not from there.
+- **A costume is not a skin.** Cards of one `chara_id` have different unique
+  skills, so they have different green sparks. Anything identifying an ancestor
+  visually must key on `card_id`. Only the trainee falls back to a character's
+  base card, because the request carries no trainee card — and the trainee shows
+  no sparks, so no number depends on it.
 - **`group_id` looks like a matching key and is not.** `single_mode_wins_saddle` has 7
   `group_id`s holding more than one G1 row — the same race at a different racecourse (not a
   different year: Arima Kinen runs twice per career and has one id, while Classic-only

@@ -17,6 +17,7 @@ export function NodeCard({
   identity,
   affinity,
   caption,
+  portraitCard,
   variant = 'ancestor',
   selected,
   onSelect,
@@ -26,6 +27,8 @@ export function NodeCard({
   /** The headline number on the card. Individual affinity, or the pair total. */
   affinity: ExplainNode | null;
   caption: string;
+  /** The card whose art to show. For an ancestor this is its own card. */
+  portraitCard: number | null;
   variant?: 'ancestor' | 'trainee';
   selected: boolean;
   onSelect: () => void;
@@ -42,6 +45,9 @@ export function NodeCard({
 
   const unresolved = identity.resolution.ok === false;
   const size = variant === 'trainee' ? 54 : 48;
+  // An unresolved card has no portrait to fetch, so fall straight to initials
+  // rather than asking the API for an id it just told us it does not know.
+  const portraitCardId = unresolved ? null : portraitCard;
 
   return (
     <button
@@ -59,15 +65,20 @@ export function NodeCard({
         .join(' ')}
     >
       <span className={styles.portrait}>
-        {/* Keyed by charaId so React REMOUNTS on a character change. Portrait
-            holds a `failed` flag from the image's error event, and these cards
-            are keyed by slot, so the instance survives a lineage switch: a slot
-            that 404'd once would keep showing initials for the next character
-            in it, even one that is cached. That is the ordinary state after a
-            game patch adds an uma the cache has not been refilled for. */}
+        {/* The ancestor's own CARD, not its character: a costume carries its
+            own unique skill, which is the green spark three lines below this
+            image. Keying by chara drew Oguri Cap's base face above "Festive
+            Miracle", which belongs to her other costume.
+
+            key= so React REMOUNTS on a change. Portrait holds a `failed` flag
+            from the image's error event, and these cards are keyed by slot, so
+            the instance survives a lineage switch: a slot that 404'd once would
+            keep showing initials for the next costume in it, even a cached one.
+            That is the ordinary state after a patch adds an uma the cache has
+            not been refilled for. */}
         <Portrait
-          key={identity.charaId ?? 'unresolved'}
-          charaId={identity.charaId}
+          key={portraitCardId ?? 'unresolved'}
+          cardId={portraitCardId}
           name={identity.name}
           size={size}
         />

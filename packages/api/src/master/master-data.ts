@@ -26,6 +26,8 @@ export class MasterData {
   private readonly relationTypesByChara = new Map<number, Set<number>>();
   /** card_id -> chara_id. */
   private readonly charaIdByCardId = new Map<number, number>();
+  /** chara_id -> its lowest card_id, i.e. the base costume. */
+  private readonly baseCardByCharaId = new Map<number, number>();
   /** single_mode_wins_saddle ids whose win_saddle_type is 3, i.e. a single G1. */
   private readonly g1SaddleIds = new Set<number>();
   /** saddle id -> its group_id, kept for UI grouping and for NOTHING in the math. */
@@ -59,9 +61,17 @@ export class MasterData {
     }
 
     for (const r of db
-      .prepare('SELECT id, chara_id FROM card_data')
+      .prepare('SELECT id, chara_id FROM card_data ORDER BY id')
       .iterate() as Iterable<{ id: number; chara_id: number }>) {
       this.charaIdByCardId.set(r.id, r.chara_id);
+      // Ordered by id, so the first card seen for a chara is the lowest: the
+      // base costume. Only the TRAINEE needs this, because the request carries
+      // traineeCharaId and never a card. Every ancestor already arrives as a
+      // card_id and must use it -- a card is a costume, and a costume carries
+      // its own unique skill, which is the green spark.
+      if (!this.baseCardByCharaId.has(r.chara_id)) {
+        this.baseCardByCharaId.set(r.chara_id, r.id);
+      }
     }
 
     for (const r of db
@@ -155,6 +165,18 @@ export class MasterData {
    */
   charaIdFor(cardId: number): number | null {
     return this.charaIdByCardId.get(cardId) ?? null;
+  }
+
+  /**
+   * The base costume's card for a character, or null if the character has none.
+   *
+   * ONLY for the trainee, whose costume the request does not carry. The trainee
+   * shows no sparks, so the approximation is invisible in every number; it is
+   * only a face. An ancestor must never come through here -- it has a real
+   * card_id and its costume decides its green spark.
+   */
+  baseCardFor(charaId: number): number | null {
+    return this.baseCardByCharaId.get(charaId) ?? null;
   }
 
   hasChara(charaId: number): boolean {

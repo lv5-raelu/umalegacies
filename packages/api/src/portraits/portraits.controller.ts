@@ -17,9 +17,9 @@ import { findPortraitDir, lookupPortrait } from './portrait-lookup';
 export class PortraitsController {
   private readonly dir = findPortraitDir();
 
-  @Get(':charaId.png')
-  portrait(@Param('charaId') charaId: string, @Res({ passthrough: true }) res: Response) {
-    const found = lookupPortrait(this.dir, charaId);
+  @Get(':cardId.png')
+  portrait(@Param('cardId') cardId: string, @Res({ passthrough: true }) res: Response) {
+    const found = lookupPortrait(this.dir, cardId);
 
     if (!found.ok) {
       // The cache header is set ONLY on the success path, deliberately. A
@@ -31,18 +31,18 @@ export class PortraitsController {
       if (found.reason === 'invalid_id') {
         throw new DomainError(
           'INVALID_CHARA_ID',
-          'charaId must be a number, e.g. /portraits/1006.png.',
+          'cardId must be a number, e.g. /portraits/100601.png.',
           400,
-          'charaId',
+          'cardId',
         );
       }
       throw new DomainError(
         'PORTRAIT_NOT_CACHED',
-        `No cached portrait for chara ${charaId}. The cache is optional and ` +
+        `No cached portrait for card ${cardId}. The cache is optional and ` +
           'gitignored; run `npm run fetch:portraits --workspace @umalegacies/api` ' +
-          'to fill it. Until then this character renders as initials.',
+          'to fill it. Until then this costume renders as initials.',
         404,
-        'charaId',
+        'cardId',
       );
     }
 
@@ -66,11 +66,11 @@ export class PortraitsController {
       res.setHeader('Cache-Control', 'no-store');
       throw new DomainError(
         'PORTRAIT_NOT_CACHED',
-        `The cached portrait for chara ${charaId} could not be read. It may have been ` +
+        `The cached portrait for card ${cardId} could not be read. It may have been ` +
           'removed while this request was in flight; re-run ' +
           '`npm run fetch:portraits --workspace @umalegacies/api`.',
         404,
-        'charaId',
+        'cardId',
       );
     }
 

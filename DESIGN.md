@@ -243,4 +243,5 @@ and underline offset all derive from this palette.
 | 2026-09-15 | Star figures are lineage totals, not per-carrier maxima | The maximum carried no meaning and disagreed with the borrow search's filter unit. |
 | 2026-09-15 | Wide content scrolls in its own region, never the page body | Found at 390px: the seven-column audit trail pushed the whole document to 487px. The tree already had a region; the table did not. |
 | 2026-09-15 | An absent link's edge label is one faint `0`, not `0 +0` | Amber means added, and nothing is added across an empty slot. The connector is dashed for the same reason: absent is a fact and reads calm. |
+| 2026-09-15 | Portraits key on card_id, not chara_id | A card is a costume and a costume carries its own unique skill, which is the green spark printed under the portrait. Builder caught the base costume's face rendering above the alternate costume's spark. |
 | 2026-09-15 | Portraits are cached locally, never committed | Builder's call. The art is Cygames' and gametora rehosts rather than owns it, so a repo bound for public hosting should not carry it. The initials disc was already designed, so the no-image state costs nothing. |

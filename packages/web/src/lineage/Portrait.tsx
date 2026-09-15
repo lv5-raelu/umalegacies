@@ -15,23 +15,24 @@ import styles from './Portrait.module.css';
  * 1.34:1), so colour cannot carry identity here.
  */
 export function Portrait({
-  charaId,
+  cardId,
   name,
   size = 48,
 }: {
-  charaId: number | null;
+  /** The CARD, i.e. the costume. Null when the card could not be resolved. */
+  cardId: number | null;
   name: string;
   size?: number;
 }) {
   const [failed, setFailed] = useState(false);
-  const showImage = charaId !== null && !failed;
+  const showImage = cardId !== null && !failed;
 
   return (
     <span className={styles.disc} style={{ width: size, height: size }} aria-hidden="true">
       {showImage ? (
         <img
           className={styles.image}
-          src={portraitUrl(charaId)}
+          src={portraitUrl(cardId)}
           alt=""
           onError={() => setFailed(true)}
         />

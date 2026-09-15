@@ -158,6 +158,34 @@ describe('the Oguri Cap verification lineage', () => {
   });
 });
 
+describe('costumes are distinct umas, not skins', () => {
+  it('gives an ancestor its own card, so the portrait matches the green spark', () => {
+    // 35 of the 66 characters have more than one card, and a card carries its
+    // own unique skill -- which IS the green spark the node prints under the
+    // portrait. Keying the image by chara_id drew one costume's face above
+    // another costume's spark. Measured on a real roster, 15 characters appear
+    // with two different greens.
+    const result = lineage('verify-oguri');
+    for (const position of [10, 20, 11, 12, 21, 22]) {
+      const ancestor = result.ancestors[position];
+      expect(ancestor?.cardId, `slot ${position}`).toBeGreaterThan(0);
+      // The card is the identity the portrait must use; chara_id is coarser.
+      expect(master.charaIdFor(ancestor!.cardId)).toBe(ancestor!.charaId);
+    }
+  });
+
+  it('keeps two costumes of one character apart', () => {
+    // Oguri Cap 100601 is "Triumphant Pulse"; 100602 is "Festive Miracle".
+    const base = master.charaIdFor(100601);
+    const alt = master.charaIdFor(100602);
+    expect(base).toBe(alt);
+    expect(100601).not.toBe(100602);
+    // The trainee is the one member with no card in the request, so it falls
+    // back to the base costume. That affects no number: a trainee shows no sparks.
+    expect(master.baseCardFor(base as number)).toBe(100601);
+  });
+});
+
 describe('a trainee master.mdb does not know', () => {
   it('says so instead of returning a confident total', () => {
     // An unknown trainee collapses every base term that touches it: both

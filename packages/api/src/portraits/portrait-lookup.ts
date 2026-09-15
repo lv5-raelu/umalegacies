@@ -39,12 +39,12 @@ export type PortraitLookup =
  * tested as plain functions, matching how the rest of this package is tested
  * (M0 chose fixtures over Nest testing-module setups).
  */
-export function lookupPortrait(dir: string, charaId: string): PortraitLookup {
+export function lookupPortrait(dir: string, cardId: string): PortraitLookup {
   // An id, not a filename. Digits only, so no `..`, no separator, no absolute
   // path and no null byte can be smuggled through the route parameter.
-  if (!/^\d{1,10}$/.test(charaId)) return { ok: false, reason: 'invalid_id' };
+  if (!/^\d{1,10}$/.test(cardId)) return { ok: false, reason: 'invalid_id' };
 
-  const path = resolve(dir, `${charaId}.png`);
+  const path = resolve(dir, `${cardId}.png`);
   // Belt and braces: even though the regex makes traversal unreachable, assert
   // the resolved path stayed inside the cache directory. A future edit to that
   // regex must not silently become a file-read primitive.

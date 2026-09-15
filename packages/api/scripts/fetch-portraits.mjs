@@ -3,7 +3,7 @@
  *
  *   node scripts/fetch-portraits.mjs [--force] [--concurrency N]
  *
- * Writes packages/api/data/portraits/<chara_id>.png, which is GITIGNORED and
+ * Writes packages/api/data/portraits/<card_id>.png, which is GITIGNORED and
  * deliberately so. The images are Cygames' character art; gametora rehosts them
  * and cannot grant redistribution rights it does not hold. Committing them would
  * put third-party artwork in git history permanently and serve it publicly the
@@ -63,15 +63,19 @@ const db = new Database(':memory:');
 db.exec(readFileSync(extractPath, 'utf8'));
 
 /**
- * One portrait per CHARACTER, not per card. gametora files are per card
- * (`chara_stand_<chara_id>_<card_id>.png`, one per outfit) while a tree node
- * identifies a character, so the lowest card id wins: that is the base outfit,
- * and it is the one a player recognises.
+ * One portrait per CARD, not per character.
+ *
+ * A card is a costume, and costumes are not cosmetic here: 35 of the 66
+ * characters have more than one card, and a card carries its own unique skill,
+ * which IS the green spark. Measured on a real roster, 15 characters appear
+ * with two different greens -- Oguri Cap 100601 is "Triumphant Pulse" and
+ * 100602 is "Festive Miracle". Keying portraits by chara_id therefore drew one
+ * costume's face directly above another costume's unique skill on the same
+ * node. gametora's filename carries both ids, so the correct image was always
+ * one join away.
  */
 const picks = new Map();
-for (const row of db
-  .prepare('SELECT id, chara_id FROM card_data ORDER BY chara_id, id')
-  .all()) {
+for (const row of db.prepare('SELECT id, chara_id FROM card_data ORDER BY id').all()) {
   // SQLite is dynamically typed and this extract is generated text, so assert
   // rather than assume. Both values are interpolated into a URL and a filename;
   // a non-integer would be an arbitrary-path write.
@@ -79,7 +83,7 @@ for (const row of db
     console.error(`card_data row has non-integer ids: ${JSON.stringify(row)}`);
     process.exit(2);
   }
-  if (!picks.has(row.chara_id)) picks.set(row.chara_id, row.id);
+  picks.set(row.id, row.chara_id);
 }
 
 mkdirSync(outDir, { recursive: true });
@@ -87,7 +91,7 @@ mkdirSync(outDir, { recursive: true });
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
 
 const wanted = [...picks].filter(
-  ([charaId]) => force || !existsSync(resolve(outDir, `${charaId}.png`)),
+  ([cardId]) => force || !existsSync(resolve(outDir, `${cardId}.png`)),
 );
 
 if (wanted.length === 0) {
@@ -100,7 +104,7 @@ console.log(`fetching ${wanted.length} of ${picks.size} portraits into ${outDir}
 const failures = [];
 let done = 0;
 
-async function fetchOne([charaId, cardId]) {
+async function fetchOne([cardId, charaId]) {
   const url =
     `https://gametora.com/images/umamusume/characters/thumb/chara_stand_${charaId}_${cardId}.png`;
   try {
@@ -117,7 +121,7 @@ async function fetchOne([charaId, cardId]) {
       },
     });
     if (!response.ok) {
-      failures.push(`${charaId}: HTTP ${response.status}`);
+      failures.push(`${cardId}: HTTP ${response.status}`);
       return;
     }
     // Check the advertised length before buffering, so a hostile or
@@ -125,24 +129,24 @@ async function fetchOne([charaId, cardId]) {
     // rejected by the magic-byte test below.
     const declared = Number(response.headers.get('content-length'));
     if (Number.isFinite(declared) && declared > MAX_PORTRAIT_BYTES) {
-      failures.push(`${charaId}: ${declared} bytes, over the ${MAX_PORTRAIT_BYTES} cap`);
+      failures.push(`${cardId}: ${declared} bytes, over the ${MAX_PORTRAIT_BYTES} cap`);
       return;
     }
     const body = Buffer.from(await response.arrayBuffer());
     if (body.length > MAX_PORTRAIT_BYTES) {
-      failures.push(`${charaId}: ${body.length} bytes, over the ${MAX_PORTRAIT_BYTES} cap`);
+      failures.push(`${cardId}: ${body.length} bytes, over the ${MAX_PORTRAIT_BYTES} cap`);
       return;
     }
     // A 404 page served as 200 is HTML, and writing it as a .png produces a
     // broken image that looks like a layout bug three days later.
     if (!body.subarray(0, 4).equals(PNG_MAGIC)) {
-      failures.push(`${charaId}: not a PNG (${body.length} bytes)`);
+      failures.push(`${cardId}: not a PNG (${body.length} bytes)`);
       return;
     }
-    writeFileSync(resolve(outDir, `${charaId}.png`), body);
+    writeFileSync(resolve(outDir, `${cardId}.png`), body);
     done++;
   } catch (error) {
-    failures.push(`${charaId}: ${error instanceof Error ? error.message : String(error)}`);
+    failures.push(`${cardId}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

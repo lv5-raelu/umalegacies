@@ -28,7 +28,6 @@ export interface AncestorIdentity {
   /** null when card_data has no such card; `resolution` then says so. */
   charaId: number | null;
   name: string;
-  /** Portraits are keyed by chara_id, so a card with no chara has no portrait. */
   sparks: AncestorSparkSet;
   resolution: Resolution;
 }
@@ -48,7 +47,16 @@ export interface LineageResponse extends ExplainResponse {
    * The realistic trigger is not adversarial: a patch adds an uma, the extract
    * has not been rebuilt, the user picks her.
    */
-  trainee: { charaId: number; name: string; resolution: Resolution };
+  trainee: {
+    charaId: number;
+    name: string;
+    /**
+     * The base costume's card, for the portrait only. The request carries no
+     * trainee card, and the trainee shows no sparks, so this affects no number.
+     */
+    portraitCardId: number | null;
+    resolution: Resolution;
+  };
   /**
    * Keyed by position_id, and ALWAYS carrying all six keys. An absent slot is
    * `null`, not a missing key, so the tree keeps six slots and never reflows
@@ -125,6 +133,7 @@ export function explainLineage(
     trainee: {
       charaId: request.traineeCharaId,
       name: master.charaName(request.traineeCharaId),
+      portraitCardId: master.baseCardFor(request.traineeCharaId),
       resolution: master.hasChara(request.traineeCharaId)
         ? { ok: true }
         : { ok: false, reason: 'no_relation_rows', id: request.traineeCharaId },
