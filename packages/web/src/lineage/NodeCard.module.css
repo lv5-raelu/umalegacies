@@ -1,7 +1,13 @@
 .card {
+  /* The gutter the name and affinity leave for the portrait. Derived from the
+     portrait size rather than hardcoded, so the two cannot drift apart when
+     the card shrinks. */
+  --portrait-size: 48px;
+  --portrait-gutter: calc(var(--portrait-size) + var(--space-sm) + var(--space-hair));
   position: relative;
   width: 100%;
-  max-width: 216px;
+  /* 4 x 200 + 3 x 16 = 848, inside the 868px content column. */
+  max-width: 200px;
   justify-self: center;
   padding: var(--space-snug) var(--space-snug) var(--space-sm);
   background: var(--surface);
@@ -64,7 +70,7 @@
   display: block;
   font-size: var(--text-xs);
   min-height: 18px;
-  padding-right: 58px;
+  padding-right: var(--portrait-gutter);
 }
 
 .affinity {
@@ -73,9 +79,9 @@
   font-size: var(--text-lg);
   font-weight: 500;
   line-height: 1.2;
-  padding-right: 58px;
-  /* Name + affinity together must clear the 48px portrait, so the provenance
-     line below can run the card's full width and never wrap mid-sum. */
+  padding-right: var(--portrait-gutter);
+  /* Name + affinity together must clear the portrait, so the provenance line
+     below can run the card's full width and never wrap mid-sum. */
   min-height: 30px;
 }
 
@@ -92,6 +98,7 @@
 }
 
 .trainee {
+  --portrait-size: 54px;
   border-color: var(--rule-strong);
   text-align: center;
 }
@@ -150,4 +157,18 @@
   font-family: var(--font-data);
   font-size: var(--text-3xs);
   color: var(--ink);
+}
+
+/* Narrow viewports: shrink the card's furniture rather than its text. The
+ * portrait gives up size first, because a name that ellipsises costs more than
+ * a smaller face. */
+@media (max-width: 760px) {
+  .card {
+    --portrait-size: 34px;
+    padding: var(--space-sm);
+  }
+
+  .affinity {
+    font-size: var(--text-md);
+  }
 }

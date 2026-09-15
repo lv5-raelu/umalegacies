@@ -1,8 +1,13 @@
-/* The tree needs 1038px to hold four cards across with the air DESIGN.md asks
- * for, and the page is 900px. Below that the tree scrolls sideways in its own
- * region rather than reflowing: a pedigree whose tiers stack is no longer a
- * pedigree. How this should behave at 375px is an open question in the design
- * doc, and this is the honest placeholder, not the answer. */
+/* The tree FITS the page column. Four 200px cards and three 16px gaps come to
+ * 848px inside the 868px content box, so nothing scrolls at the width the page
+ * is actually read at -- the earlier 216px card asked for 912px and overflowed
+ * by 44px, which is the entire reason this ever scrolled.
+ *
+ * Below that the cards shrink with the grid rather than forcing a scrollbar,
+ * and the portrait shrinks with them so the name is not crushed against a
+ * gutter reserved for an image that no longer needs it. The scroll container
+ * survives only as a floor for genuinely tiny viewports: a pedigree whose tiers
+ * stack is no longer a pedigree. */
 .scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -12,10 +17,9 @@
 
 .frame {
   position: relative;
-  /* The figure this file's own header states. At 620px the tree did not
-     scroll, it COMPRESSED: four cards squeezed below their 216px max while the
-     name and affinity still reserved 58px for the portrait. */
-  min-width: 1038px;
+  /* Only a floor for viewports no pedigree can serve. Everything above it
+     fits without a scrollbar. */
+  min-width: 460px;
   padding-bottom: var(--space-snug);
 }
 
@@ -44,7 +48,9 @@
 
 .row4 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* minmax(0, 1fr) so a column may actually shrink below its content width;
+     a bare 1fr floors at min-content and reintroduces the overflow. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-md);
   position: relative;
   z-index: 1;

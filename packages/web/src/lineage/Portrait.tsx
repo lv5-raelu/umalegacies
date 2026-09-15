@@ -17,18 +17,19 @@ import styles from './Portrait.module.css';
 export function Portrait({
   cardId,
   name,
-  size = 48,
 }: {
   /** The CARD, i.e. the costume. Null when the card could not be resolved. */
   cardId: number | null;
   name: string;
-  size?: number;
 }) {
   const [failed, setFailed] = useState(false);
   const showImage = cardId !== null && !failed;
 
+  // Sized by `--portrait-size` from the card, not an inline width: the card
+  // shrinks it on narrow viewports, and an inline style could only have been
+  // beaten with !important.
   return (
-    <span className={styles.disc} style={{ width: size, height: size }} aria-hidden="true">
+    <span className={styles.disc} aria-hidden="true">
       {showImage ? (
         <img
           className={styles.image}

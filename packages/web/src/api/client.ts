@@ -92,5 +92,14 @@ export const fetchFixtureNames = (): Promise<{ names: string[] }> =>
 export const fetchFixture = (name: string): Promise<FixtureSummary> =>
   get<FixtureSummary>(`/affinity/fixtures/${encodeURIComponent(name)}`);
 
-export const explainLineage = (request: ExplainRequest): Promise<LineageResponse> =>
-  post<LineageResponse>('/affinity/explain', request);
+/**
+ * `masterHash` pins the request to a specific extract. If the server is serving
+ * a different one -- a game patch landed and the extract was rebuilt while this
+ * tab was open -- it answers 409 STALE_MASTER_HASH instead of handing back
+ * numbers computed from different game data.
+ */
+export const explainLineage = (
+  request: ExplainRequest,
+  masterHash?: string,
+): Promise<LineageResponse> =>
+  post<LineageResponse>('/affinity/explain', masterHash ? { ...request, masterHash } : request);

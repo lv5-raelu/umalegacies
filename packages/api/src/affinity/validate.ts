@@ -56,10 +56,13 @@ export function parseExplainRequest(body: unknown): ExplainRequest {
   const request: ExplainRequest = { traineeCharaId, parents, grandparents };
 
   if (raw.masterHash !== undefined) {
-    if (typeof raw.masterHash !== 'string') {
+    // Bounded: it is a SHA-256 hex digest or it is not one. Accepting an
+    // arbitrary string capped only by the body limit, for a value whose whole
+    // job is to be compared against a digest, is not validation.
+    if (typeof raw.masterHash !== 'string' || !/^[0-9a-f]{64}$/.test(raw.masterHash)) {
       throw new DomainError(
         'INVALID_MASTER_HASH',
-        'masterHash must be a string when present.',
+        'masterHash must be a 64-character lowercase SHA-256 hex digest when present.',
         400,
         'masterHash',
       );
@@ -68,6 +71,39 @@ export function parseExplainRequest(body: unknown): ExplainRequest {
   }
 
   return request;
+}
+
+/**
+ * Refuses to answer a request pinned to different game data.
+ *
+ * `ExplainRequest.masterHash` was documented as "an optional echo of GET
+ * /master/meta, for staleness detection" and was then read by nothing: the
+ * server validated it, copied it onto the request, and computed against its own
+ * hash regardless. A client that dutifully echoed a stale digest got a
+ * confident answer from a different version of the game with no way to tell.
+ *
+ * This matters because a patch really does move the numbers: the last one added
+ * 23 succession_relation_member rows and three characters, so base affinity
+ * between two EXISTING characters can shift. A cached answer is only true
+ * against the extract it came from.
+ *
+ * 409 rather than 400: the request is well-formed, it just disagrees with the
+ * server's current state, and the fix is to re-read GET /master/meta.
+ */
+export function assertMasterHashCurrent(
+  echoed: string | undefined,
+  current: string,
+): void {
+  if (echoed === undefined || echoed === current) return;
+  throw new DomainError(
+    'STALE_MASTER_HASH',
+    `This request is pinned to master data ${echoed.slice(0, 12)}, but the server is ` +
+      `serving ${current.slice(0, 12)}. A game patch moves affinity between existing ` +
+      'characters, so answering would mean returning numbers from a different version. ' +
+      'Re-read GET /master/meta and discard anything cached against the old hash.',
+    409,
+    'masterHash',
+  );
 }
 
 function parseAncestor(

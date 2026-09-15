@@ -179,7 +179,11 @@
 }
 
 .carriers {
+  /* Six rows of short figures. At the panel's full 900px the five columns
+     sprawled and each number drifted far from its heading; the table gets
+     density, per DESIGN.md. */
   width: 100%;
+  max-width: 460px;
   border-collapse: collapse;
   margin-top: var(--space-sm);
   font-size: var(--text-xs);
@@ -187,13 +191,21 @@
 
 .carriers th {
   font-family: var(--font-data);
+  text-align: left;
   font-size: var(--text-3xs);
   font-weight: 400;
   letter-spacing: var(--tracking-label);
   color: var(--ink-faint);
-  text-align: left;
   padding: 0 var(--space-sm) var(--space-xs);
   border-bottom: 1px solid var(--rule);
+}
+
+/* `.carriers th` is (0,1,1) and `.numeric` is (0,1,0), so the header's
+ * text-align beat it while the body cells, which have no competing rule, did
+ * not. Headers sat left above right-aligned figures. Match the specificity. */
+.carriers th.numeric,
+.carriers td.numeric {
+  text-align: right;
 }
 
 .carriers td {

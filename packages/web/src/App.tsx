@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ApiError,
   explainLineage,
@@ -40,6 +40,10 @@ export function App() {
   const [chosen, setChosen] = useState(DEFAULT_FIXTURE);
   const [selection, setSelection] = useState<Selection>({ kind: 'total' });
   const [spark, setSpark] = useState<SparkSummaryRow | null>(null);
+  // The extract every number on screen was computed from. Echoed on the next
+  // request so a rebuilt extract is caught rather than silently mixed in.
+  const seenMasterHash = useRef<string | undefined>(undefined);
+  const [masterChanged, setMasterChanged] = useState(false);
 
   useEffect(() => {
     fetchFixtureNames()
@@ -54,12 +58,32 @@ export function App() {
     setSpark(null);
 
     fetchFixture(chosen)
-      .then(async (fixture) => ({
-        description: fixture.description,
-        lineage: await explainLineage(fixture.request),
-      }))
+      .then(async (fixture) => {
+        try {
+          return {
+            description: fixture.description,
+            lineage: await explainLineage(fixture.request, seenMasterHash.current),
+          };
+        } catch (error) {
+          // The server rebuilt its extract while this tab was open. Nothing
+          // cached here is trustworthy any more, so drop the pin and re-ask
+          // rather than showing an error for something recoverable -- but say
+          // out loud that the underlying game data moved.
+          if (error instanceof ApiError && error.code === 'STALE_MASTER_HASH') {
+            seenMasterHash.current = undefined;
+            setMasterChanged(true);
+            return {
+              description: fixture.description,
+              lineage: await explainLineage(fixture.request),
+            };
+          }
+          throw error;
+        }
+      })
       .then(({ lineage, description }) => {
-        if (!cancelled) setState({ status: 'ok', lineage, description });
+        if (cancelled) return;
+        seenMasterHash.current = lineage.masterHash;
+        setState({ status: 'ok', lineage, description });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -92,6 +116,13 @@ export function App() {
           </label>
         )}
       </header>
+
+      {masterChanged && (
+        <p className={styles.notice}>
+          The master data changed while this page was open, so everything below was
+          recomputed. Numbers you noted earlier came from a different extract.
+        </p>
+      )}
 
       {state.status === 'loading' && <p className={styles.quiet}>Explaining…</p>}
 

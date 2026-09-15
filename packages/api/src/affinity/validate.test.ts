@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DomainError } from '../common/error-response';
 import { loadFixture } from './fixtures';
-import { parseExplainRequest } from './validate';
+import { assertMasterHashCurrent, parseExplainRequest } from './validate';
 
 const valid = () => JSON.parse(JSON.stringify(loadFixture('5531').request));
 
@@ -171,6 +171,58 @@ describe('parseExplainRequest', () => {
         throw new Error('should have thrown');
       } catch (error) {
         expect((error as DomainError).code).toBe('TOO_MANY_WIN_SADDLES');
+      }
+    });
+  });
+
+  describe('masterHash', () => {
+    const digest = 'a'.repeat(64);
+
+    it('accepts a sha256 hex digest', () => {
+      expect(parseExplainRequest({ ...valid(), masterHash: digest }).masterHash).toBe(digest);
+    });
+
+    it('refuses anything that is not one', () => {
+      // The field exists to be compared against a digest, so an arbitrary
+      // string bounded only by the body limit is not validation.
+      for (const bad of ['', 'not-a-hash', 'A'.repeat(64), 'a'.repeat(63), 'a'.repeat(65), 12345]) {
+        try {
+          parseExplainRequest({ ...valid(), masterHash: bad });
+          throw new Error('should have thrown');
+        } catch (error) {
+          expect((error as DomainError).code, String(bad)).toBe('INVALID_MASTER_HASH');
+        }
+      }
+    });
+  });
+
+  describe('assertMasterHashCurrent', () => {
+    const current = 'b'.repeat(64);
+
+    it('answers a request that pins the extract actually being served', () => {
+      expect(() => assertMasterHashCurrent(current, current)).not.toThrow();
+    });
+
+    it('answers a request that pins nothing', () => {
+      // The field is optional; omitting it means "whatever you have".
+      expect(() => assertMasterHashCurrent(undefined, current)).not.toThrow();
+    });
+
+    it('refuses a request pinned to a different extract, with 409', () => {
+      // A game patch moves affinity between EXISTING characters, so answering
+      // would mean returning numbers from a different version of the game.
+      const stale = 'c'.repeat(64);
+      try {
+        assertMasterHashCurrent(stale, current);
+        throw new Error('should have thrown');
+      } catch (error) {
+        const domain = error as DomainError;
+        expect(domain.code).toBe('STALE_MASTER_HASH');
+        expect(domain.status).toBe(409);
+        expect(domain.field).toBe('masterHash');
+        // Names both digests so the client can see which is which.
+        expect(domain.message).toContain(stale.slice(0, 12));
+        expect(domain.message).toContain(current.slice(0, 12));
       }
     });
   });

@@ -4,7 +4,7 @@ import { MasterService } from '../master/master.service';
 import { FIXTURE_NAMES, loadFixture } from './fixtures';
 import { explainLineage, type LineageResponse } from './lineage';
 import type { ExplainRequest } from './types';
-import { parseExplainRequest } from './validate';
+import { assertMasterHashCurrent, parseExplainRequest } from './validate';
 
 @Controller('affinity')
 export class AffinityController {
@@ -18,7 +18,11 @@ export class AffinityController {
   @Post('explain')
   explain(@Body() body: unknown): LineageResponse {
     const request = parseExplainRequest(body);
-    return explainLineage(request, this.master.data, this.master.getMeta().masterHash);
+    const masterHash = this.master.getMeta().masterHash;
+    // A client that pins its request to an extract we are no longer serving is
+    // told so, rather than handed numbers from a different version of the game.
+    assertMasterHashCurrent(request.masterHash, masterHash);
+    return explainLineage(request, this.master.data, masterHash);
   }
 
   /**

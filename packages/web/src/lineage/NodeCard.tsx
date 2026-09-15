@@ -63,7 +63,6 @@ export function NodeCard({
   }
 
   const unresolved = subject.resolution.ok === false;
-  const size = variant === 'trainee' ? 54 : 48;
   // An unresolved card has no portrait to fetch, so fall straight to initials
   // rather than asking the API for an id it just told us it does not know.
   const portraitCardId = unresolved ? null : portraitCard;
@@ -95,12 +94,7 @@ export function NodeCard({
             keep showing initials for the next costume in it, even a cached one.
             That is the ordinary state after a patch adds an uma the cache has
             not been refilled for. */}
-        <Portrait
-          key={portraitCardId ?? 'unresolved'}
-          cardId={portraitCardId}
-          name={subject.name}
-          size={size}
-        />
+        <Portrait key={portraitCardId ?? 'unresolved'} cardId={portraitCardId} name={subject.name} />
       </span>
       <span className={styles.name}>{subject.name}</span>
       {/* An unresolved lookup shows an em dash, never a 0: a 0 would be a

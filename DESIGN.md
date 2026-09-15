@@ -160,10 +160,13 @@ without pagination.
 **Density:** the tree gets air, the table gets density. The tree is the decision surface; the
 table is the audit trail.
 
-**The page body never scrolls horizontally.** The tree needs ~1038px and the audit trail ~560px,
-both wider than a phone. Each gets its own `overflow-x: auto` region with side padding, rather
-than reflowing: a pedigree whose tiers stack is no longer a pedigree, and every column of the
-table is part of the audit. What the tree should actually do at 375px is still open.
+**The page body never scrolls horizontally, and neither does the tree.** Four 200px node cards
+and three 16px gaps come to 848px, inside the 868px content column, so the pedigree fits the page
+at the width it is read at. Below that the cards shrink with the grid and the portrait shrinks
+with them, giving up furniture before text. The audit trail needs ~560px and keeps its own
+`overflow-x: auto` region, because every column of it is part of the audit. A scroll container
+remains under the tree as a floor for viewports no pedigree can serve; a pedigree whose tiers
+stack is no longer a pedigree.
 
 ## Elevation & Depth
 
@@ -243,5 +246,6 @@ and underline offset all derive from this palette.
 | 2026-09-15 | Star figures are lineage totals, not per-carrier maxima | The maximum carried no meaning and disagreed with the borrow search's filter unit. |
 | 2026-09-15 | Wide content scrolls in its own region, never the page body | Found at 390px: the seven-column audit trail pushed the whole document to 487px. The tree already had a region; the table did not. |
 | 2026-09-15 | An absent link's edge label is one faint `0`, not `0 +0` | Amber means added, and nothing is added across an empty slot. The connector is dashed for the same reason: absent is a fact and reads calm. |
+| 2026-09-15 | The tree fits the column instead of scrolling | Builder's call: a sideways scrollbar under the decision surface is annoying. It only ever overflowed by 44px, because the card max-width asked for 912px against an 868px column. |
 | 2026-09-15 | Portraits key on card_id, not chara_id | A card is a costume and a costume carries its own unique skill, which is the green spark printed under the portrait. Builder caught the base costume's face rendering above the alternate costume's spark. |
 | 2026-09-15 | Portraits are cached locally, never committed | Builder's call. The art is Cygames' and gametora rehosts rather than owns it, so a repo bound for public hosting should not carry it. The initials disc was already designed, so the no-image state costs nothing. |

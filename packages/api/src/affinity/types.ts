@@ -111,7 +111,11 @@ export interface ExplainRequest {
   /** position_id 10 and 20. */
   parents: [AncestorRef, AncestorRef];
   grandparents: GrandparentTuple;
-  /** Optional echo of GET /master/meta, for staleness detection. */
+  /**
+   * Optional echo of GET /master/meta. When present and NOT equal to the hash
+   * the server is serving, the request is refused with 409 STALE_MASTER_HASH
+   * rather than answered from different game data.
+   */
   masterHash?: string;
 }
 

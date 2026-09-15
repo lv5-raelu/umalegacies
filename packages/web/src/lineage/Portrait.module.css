@@ -1,4 +1,7 @@
 .disc {
+  /* Owned by whoever renders this; the tree node shrinks it when narrow. */
+  width: var(--portrait-size, 48px);
+  height: var(--portrait-size, 48px);
   position: relative;
   flex: none;
   display: grid;
