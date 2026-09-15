@@ -160,6 +160,11 @@ without pagination.
 **Density:** the tree gets air, the table gets density. The tree is the decision surface; the
 table is the audit trail.
 
+**The page body never scrolls horizontally.** The tree needs ~1038px and the audit trail ~560px,
+both wider than a phone. Each gets its own `overflow-x: auto` region with side padding, rather
+than reflowing: a pedigree whose tiers stack is no longer a pedigree, and every column of the
+table is part of the audit. What the tree should actually do at 375px is still open.
+
 ## Elevation & Depth
 
 There is none. No shadows, no glows, no layering. Depth is not a concept in this interface:
@@ -184,7 +189,10 @@ regions.
 **Node internals** — portrait 48px circle at the card's top-right (54px on the trainee, centred);
 name and individual affinity to its left; the provenance line full width beneath it, clear of the
 portrait's lower edge, never wrapping mid-sum. Then the spark lines: blue, pink, green each named
-with its star level, then the whites as a bare count, pluralised.
+with its star level, then the whites as a bare count, pluralised. **The trainee node has no spark
+lines**: it has not been trained, so placeholders there would claim data is missing rather than
+state a fact about the game. An ancestor with no spark data at all gets one line saying so, never
+four negatives.
 
 **Spark row** — a 3px colour tick at the left edge, name, star total, carrier slots, odds bar,
 two percentages. White sparks use an outlined tick rather than a filled one. No pills anywhere.
@@ -232,3 +240,5 @@ and underline offset all derive from this palette.
 | 2026-09-15 | Portrait moved to the card's top-right, 48px | Builder's call; larger and beside the name rather than above it. |
 | 2026-09-15 | Unresolved state moved from amber to red | Amber was already the bonus accent, so both would have been indistinguishable inside the data surface. |
 | 2026-09-15 | Star figures are lineage totals, not per-carrier maxima | The maximum carried no meaning and disagreed with the borrow search's filter unit. |
+| 2026-09-15 | Wide content scrolls in its own region, never the page body | Found at 390px: the seven-column audit trail pushed the whole document to 487px. The tree already had a region; the table did not. |
+| 2026-09-15 | An absent link's edge label is one faint `0`, not `0 +0` | Amber means added, and nothing is added across an empty slot. The connector is dashed for the same reason: absent is a fact and reads calm. |
