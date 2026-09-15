@@ -1,30 +1,99 @@
 /*
- * Global stylesheet: design tokens and a minimal reset, nothing else.
- * Per README, component styles live in a CSS Module beside the component.
+ * Design tokens. DESIGN.md is the source of truth for every value in this
+ * file; nothing here is invented and nothing is added without a line there.
  *
- * These tokens are deliberately plain. The design system (type scale, palette,
- * spacing rhythm, the base/bonus/individual color assignment M4 needs) is a
- * /design-consultation output and is not being invented here.
+ * Component styles live in a CSS Module beside their component (README).
  */
 :root {
-  --color-bg: #14151a;
-  --color-surface: #1c1e25;
-  --color-border: #2c2f38;
-  --color-text: #e8e9ed;
-  --color-text-dim: #9a9dab;
-  --color-accent: #7aa2f7;
-  --color-danger: #f7768e;
+  /* --- colour ------------------------------------------------------------
+   * The interface has NO brand colour. Every hue on screen belongs to the
+   * game's data; the chrome is achromatic. A coloured control would read as a
+   * datum, which is the single largest departure from the incumbent.
+   *
+   * Contrast against --paper: ink 14.0:1, muted 7.6:1, faint 5.2:1,
+   * bonus 7.8:1. Surface separation computes as 1.10:1 and is judged by eye,
+   * because WCAG ratios compress near black -- which is why the 1px rule
+   * border on a card is load-bearing rather than decorative.
+   */
+  --paper: #121317;
+  --surface: #1b1d23;
+  --rule: #31353f;
+  --rule-strong: #4a4f5c;
+  --track: #262a33;
 
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 1rem;
-  --space-4: 1.5rem;
-  --space-5: 2.5rem;
+  --ink: #e9eaee;
+  --ink-muted: #a7abb6;
+  --ink-faint: #8a8f9b;
 
-  --radius: 6px;
+  /* "Added", and nothing else. Always prefixed `+`. Never on a control. */
+  --bonus: #e8a33d;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  /* Spark category identity. NOT in master.mdb: the game names the categories
+   * and this project picks the hues, held to contrast on the dark ground. */
+  --spark-blue: #7fb0f5;
+  --spark-pink: #f58ab6;
+  --spark-green: #7fcb8f;
+  --spark-white: #d5d8e0;
+
+  /* System chrome only. Inside a table or tree, red means unresolved. */
+  --error: #f2777a;
+
+  /* --- type --------------------------------------------------------------
+   * Two families, no display face. IBM Plex Mono carries every numeral and
+   * every label; Instrument Sans is the only neutral voice and is never
+   * coloured.
+   */
+  --font-ui: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+  /* 56 / 18 / 16 / 13 / 12 / 11 / 10. The gap between 18 and 56 is deliberate
+   * and carries the hierarchy: nothing occupies it. */
+  --text-display: 56px;
+  --text-lg: 18px;
+  --text-md: 16px;
+  --text-sm: 13px;
+  --text-xs: 12px;
+  --text-2xs: 11px;
+  --text-3xs: 10px;
+
+  --tracking-label: 0.08em;
+  --tracking-display: -0.02em;
+
+  /* --- space -------------------------------------------------------------- */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  /* Inside a node card, below the label scale. */
+  --space-hair: 2px;
+  --space-tight: 6px;
+  --space-snug: 12px;
+
+  /* --- shape -------------------------------------------------------------
+   * Nearly flat on purpose. Large uniform radii read as consumer-app softness
+   * and would fight the ruled character of everything else.
+   */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-full: 9999px;
+
+  /* --- motion ------------------------------------------------------------
+   * Minimal-functional. Numbers never animate, and nothing longer than 250ms
+   * exists in this product.
+   */
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --duration-micro: 80ms;
+  --duration-short: 200ms;
+
+  /* Layout: single column, content-driven, never full-bleed by habit. */
+  --measure: 900px;
+
+  color-scheme: dark;
+  accent-color: var(--ink);
 }
 
 *,
@@ -35,9 +104,52 @@
 
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-sans);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
   line-height: 1.5;
+  /* Globally, never disabled. Every column of figures must align. */
+  font-variant-numeric: tabular-nums lining-nums;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Browser surfaces are themed, not left to defaults. */
+::selection {
+  background: var(--rule-strong);
+  color: var(--ink);
+}
+
+:root {
+  scrollbar-color: var(--rule-strong) var(--paper);
+  scrollbar-width: thin;
+}
+
+a {
+  color: var(--ink);
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule-strong);
+}
+
+/* focus-visible: 2px primary ring, offset 2px, never removed. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* The one authored moment is a spark detail expanding. Respect the setting
+ * that says not to animate at all. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
 }

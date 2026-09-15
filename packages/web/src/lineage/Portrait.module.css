@@ -1,0 +1,25 @@
+.disc {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  /* `full` is reserved for portraits, and portraits only. */
+  border-radius: var(--radius-full);
+  background: var(--track);
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.initials {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+}

@@ -1,0 +1,207 @@
+/* A ruled region, not a card. The only card in the system is a tree node. */
+.panel {
+  border-top: 1px solid var(--rule-strong);
+  padding-top: var(--space-md);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin: 0 0 var(--space-md);
+}
+
+.slot {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.term {
+  border-top: 1px solid var(--rule);
+  padding: var(--space-snug) 0;
+}
+
+.termHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.termLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.value {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.bonusValue {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--bonus);
+}
+
+.citation {
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  margin: var(--space-tight) 0 0;
+  max-width: 72ch;
+}
+
+/* Where a number cannot open, this says why in place. */
+.reason {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin: var(--space-tight) 0 0;
+  max-width: 72ch;
+}
+
+.reason code,
+.citation code {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+}
+
+.sum {
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  margin: var(--space-sm) 0 0;
+}
+
+.unresolved {
+  font-size: var(--text-2xs);
+  color: var(--error);
+  margin: var(--space-sm) 0 0;
+}
+
+.expander {
+  display: inline-flex;
+  gap: var(--space-tight);
+  align-items: baseline;
+  margin-top: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.expander:hover {
+  background: var(--surface);
+}
+
+.races,
+.addends,
+.sparkList {
+  list-style: none;
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+}
+
+.races li,
+.addends li,
+.sparkList li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-xs);
+}
+
+.addends li > span:first-child,
+.raceName,
+.sparkName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sources {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+}
+
+.source::before {
+  content: '';
+}
+
+.namedSpark {
+  font-size: var(--text-xs);
+}
+
+.tick,
+.tickOutlined {
+  display: block;
+  width: 3px;
+  height: 12px;
+  flex: none;
+  align-self: center;
+}
+
+.tickOutlined {
+  box-shadow: inset 0 0 0 1px var(--spark-white);
+}
+
+.whiteGroup {
+  margin-top: var(--space-snug);
+}
+
+.whiteHead {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.carriers {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.carriers th {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  text-align: left;
+  padding: 0 var(--space-sm) var(--space-xs);
+  border-bottom: 1px solid var(--rule);
+}
+
+.carriers td {
+  font-family: var(--font-data);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--rule);
+}
+
+.numeric {
+  text-align: right;
+}
