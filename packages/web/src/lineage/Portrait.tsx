@@ -1,14 +1,14 @@
 import { useState } from 'react';
+import { portraitUrl } from '../api/client';
 import styles from './Portrait.module.css';
 
 /**
  * A portrait, or the initials of whoever should be in it.
  *
- * Portraits live at `/portraits/<chara_id>.png` and the repository ships none
- * yet, so today every node shows initials. That is deliberate rather than
- * unfinished: it is exactly what a fresh clone looks like, and what every
- * newly-patched uma looks like until its portrait is added, so the state has to
- * be a designed one rather than a broken image icon.
+ * The API serves these from a gitignored cache, so a clean clone has none and
+ * every node shows initials. That is deliberate rather than unfinished: it is
+ * also what a newly-patched uma looks like until the cache is refilled, so the
+ * state has to be a designed one rather than a broken image icon.
  *
  * Brand colours from `chara_data` were prototyped for this disc and rejected:
  * 17 of 96 fall below 3:1 on the dark ground (Manhattan Cafe #3D3935 at
@@ -31,7 +31,7 @@ export function Portrait({
       {showImage ? (
         <img
           className={styles.image}
-          src={`/portraits/${charaId}.png`}
+          src={portraitUrl(charaId)}
           alt=""
           onError={() => setFailed(true)}
         />

@@ -770,7 +770,31 @@ raise them exist.
      the connector is dashed and labelled `0`; rendering `0 +0` would also put
      amber on a link where nothing was added, and amber means added and nothing
      else.
-  7. **The preview's tree was wrong about one star count.** `board.html` showed
+  7. **Portraits are a gitignored cache, decided 2026-09-15.** This closes the
+     open "portrait extraction toolchain" decision. `scripts/fetch-portraits.mjs`
+     pulls one image per character from gametora into
+     `packages/api/data/portraits/`, which `.gitignore` excludes, and
+     `GET /portraits/:charaId.png` serves it.
+
+     The reasoning is that the artwork is a different KIND of thing from
+     `master.mdb`. The argument for committing the database was that it is the
+     game's own data and anyone can retrieve it from their Steam files, which
+     holds for tables of numeric rules. Character illustrations are the creative
+     work itself, gametora rehosts them rather than owning them, and the
+     Distribution Plan above is a hosted web app, so committing them would serve
+     third-party art publicly and put it in git history permanently. Caching on
+     the machine that runs the app is a different act and is the one chosen.
+     Committing them stays available later; uncommitting them does not.
+
+     The cost is that a clean clone shows initials until the script is run. That
+     was already the designed missing-image state and is also what a
+     newly-patched uma looks like, so nothing regressed. **A miss must be
+     `no-store`**: the cache header was initially a `@Header()` decorator, which
+     applies before the handler throws, so 404s inherited a 24-hour lifetime and
+     warming the cache appeared to do nothing for a day. Caught by rendering
+     against an empty cache rather than reasoning about it.
+
+  8. **The preview's tree was wrong about one star count.** `board.html` showed
      the Gold Ship at slot 12 with a 2-star blue; the save says 1 star and 17
      whites. The audit-trail table in that preview was generated from the engine
      and was right; the tree nodes beside it were hand-written and were not. Same

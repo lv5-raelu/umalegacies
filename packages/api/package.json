@@ -13,7 +13,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:roster": "node scripts/check-roster.mjs",
     "build:fixtures": "node scripts/build-fixtures.mjs",
-    "build:master": "node scripts/build-master-extract.mjs"
+    "build:master": "node scripts/build-master-extract.mjs",
+    "fetch:portraits": "node scripts/fetch-portraits.mjs"
   },
   "dependencies": {
     "@nestjs/common": "12.0.1",
