@@ -82,7 +82,8 @@ export interface AncestorSparkSet {
 }
 
 export interface SparkCarrier {
-  position: number;
+  /** Always one of the six ancestor slots, never the trainee. */
+  position: Position;
   stars: number;
   individualAffinity: number;
   baseRate: number;

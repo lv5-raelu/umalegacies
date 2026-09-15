@@ -1,3 +1,5 @@
+import type { Position } from '../affinity/types';
+
 /**
  * The spark taxonomy and the wire types for the lineage spark summary.
  *
@@ -90,8 +92,8 @@ export interface AncestorSparkSet {
 
 /** One ancestor's contribution to a summary row. */
 export interface SparkCarrier {
-  /** position_id: 10, 20, 11, 12, 21, 22. */
-  position: number;
+  /** Always one of the six ancestor slots, never the trainee. */
+  position: Position;
   stars: number;
   /** The Individual Affinity that scaled this carrier's rate. */
   individualAffinity: number;

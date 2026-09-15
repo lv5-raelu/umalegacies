@@ -113,7 +113,7 @@ export function explainLineage(
   const affinity = explain(request, master, masterHash);
 
   const ancestors: Record<number, AncestorIdentity | null> = {};
-  const sparksByPosition = new Map<number, AncestorSparkSet>();
+  const sparksByPosition = new Map<Position, AncestorSparkSet>();
 
   for (const [i, position] of PARENT_POSITIONS.entries()) {
     const identity = identify(position, request.parents[i] as AncestorRef, master);

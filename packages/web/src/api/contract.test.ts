@@ -1,8 +1,10 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import { POSITION_LABEL as apiPositions } from '../../../api/src/affinity/positions';
 import { SPARK_KIND_ORDER as apiOrder } from '../../../api/src/sparks/spark-types';
 import type { AncestorIdentity as ApiIdentity, LineageResponse as ApiLineage } from '../../../api/src/affinity/lineage';
 import type * as Api from '../../../api/src/affinity/types';
 import type * as ApiSparks from '../../../api/src/sparks/spark-types';
+import { POSITION_LABEL as webPositions } from '../lineage/positions';
 import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER as webOrder } from '../lineage/sparks';
 import type * as Web from './types';
 
@@ -30,6 +32,14 @@ describe('the web mirror matches the API wire types', () => {
     expectTypeOf<ApiSparks.SparkKind>().toEqualTypeOf<Web.SparkKind>();
     expectTypeOf<ApiSparks.SparkSummaryRow>().toEqualTypeOf<Web.SparkSummaryRow>();
     expectTypeOf<ApiSparks.AncestorSparkSet>().toEqualTypeOf<Web.AncestorSparkSet>();
+  });
+
+  it('names every slot the same way the engine does', () => {
+    // The engine bakes these labels into every link label ("Oguri Cap (Trainee)
+    // <-> Mejiro Dober (P1)"), and the tree prints them beside the cards. If
+    // the two copies drift, a node is labelled one thing and the provenance
+    // line beside it another.
+    expect(webPositions).toEqual(apiPositions);
   });
 
   it('renders every spark kind the API can emit', () => {

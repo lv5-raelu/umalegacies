@@ -1,5 +1,6 @@
 import type { MasterData } from '../master/master-data';
 import { RULE_CITATIONS } from './citations';
+import { positionLabel } from './positions';
 import {
   ALL_POSITIONS,
   GRANDPARENT_POSITIONS,
@@ -68,8 +69,14 @@ export function explain(
     if (ref) resolved.set(position, resolveAncestor(position, ref, master));
   }
 
-  const labelOf = (m: Member): string =>
-    m === 'T' ? traineeLabel : (resolved.get(m)?.label ?? `slot ${m}`);
+  const nameOf = (m: Member): string =>
+    m === 'T' ? traineeLabel : (resolved.get(m)?.label ?? positionLabel(m));
+
+  // Every label a reader sees carries the SLOT as well as the name, because a
+  // name alone is not unique within one lineage: fixture 5531 holds the same
+  // character in several slots, so `El Condor Pasa <-> Inari One` names two
+  // different links with two different values.
+  const labelOf = (m: Member): string => `${nameOf(m)} (${positionLabel(m)})`;
 
   // Build each link once. The same node object is referenced by pairTotal and
   // by the individualAffinity trees of both its members; it serialises as a
@@ -95,7 +102,7 @@ export function explain(
     const feeding = LINKS.filter((l) => l.a === position || l.b === position);
     individualAffinity[position] = sumNode(
       'individual.member',
-      `${labelOf(position)} (slot ${position}): individual affinity`,
+      `${labelOf(position)}: individual affinity`,
       feeding.map((l) => linkNodes.get(l) as ExplainNode),
     );
   }

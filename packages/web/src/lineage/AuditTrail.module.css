@@ -6,7 +6,7 @@
 }
 
 .scroll .table {
-  min-width: 560px;
+  min-width: 680px;
 }
 
 /* Dense on purpose: roughly 50 rows should be scannable without pagination.
@@ -88,8 +88,25 @@
 }
 
 .carriers {
-  letter-spacing: var(--tracking-label);
   white-space: nowrap;
+}
+
+/* A fixed cell per slot, so the six columns line up down the table even though
+ * the labels differ in length. 6ch, not 5: the longest label IS 5 characters,
+ * so a 5ch cell left "GP1-1GP1-2" touching with no gap between slots. */
+.carrierOn,
+.carrierOff {
+  display: inline-block;
+  width: 6ch;
+  text-align: center;
+}
+
+.carrierOn {
+  color: var(--ink-muted);
+}
+
+.carrierOff {
+  color: var(--rule-strong);
 }
 
 .barCell {

@@ -1,5 +1,6 @@
 import type { SparkSummaryRow } from '../api/types';
 import { ALL_POSITIONS } from '../api/types';
+import { positionLabel } from './positions';
 import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER, isWhite, percent } from './sparks';
 import styles from './AuditTrail.module.css';
 
@@ -104,12 +105,21 @@ export function AuditTrail({
                       total is the unit the borrow search will filter on and the
                       two must agree. */}
                   <td className={styles.figure}>{row.stars}★</td>
+                  {/* A fixed six-slot grid so the column can still be scanned
+                      downward, but NAMED: 11 and 12 are P1's parents and 21 and
+                      22 are P2's, and nothing about the digits says so. */}
                   <td className={styles.carriers}>
-                    {ALL_POSITIONS.map((position) =>
-                      row.carriers.some((c) => c.position === position)
-                        ? String(position)
-                        : '· ',
-                    ).join(' ')}
+                    {ALL_POSITIONS.map((position) => {
+                      const carries = row.carriers.some((c) => c.position === position);
+                      return (
+                        <span
+                          key={position}
+                          className={carries ? styles.carrierOn : styles.carrierOff}
+                        >
+                          {carries ? positionLabel(position) : '·'}
+                        </span>
+                      );
+                    })}
                   </td>
                   <td className={styles.barCell}>
                     <div className={styles.track}>

@@ -7,6 +7,7 @@ import type {
   SparkSummaryRow,
 } from '../api/types';
 import { sumByRulePrefix } from './explain-node';
+import { positionLabel } from './positions';
 import { resolutionText } from './resolution';
 import { SPARK_COLOR, isWhite, percent, plural, stars } from './sparks';
 import styles from './Provenance.module.css';
@@ -204,7 +205,7 @@ export function MemberProvenance({
   return (
     <section className={styles.panel}>
       <h3 className={styles.heading}>
-        {identity.name} <span className={styles.slot}>slot {identity.position}</span>
+        {identity.name} <span className={styles.slot}>{positionLabel(identity.position)}</span>
       </h3>
 
       {affinity && (
@@ -314,18 +315,32 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
               <th className={styles.numeric}>BASE</th>
               <th className={styles.numeric}>AFFINITY</th>
               <th className={styles.numeric}>PER FIRING</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {row.carriers.map((carrier) => (
               <tr key={carrier.position}>
-                <td>{carrier.position}</td>
+                <td>{positionLabel(carrier.position)}</td>
                 <td>{stars(carrier.stars)}</td>
                 <td className={styles.numeric}>{percent(carrier.baseRate)}</td>
                 <td className={styles.numeric}>{carrier.individualAffinity}</td>
                 {/* percent() owns the >= 1 branch. A second copy of the
                     threshold here is how the two drift apart. */}
                 <td className={styles.numeric}>{percent(carrier.perInspiration)}</td>
+                {/* The width the figures do not need, carrying the same bar
+                    idiom as the audit trail rather than empty padding. */}
+                <td className={styles.carrierBar}>
+                  <div className={styles.track}>
+                    <span
+                      className={styles.bar}
+                      style={{
+                        width: `${Math.max(1, Math.round(carrier.perInspiration * 100))}%`,
+                        background: SPARK_COLOR[row.kind],
+                      }}
+                    />
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

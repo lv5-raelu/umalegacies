@@ -181,9 +181,8 @@
 .carriers {
   /* Six rows of short figures. At the panel's full 900px the five columns
      sprawled and each number drifted far from its heading; the table gets
-     density, per DESIGN.md. */
+     density, per DESIGN.md. The slack goes to a bar rather than to padding. */
   width: 100%;
-  max-width: 460px;
   border-collapse: collapse;
   margin-top: var(--space-sm);
   font-size: var(--text-xs);
@@ -208,6 +207,21 @@
   text-align: right;
 }
 
+.carriers td.carrierBar {
+  width: 45%;
+  padding-left: var(--space-md);
+}
+
+.carrierBar .track {
+  height: 4px;
+  background: var(--track);
+}
+
+.carrierBar .bar {
+  display: block;
+  height: 100%;
+}
+
 .carriers td {
   font-family: var(--font-data);
   padding: var(--space-xs) var(--space-sm);
@@ -216,4 +230,19 @@
 
 .numeric {
   text-align: right;
+}
+
+.carriers td.carrierBar {
+  width: 45%;
+  padding-left: var(--space-md);
+}
+
+.carrierBar .track {
+  height: 4px;
+  background: var(--track);
+}
+
+.carrierBar .bar {
+  display: block;
+  height: 100%;
 }

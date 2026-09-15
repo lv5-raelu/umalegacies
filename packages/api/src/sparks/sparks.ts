@@ -1,5 +1,5 @@
 import type { MasterData } from '../master/master-data';
-import type { AncestorRef } from '../affinity/types';
+import type { AncestorRef, Position } from '../affinity/types';
 import {
   BASE_RATES,
   SPARK_KIND_ORDER,
@@ -113,7 +113,7 @@ function clamp01(n: number): number {
  * link; do not switch to it here.
  */
 export function summariseSparks(
-  sparksByPosition: ReadonlyMap<number, AncestorSparkSet>,
+  sparksByPosition: ReadonlyMap<Position, AncestorSparkSet>,
   individualAffinity: ReadonlyMap<number, number>,
 ): SparkSummaryRow[] {
   const rows = new Map<number, SparkSummaryRow>();
