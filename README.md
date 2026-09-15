@@ -86,7 +86,8 @@ npm run dev:api     # http://localhost:3000
 npm run dev:web     # http://localhost:5173
 ```
 
-Open the web app and upload your `data.json`.
+Open the web app. It renders one committed fixture lineage, picked from the
+selector at the top right; `data.json` upload is M3 and does not exist yet.
 
 ### The two data files
 
@@ -143,12 +144,28 @@ always be rebuilt from a re-upload, so prefer resetting it over wedging the app.
 **Comments explain why.** The affinity rules and the master-data quirks are not guessable
 from the code. Where a line encodes a non-obvious game rule, say which rule and why.
 
+**Read `DESIGN.md` before writing markup.** It holds every colour, typeface, spacing and
+shape decision, with the reasoning and the overrides. The web app's global stylesheet is
+`packages/web/src/styles/tokens.css` and every value in it traces to a line there.
+
+**The UI develops against the same fixtures the tests assert on.** `GET /affinity/fixtures`
+serves the committed `ExplainRequest`s and the screen POSTs one to `/affinity/explain`, so a
+UI bug and a test failure cannot disagree about what the data is. A screen built against
+hand-typed numbers drifts from the engine within one edit; this project has been bitten by
+that twice.
+
 ## Gotchas
 
 - **The API's CORS allowlist is explicit.** If Vite falls back to a port that is not on it,
   every request fails with a bare `Failed to fetch` that looks like the API is down. Check
   the port before debugging anything else.
 - **`succession_factor.rarity` is the star count**, 1–3. It is not a rarity tier.
+- **Spark names are `text_data` category 147, keyed by `factor_id`** — not by
+  `factor_group_id`. The 1/2/3-star variants of one spark are three `factor_id`s sharing a
+  `factor_group_id`, and all three carry the same name (0 of 392 groups disagree). Summarise
+  per group; look names up per factor.
+- **`factor_info_array[].level` is always 0** across all 1,554 ancestor slots in the
+  builder's roster. The star count comes from `succession_factor.rarity`, not from there.
 - **`group_id` looks like a matching key and is not.** `single_mode_wins_saddle` has 7
   `group_id`s holding more than one G1 row — the same race at a different racecourse (not a
   different year: Arima Kinen runs twice per career and has one id, while Classic-only

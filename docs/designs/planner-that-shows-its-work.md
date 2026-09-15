@@ -736,6 +736,47 @@ raise them exist.
   defect and reads loud.** Collapsing them into one grey `0` is the failure CEO
   review Issue 1 named, and it silently contradicts the invariant M1 tests.
 
+  **Built 2026-09-15.** `packages/web/src/lineage/` renders the tree, the audit
+  trail and the provenance panel; `packages/api/src/sparks/` computes the spark
+  taxonomy and the odds; `affinity/lineage.ts` composes the engine's affinity
+  tree with ancestor identity and the summary into one `LineageResponse`. Seven
+  things the plan did not say, decided while building:
+
+  1. **`AncestorRef` gains `factorIds`, optional.** Sparks come from the save's
+     `factor_info_array`, not from `master.mdb`, so they have to travel in the
+     request like `winSaddleIds` does. Optional because no affinity rule reads
+     it: a request without sparks still returns every affinity number, and all
+     three synthetic fixtures do exactly that. `level` is not carried; it is 0
+     on all 1,554 ancestor slots in the roster.
+  2. **The odds are an exact DP, not the closed form.** `p1 = 2*p0*sum(p/(1-p))`
+     divides by `1 - p`, and a blue spark on a parent is capped at exactly 1.0,
+     which makes that division 0/0. A convolution over the carriers has no such
+     hole and agrees with the closed form to 1e-12 away from the cap. Both are
+     asserted in `sparks.test.ts`.
+  3. **The UI develops against the committed fixtures.** `GET /affinity/fixtures`
+     serves the `ExplainRequest`s the golden tests assert on, and the screen
+     POSTs one to the same `/affinity/explain` M3's pair selection will use.
+     `verify-oguri` is committed as a sixth fixture and is the default view.
+  4. **`build-fixtures.mjs` never wrote anything.** It validated, then logged
+     `wrote N fixtures`. Fixed. Its personal-field allowlist is now a subset
+     check rather than an exact shape, because the synthetics legitimately carry
+     no sparks.
+  5. **The trainee node carries no spark block at all.** It has not been trained,
+     so four `no blue spark` placeholders would be a claim about missing data
+     rather than a fact about the game. An ancestor whose spark set is entirely
+     empty gets one `no spark data` line for the same reason: nothing known is
+     not the same as something absent.
+  6. **An absent link's edge label is a single faint `0`.** The table above says
+     the connector is dashed and labelled `0`; rendering `0 +0` would also put
+     amber on a link where nothing was added, and amber means added and nothing
+     else.
+  7. **The preview's tree was wrong about one star count.** `board.html` showed
+     the Gold Ship at slot 12 with a 2-star blue; the save says 1 star and 17
+     whites. The audit-trail table in that preview was generated from the engine
+     and was right; the tree nodes beside it were hand-written and were not. Same
+     failure as the fabricated table caught on 2026-09-11, in the half of the
+     page that did not get fixed. Nothing hand-typed survives in the built screen.
+
 - **M3 — The roster. First usable release, and the one that satisfies the success
   criterion.** `data.json` upload, `POST /roster/resolve`, in-memory resolution, IndexedDB
   caching, box browse, the **trainee picker** (sourced from `card_data` joined to `text_data`
