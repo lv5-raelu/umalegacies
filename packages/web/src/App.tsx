@@ -13,6 +13,7 @@ import {
   SparkProvenance,
   TotalProvenance,
 } from './lineage/Provenance';
+import { sumByRulePrefix } from './lineage/explain-node';
 import { Tree, type Selection } from './lineage/Tree';
 import styles from './App.module.css';
 
@@ -132,7 +133,7 @@ function Lineage({
   spark: SparkSummaryRow | null;
   onSelectSpark: (row: SparkSummaryRow | null) => void;
 }) {
-  const base = sumBase(lineage);
+  const base = sumByRulePrefix(lineage.pairTotal, 'base.');
   const bonus = lineage.pairTotal.value - base;
 
   return (
@@ -199,13 +200,4 @@ function MemberProvenanceOrEmpty({
   return (
     <MemberProvenance identity={identity} affinity={lineage.individualAffinity[position]} />
   );
-}
-
-/** The base half of the pair total, so the headline can print both addends. */
-function sumBase(lineage: LineageResponse): number {
-  const walk = (node: { ruleId: string; value: number; children: unknown[] }): number =>
-    node.ruleId.startsWith('base.')
-      ? node.value
-      : (node.children as typeof node[]).reduce((total, child) => total + walk(child), 0);
-  return walk(lineage.pairTotal);
 }
