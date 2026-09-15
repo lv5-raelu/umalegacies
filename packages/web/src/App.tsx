@@ -133,8 +133,20 @@ function Lineage({
   spark: SparkSummaryRow | null;
   onSelectSpark: (row: SparkSummaryRow | null) => void;
 }) {
+  // Both halves are SUMMED, never one subtracted from the total. Subtraction
+  // absorbs any discrepancy into bonus: a link child that is neither base.* nor
+  // bonus.* would silently inflate the headline's bonus while the panel four
+  // lines below showed the true one, which is two numbers for one quantity on
+  // one screen. If they ever disagree, say so instead of picking one.
   const base = sumByRulePrefix(lineage.pairTotal, 'base.');
-  const bonus = lineage.pairTotal.value - base;
+  const bonus = sumByRulePrefix(lineage.pairTotal, 'bonus.');
+  const addendsAgree = base + bonus === lineage.pairTotal.value;
+  // An unresolvable trainee collapses every base term that touches it -- both
+  // trainee-parent links AND all four three-way grandparent terms -- so the
+  // total is not merely uncertain, it is wrong by a large margin and silently
+  // so. DESIGN.md: unresolved shows an em dash and names itself, never a
+  // number, and never a rank verdict derived from one.
+  const traineeUnresolved = lineage.trainee.resolution.ok === false;
 
   return (
     <>
@@ -144,22 +156,38 @@ function Lineage({
       {/* Exactly one number on this screen is large. */}
       <div className={styles.headline}>
         <div>
-          <div className={styles.total}>{lineage.pairTotal.value}</div>
+          <div className={styles.total}>
+            {traineeUnresolved ? '—' : lineage.pairTotal.value}
+          </div>
           {/* An aggregate prints its addends beneath it, permanently. */}
           <div className={styles.addends}>
-            {base} base + {bonus} bonus
+            {traineeUnresolved && lineage.trainee.resolution.ok === false ? (
+              <span className={styles.disagree}>
+                could not resolve {lineage.trainee.resolution.reason.replace(/_/g, ' ')}{' '}
+                {lineage.trainee.resolution.id}
+              </span>
+            ) : addendsAgree ? (
+              `${base} base + ${bonus} bonus`
+            ) : (
+              <span className={styles.disagree}>
+                addends disagree: {base} base + {bonus} bonus ≠ {lineage.pairTotal.value}
+              </span>
+            )}
           </div>
         </div>
         <div className={styles.who}>{lineage.trainee.name} · pair total</div>
-        <div className={styles.rank}>
-          <div className={styles.rankGlyph}>
-            {'◎〇△'[3 - lineage.relationRank.value] ?? '·'} rank {lineage.relationRank.value}
+        {/* No verdict from a total that could not be computed. */}
+        {!traineeUnresolved && (
+          <div className={styles.rank}>
+            <div className={styles.rankGlyph}>
+              {'◎〇△'[3 - lineage.relationRank.value] ?? '·'} rank {lineage.relationRank.value}
+            </div>
+            <div className={styles.rankBounds}>
+              {lineage.rankBounds.min}
+              {lineage.rankBounds.max >= 9999 ? '+' : `–${lineage.rankBounds.max}`}
+            </div>
           </div>
-          <div className={styles.rankBounds}>
-            {lineage.rankBounds.min}
-            {lineage.rankBounds.max >= 9999 ? '+' : `–${lineage.rankBounds.max}`}
-          </div>
-        </div>
+        )}
       </div>
 
       <Tree lineage={lineage} selection={selection} onSelect={onSelect} />

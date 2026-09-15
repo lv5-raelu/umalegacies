@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +7,8 @@ import { lookupPortrait } from './portrait-lookup';
 const dir = mkdtempSync(resolve(tmpdir(), 'portraits-'));
 writeFileSync(resolve(dir, '1006.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
 mkdirSync(resolve(dir, '2000.png'));
+writeFileSync(resolve(dir, 'not-an-image.txt'), 'secret');
+symlinkSync(resolve(dir, 'not-an-image.txt'), resolve(dir, '3000.png'));
 
 describe('lookupPortrait', () => {
   it('finds a cached portrait', () => {
@@ -38,5 +40,12 @@ describe('lookupPortrait', () => {
 
   it('does not serve a directory that happens to be named like a portrait', () => {
     expect(lookupPortrait(dir, '2000')).toEqual({ ok: false, reason: 'not_cached' });
+  });
+
+  it('refuses a symlinked cache entry', () => {
+    // statSync follows symlinks, so a linked entry would pass an isFile() guard
+    // and then be streamed out as image/png. The cache is script-filled and is
+    // not a place symlinks belong.
+    expect(lookupPortrait(dir, '3000')).toEqual({ ok: false, reason: 'not_cached' });
   });
 });

@@ -120,7 +120,14 @@ export class MasterData {
       factor_type: number;
     }>) {
       const kind = SPARK_KIND_BY_FACTOR_TYPE[r.factor_type];
-      if (!kind) continue; // an unknown factor_type is a new game mechanic, not a spark this tool knows
+      // An unknown factor_type is a new game mechanic, not a spark this tool
+      // knows: the live extract already carries type 7 ("Carnival Bonus"). An
+      // out-of-range rarity is the same class of problem, and it is the more
+      // dangerous one, because BASE_RATES is indexed by `rarity - 1` and an
+      // out-of-range index yields a real-looking spark with a silent 0% rate.
+      // Drop both rather than serve a number this build cannot stand behind.
+      if (!kind) continue;
+      if (!Number.isInteger(r.rarity) || r.rarity < 1 || r.rarity > 3) continue;
       this.factors.set(r.factor_id, {
         factorId: r.factor_id,
         // The 1/2/3-star variants of one spark are three factor_ids sharing a

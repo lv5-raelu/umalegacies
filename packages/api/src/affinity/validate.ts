@@ -2,6 +2,20 @@ import { DomainError } from '../common/error-response';
 import type { AncestorRef, ExplainRequest, GrandparentTuple } from './types';
 
 /**
+ * Generous against the observed maximum of 26. A cap at all exists because the
+ * spark summary is O(n^2) in the carrier count and the body is user-supplied.
+ */
+const MAX_FACTORS_PER_ANCESTOR = 64;
+
+/**
+ * Generous against the observed maximum of 45. Same reasoning as the factor cap:
+ * the body is user-supplied and the engine builds a Set per link from it. Milder
+ * than the factor case because the work stays linear, but the asymmetry of
+ * bounding one user-supplied array and not the other is the actual bug.
+ */
+const MAX_WIN_SADDLES_PER_ANCESTOR = 128;
+
+/**
  * Shape-check at the boundary. README: "A malformed request should be a 400
  * with a message naming the problem, never a 500 from a destructured
  * `undefined`." Every throw here names the offending field.
@@ -92,6 +106,24 @@ function parseAncestor(
   const winSaddleIds = raw.winSaddleIds.map((id, i) =>
     intField(id, `${field}.winSaddleIds[${i}]`),
   );
+  if (winSaddleIds.length > MAX_WIN_SADDLES_PER_ANCESTOR) {
+    throw new DomainError(
+      'TOO_MANY_WIN_SADDLES',
+      `${field}.winSaddleIds has ${winSaddleIds.length} entries; the most any ` +
+        `ancestor carries is ${MAX_WIN_SADDLES_PER_ANCESTOR}.`,
+      400,
+      `${field}.winSaddleIds`,
+    );
+  }
+  if (new Set(winSaddleIds).size !== winSaddleIds.length) {
+    throw new DomainError(
+      'DUPLICATE_WIN_SADDLE_ID',
+      `${field}.winSaddleIds repeats an id. A veteran wins each race at most once, ` +
+        'and a repeat would misstate which G1s two members actually share.',
+      400,
+      `${field}.winSaddleIds`,
+    );
+  }
 
   const ancestor: AncestorRef = { cardId, winSaddleIds };
 
@@ -106,9 +138,41 @@ function parseAncestor(
         `${field}.factorIds`,
       );
     }
-    ancestor.factorIds = raw.factorIds.map((id, i) =>
+    const factorIds = raw.factorIds.map((id, i) =>
       intField(id, `${field}.factorIds[${i}]`),
     );
+
+    // An ancestor's sparks are a SET. Measured across all 1,554 ancestor slots
+    // and 259 veterans in a real roster: zero repeats, and at most 26 factors on
+    // any one ancestor. A repeat is therefore never legitimate save data, and
+    // accepting one is not harmless: summariseSparks counts each occurrence as
+    // an independent carrier, so 50 copies of one id turns a 6-star 43% spark
+    // into a 104-star 99.99% spark. Those are audited numbers. It is also
+    // quadratic work, since careerOdds runs a DP whose distribution grows by one
+    // slot per carrier.
+    if (factorIds.length > MAX_FACTORS_PER_ANCESTOR) {
+      throw new DomainError(
+        'TOO_MANY_FACTORS',
+        `${field}.factorIds has ${factorIds.length} entries; the most any ancestor ` +
+          `carries is ${MAX_FACTORS_PER_ANCESTOR}.`,
+        400,
+        `${field}.factorIds`,
+      );
+    }
+    const seen = new Set<number>();
+    for (const id of factorIds) {
+      if (seen.has(id)) {
+        throw new DomainError(
+          'DUPLICATE_FACTOR_ID',
+          `${field}.factorIds repeats ${id}. An ancestor carries each spark at ` +
+            'most once, and counting a repeat would inflate its star total and odds.',
+          400,
+          `${field}.factorIds`,
+        );
+      }
+      seen.add(id);
+    }
+    ancestor.factorIds = factorIds;
   }
 
   return ancestor;

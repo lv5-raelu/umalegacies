@@ -35,13 +35,25 @@ export const SPARK_KIND_ORDER: readonly SparkKind[] = [
 ];
 
 /**
- * Percentages are rounded to whole numbers, with one exception: anything above
- * zero but below half a percent prints `<1%` rather than `0%`. A rounded-away
- * chance and an impossible one are different facts.
+ * Percentages round to whole numbers, with an exception at EACH end.
+ *
+ * A rounded-away chance and an impossible one are different facts, so anything
+ * above zero but below half a percent prints `<1%`. The same is true at the top
+ * and was missed: `Math.round` turns 99.6% into `100%`, claiming certainty for a
+ * spark that fails one career in 250. That asymmetry mattered more than it
+ * looks, because the audit trail now correctly KEEPS a 1-star blue at
+ * individual affinity 39-42 (career 99.93% to 99.996%) and would then have
+ * printed `100%` next to it anyway.
+ *
+ * NaN is neither: it means the odds could not be computed, and printing the
+ * string `NaN%` in a column of probabilities is the worst available answer.
  */
 export function percent(p: number): string {
+  if (!Number.isFinite(p)) return '—';
   if (p <= 0) return '0%';
   if (p < 0.005) return '<1%';
+  if (p >= 1) return '100%';
+  if (p > 0.995) return '>99%';
   return `${Math.round(p * 100)}%`;
 }
 

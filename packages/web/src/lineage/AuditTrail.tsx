@@ -25,7 +25,15 @@ export function AuditTrail({
   // most grandparents, so those rows are dropped -- but a grandparent blue
   // below the cap is a real variable and stays. hakuraku drops category 1
   // unconditionally; this is strictly better.
-  const shown = sparks.filter((row) => !(row.kind === 'blue' && row.onceInCareer >= 0.999));
+  //
+  // The test is EXACT equality with 1, not a 0.999 epsilon. A per-carrier rate
+  // is clamped to 1 only when affinity actually caps it, and with no capped
+  // carrier the product of (1 - p) is strictly positive, so `once === 1` holds
+  // if and only if the spark is genuinely certain. A 0.999 threshold hid a
+  // 1-star blue at individual affinity 39-42 (career 99.93% to 99.996%) under a
+  // note claiming it computed to 100%, and that band sits inside the ordinary
+  // grandparent range, whose median is 36.
+  const shown = sparks.filter((row) => !(row.kind === 'blue' && row.onceInCareer >= 1));
   const certain = sparks.length - shown.length;
 
   if (sparks.length === 0) {

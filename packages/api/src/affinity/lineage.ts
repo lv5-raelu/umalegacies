@@ -34,7 +34,21 @@ export interface AncestorIdentity {
 }
 
 export interface LineageResponse extends ExplainResponse {
-  trainee: { charaId: number; name: string };
+  /**
+   * The trainee resolves or it does not, and this says which.
+   *
+   * Without it an unknown chara_id produced a CONFIDENT wrong answer: every
+   * trainee-touching base term silently collapsed (both trainee-parent links and
+   * all four three-way grandparent terms, which include the trainee), so a
+   * lineage worth 352 printed 352 -> 227 under an unqualified headline and a
+   * rank-3 verdict. types.ts says a zero from "they share nothing" and a zero
+   * from "I could not resolve this" must never look alike; this is that rule
+   * applied to the one member that had been exempt from it.
+   *
+   * The realistic trigger is not adversarial: a patch adds an uma, the extract
+   * has not been rebuilt, the user picks her.
+   */
+  trainee: { charaId: number; name: string; resolution: Resolution };
   /**
    * Keyed by position_id, and ALWAYS carrying all six keys. An absent slot is
    * `null`, not a missing key, so the tree keeps six slots and never reflows
@@ -111,6 +125,9 @@ export function explainLineage(
     trainee: {
       charaId: request.traineeCharaId,
       name: master.charaName(request.traineeCharaId),
+      resolution: master.hasChara(request.traineeCharaId)
+        ? { ok: true }
+        : { ok: false, reason: 'no_relation_rows', id: request.traineeCharaId },
     },
     ancestors,
     sparks: summariseSparks(sparksByPosition, ia),

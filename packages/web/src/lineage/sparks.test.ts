@@ -7,6 +7,21 @@ describe('percent', () => {
     expect(percent(0.995)).toBe('100%');
   });
 
+  it('distinguishes a rounded-away certainty from a real one', () => {
+    // The mirror of the <1% rule, and it was missing. Math.round turned 99.6%
+    // into "100%" for a spark that fails one career in 250 -- next to an audit
+    // trail that had just been fixed to KEEP exactly those rows.
+    expect(percent(1)).toBe('100%');
+    expect(percent(0.996)).toBe('>99%');
+    expect(percent(0.99927)).toBe('>99%');
+    expect(percent(0.99)).toBe('99%');
+  });
+
+  it('refuses to print a number it does not have', () => {
+    expect(percent(NaN)).toBe('—');
+    expect(percent(Infinity)).toBe('—');
+  });
+
   it('distinguishes a rounded-away chance from an impossible one', () => {
     // 0% is a claim that it cannot happen. Anything above zero says so.
     expect(percent(0)).toBe('0%');

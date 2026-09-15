@@ -29,6 +29,14 @@ interface EdgeLabel {
 }
 
 interface Edge {
+  /**
+   * Identity, not geometry. `d` was the key, and it is derived entirely from
+   * measured rects: any state where getBoundingClientRect returns zeros for
+   * several nodes at once (a tree inside display:none, an offscreen or print
+   * render, a jsdom snapshot) collapses every drop to "M0 0 L0 0" and React
+   * drops paths as duplicate keys. Same class as the label-as-key bug next door.
+   */
+  id: string;
   d: string;
   dashed: boolean;
 }
@@ -83,6 +91,19 @@ export function Tree({
       };
     };
 
+    // Positional binding, so the engine's order IS the contract. Nothing
+    // asserted it: reorder LINKS in engine.ts and every edge label silently
+    // attaches to the wrong connector, with no error and no visual tell. An
+    // eighth link is worse -- LINK_ORDER[7] is undefined, the map keys collide
+    // on undefined, and the extra link vanishes from the tree while still
+    // counting in the headline.
+    if (lineage.pairTotal.children.length !== LINK_ORDER.length) {
+      throw new Error(
+        `the engine emitted ${lineage.pairTotal.children.length} links but the tree ` +
+          `binds ${LINK_ORDER.length} by position. Update LINK_ORDER in Tree.tsx to ` +
+          'match LINKS in engine.ts, or edge labels will attach to the wrong connectors.',
+      );
+    }
     const byId = new Map(
       lineage.pairTotal.children.map((child, i) => [LINK_ORDER[i] as string, child]),
     );
@@ -101,7 +122,11 @@ export function Tree({
         const node = byId.get(linkIds[i] as string);
         const parts = node ? split(node) : { base: 0, bonus: null, absent: false };
         if (!parts.absent) anyPresent = true;
-        drawn.push({ d: `M${kid.cx} ${kid.bottom} L${kid.cx} ${busY}`, dashed: parts.absent });
+        drawn.push({
+          id: `drop:${linkIds[i] as string}`,
+          d: `M${kid.cx} ${kid.bottom} L${kid.cx} ${busY}`,
+          dashed: parts.absent,
+        });
         if (node) {
           marks.push({
             id: linkIds[i] as string,
@@ -114,10 +139,15 @@ export function Tree({
       });
       const xs = boxes.map((k) => k.cx);
       drawn.push({
+        id: `bus:${parentId}`,
         d: `M${Math.min(...xs)} ${busY} L${Math.max(...xs)} ${busY}`,
         dashed: !anyPresent,
       });
-      drawn.push({ d: `M${parent.cx} ${busY} L${parent.cx} ${parent.top}`, dashed: !anyPresent });
+      drawn.push({
+        id: `riser:${parentId}`,
+        d: `M${parent.cx} ${busY} L${parent.cx} ${parent.top}`,
+        dashed: !anyPresent,
+      });
     };
 
     bracket(['11', '12'], '10', ['10-11', '10-12']);
@@ -130,7 +160,11 @@ export function Tree({
     const parentPair = byId.get('10-20');
     if (a && b && parentPair) {
       const parts = split(parentPair);
-      drawn.push({ d: `M${a.right} ${a.cy} L${b.left} ${b.cy}`, dashed: parts.absent });
+      drawn.push({
+        id: 'link:10-20',
+        d: `M${a.right} ${a.cy} L${b.left} ${b.cy}`,
+        dashed: parts.absent,
+      });
       marks.push({
         id: '10-20',
         x: (a.right + b.left) / 2,
@@ -153,11 +187,22 @@ export function Tree({
     if (!root) return;
     // Fonts land after first paint and move every card; a ResizeObserver on the
     // frame catches that as well as window resizes and a name that rewraps.
+    let cancelled = false;
     const observer = new ResizeObserver(() => measure());
     observer.observe(root);
     for (const el of nodes.current.values()) observer.observe(el);
-    void document.fonts?.ready.then(measure);
-    return () => observer.disconnect();
+    // A promise cannot be cancelled, so guard the callback instead. `measure`
+    // closes over THIS render's lineage while reading the CURRENT DOM, so a
+    // fixture switched before the fonts resolve would otherwise repaint the new
+    // tree's edges with the old lineage's numbers. Wrong numbers on the
+    // decision surface is the worst failure this product has.
+    void document.fonts?.ready.then(() => {
+      if (!cancelled) measure();
+    });
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [measure]);
 
   const isSelected = (position: number | 'T') =>
@@ -169,7 +214,7 @@ export function Tree({
         <svg className={styles.edges} aria-hidden="true">
           {paths.map((edge) => (
             <path
-              key={edge.d}
+              key={edge.id}
               d={edge.d}
               strokeDasharray={edge.dashed ? '3 3' : undefined}
               opacity={edge.dashed ? 0.6 : 1}
@@ -223,7 +268,10 @@ export function Tree({
                 charaId: lineage.trainee.charaId,
                 name: lineage.trainee.name,
                 sparks: { blue: null, pink: null, green: null, whites: [], unknownFactorIds: [] },
-                resolution: { ok: true },
+                // The server's answer, not a hardcoded true. An unresolvable
+                // trainee used to render as a confident card above a confident
+                // headline.
+                resolution: lineage.trainee.resolution,
               }}
               affinity={lineage.pairTotal}
               caption="trainee · pair total"

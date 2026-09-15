@@ -271,9 +271,9 @@ export function MemberProvenance({
         {sparks.unknownFactorIds.length > 0 && (
           <p className={styles.unresolved}>
             {plural(sparks.unknownFactorIds.length, 'spark')} in this save{' '}
-            {sparks.unknownFactorIds.length === 1 ? 'has' : 'have'} no row in{' '}
-            <code>master.mdb</code>: {sparks.unknownFactorIds.join(', ')}. The extract is probably
-            older than the save.
+            {sparks.unknownFactorIds.length === 1 ? 'is' : 'are'} not recognised by this build:{' '}
+            {sparks.unknownFactorIds.join(', ')}. Either the extract is older than the save, or the
+            row exists and carries a factor type this tool does not classify yet.
           </p>
         )}
       </div>

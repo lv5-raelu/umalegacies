@@ -112,6 +112,10 @@
   margin-top: var(--space-xs);
 }
 
+.disagree {
+  color: var(--error);
+}
+
 .quiet {
   color: var(--ink-faint);
   font-size: var(--text-xs);

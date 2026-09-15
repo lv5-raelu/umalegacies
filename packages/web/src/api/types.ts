@@ -107,7 +107,8 @@ export interface LineageResponse {
   relationRank: { value: number; ruleId: 'rank.lookup'; sources: MasterRef[] };
   rankBounds: { min: number; max: number };
   masterHash: string;
-  trainee: { charaId: number; name: string };
+  /** `resolution` says whether the trainee's chara_id is one master.mdb knows. */
+  trainee: { charaId: number; name: string; resolution: Resolution };
   /** Always all six keys. `null` is an empty slot, and the tree keeps its shape. */
   ancestors: Record<number, AncestorIdentity | null>;
   sparks: SparkSummaryRow[];

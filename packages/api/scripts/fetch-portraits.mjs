@@ -29,7 +29,30 @@ const outDir = resolve(packageRoot, 'data/portraits');
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
-const concurrency = Number(args[args.indexOf('--concurrency') + 1]) || 4;
+
+/**
+ * `Number(args[indexOf(flag) + 1]) || 4` had three faults: absent the flag,
+ * indexOf returns -1 and it read args[0], so `fetch-portraits.mjs 8` silently
+ * set 8; `--concurrency 0` became 4 through the `||`; and `--concurrency -1`
+ * survived, producing a zero-length worker pool that fetched nothing and still
+ * exited 0 reporting success.
+ */
+function intFlag(name, fallback, { min, max }) {
+  const at = args.indexOf(name);
+  if (at === -1) return fallback;
+  const value = Number(args[at + 1]);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    console.error(`${name} must be an integer between ${min} and ${max}`);
+    process.exit(2);
+  }
+  return value;
+}
+const concurrency = intFlag('--concurrency', 4, { min: 1, max: 16 });
+
+/** One hung connection must not park a worker forever. */
+const REQUEST_TIMEOUT_MS = 20_000;
+/** A thumbnail is ~7 KB. Anything past this is not the file we asked for. */
+const MAX_PORTRAIT_BYTES = 2 * 1024 * 1024;
 
 if (!existsSync(extractPath)) {
   console.error(`missing ${extractPath}. Run: npm run build:master --workspace @umalegacies/api`);
@@ -49,6 +72,13 @@ const picks = new Map();
 for (const row of db
   .prepare('SELECT id, chara_id FROM card_data ORDER BY chara_id, id')
   .all()) {
+  // SQLite is dynamically typed and this extract is generated text, so assert
+  // rather than assume. Both values are interpolated into a URL and a filename;
+  // a non-integer would be an arbitrary-path write.
+  if (!Number.isInteger(row.chara_id) || !Number.isInteger(row.id)) {
+    console.error(`card_data row has non-integer ids: ${JSON.stringify(row)}`);
+    process.exit(2);
+  }
   if (!picks.has(row.chara_id)) picks.set(row.chara_id, row.id);
 }
 
@@ -75,6 +105,7 @@ async function fetchOne([charaId, cardId]) {
     `https://gametora.com/images/umamusume/characters/thumb/chara_stand_${charaId}_${cardId}.png`;
   try {
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         // A real UA and a referer, because this is a browser-facing CDN and an
         // unlabelled bulk fetch is the rude version of this request.
@@ -89,7 +120,19 @@ async function fetchOne([charaId, cardId]) {
       failures.push(`${charaId}: HTTP ${response.status}`);
       return;
     }
+    // Check the advertised length before buffering, so a hostile or
+    // misconfigured response cannot be read wholly into memory just to be
+    // rejected by the magic-byte test below.
+    const declared = Number(response.headers.get('content-length'));
+    if (Number.isFinite(declared) && declared > MAX_PORTRAIT_BYTES) {
+      failures.push(`${charaId}: ${declared} bytes, over the ${MAX_PORTRAIT_BYTES} cap`);
+      return;
+    }
     const body = Buffer.from(await response.arrayBuffer());
+    if (body.length > MAX_PORTRAIT_BYTES) {
+      failures.push(`${charaId}: ${body.length} bytes, over the ${MAX_PORTRAIT_BYTES} cap`);
+      return;
+    }
     // A 404 page served as 200 is HTML, and writing it as a .png produces a
     // broken image that looks like a layout bug three days later.
     if (!body.subarray(0, 4).equals(PNG_MAGIC)) {
@@ -118,4 +161,10 @@ console.log(`wrote ${done} portraits`);
 if (failures.length > 0) {
   console.warn(`\n${failures.length} failed (those characters keep their initials):`);
   for (const f of failures) console.warn(`  ${f}`);
+  // A run where every fetch failed must not look like success to a caller. The
+  // cache is optional, so a PARTIAL failure is not fatal; a total one is.
+  if (done === 0) {
+    console.error('\nevery fetch failed; the cache was not filled');
+    process.exit(1);
+  }
 }

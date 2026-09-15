@@ -1,5 +1,5 @@
-import { existsSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, lstatSync } from 'node:fs';
+import { relative, resolve, isAbsolute } from 'node:path';
 import { findPackageFile } from '../common/find-file';
 
 /**
@@ -12,14 +12,16 @@ import { findPackageFile } from '../common/find-file';
  * supported state and never a boot failure.
  */
 export function findPortraitDir(): string {
-  const { path } = findPackageFile(
-    process.env.PORTRAIT_DIR,
-    __filename,
-    '../../..',
-    'data/portraits',
-  );
-  // findPackageFile returns '' when nothing exists yet. Fall back to the
-  // conventional location so a 404 message names the directory to fill.
+  // An explicitly configured directory is HONOURED, never silently replaced.
+  // findPackageFile probes and falls through when a path does not exist yet,
+  // which for an operator who set PORTRAIT_DIR to a directory they have not
+  // created means the server quietly serves a different one and then names that
+  // other directory in its 404s. An empty cache is a supported state; a
+  // disregarded configuration is not.
+  const configured = process.env.PORTRAIT_DIR;
+  if (configured) return resolve(configured);
+
+  const { path } = findPackageFile(undefined, __filename, '../../..', 'data/portraits');
   return path || resolve(__dirname, '../../..', 'data/portraits');
 }
 
@@ -46,9 +48,18 @@ export function lookupPortrait(dir: string, charaId: string): PortraitLookup {
   // Belt and braces: even though the regex makes traversal unreachable, assert
   // the resolved path stayed inside the cache directory. A future edit to that
   // regex must not silently become a file-read primitive.
-  if (path !== resolve(dir, `${charaId}.png`) || !path.startsWith(resolve(dir) + '/')) {
+  //
+  // Via `relative`, not a separator-prefixed startsWith: that hardcodes "/" and
+  // is therefore always false on Windows, where it would 400 every portrait
+  // while looking like a working guard. The old first clause compared a value to
+  // the identical expression that produced it and could never be true.
+  const inside = relative(resolve(dir), path);
+  if (inside.startsWith('..') || isAbsolute(inside)) {
     return { ok: false, reason: 'invalid_id' };
   }
-  if (!existsSync(path) || !statSync(path).isFile()) return { ok: false, reason: 'not_cached' };
+  // lstat, NOT stat: stat follows symlinks, so a cache entry linked at some
+  // other file would pass this guard and then be streamed out as image/png.
+  // The cache is filled by a script and is not a place symlinks belong.
+  if (!existsSync(path) || !lstatSync(path).isFile()) return { ok: false, reason: 'not_cached' };
   return { ok: true, path };
 }

@@ -28,6 +28,18 @@ describe('careerOdds', () => {
     expect(twice).toBe(1);
   });
 
+  it('returns EXACTLY 1 only when a carrier is genuinely capped', () => {
+    // The audit trail omits a blue row on `once === 1`, so this exactness is
+    // load-bearing. A 0.999 epsilon hid a 1-star blue at individual affinity
+    // 39-42 (career 99.93% to 99.996%) under a note claiming it computed to
+    // 100%, and that band sits inside the ordinary grandparent range.
+    expect(careerOdds([1]).once).toBe(1);
+    expect(careerOdds([0.7 * 1.43 > 1 ? 1 : 0.7 * 1.43]).once).toBe(1);
+    // Uncapped carriers can get arbitrarily close and must never reach it.
+    expect(careerOdds([0.7 * 1.42]).once).toBeLessThan(1);
+    expect(careerOdds([0.99, 0.99, 0.99]).once).toBeLessThan(1);
+  });
+
   it('is 0 for a spark nobody carries', () => {
     expect(careerOdds([])).toEqual({ once: 0, twice: 0 });
   });
@@ -143,6 +155,47 @@ describe('the Oguri Cap verification lineage', () => {
     expect(result.pairTotal.value).toBe(352);
     expect(result.relationRank.value).toBe(3);
     expect(result.individualAffinity[10]?.value).toBe(186);
+  });
+});
+
+describe('a trainee master.mdb does not know', () => {
+  it('says so instead of returning a confident total', () => {
+    // An unknown trainee collapses every base term that touches it: both
+    // trainee-parent links AND all four three-way grandparent terms. The 352
+    // lineage silently became 227 under an unqualified headline and a rank-3
+    // verdict, which is the exact failure types.ts declares unacceptable.
+    const request = { ...loadFixture('verify-oguri').request, traineeCharaId: 999999 };
+    const result = explainLineage(request, master, extractHash());
+    expect(result.trainee.resolution).toEqual({
+      ok: false,
+      reason: 'no_relation_rows',
+      id: 999999,
+    });
+  });
+
+  it('resolves a trainee it does know', () => {
+    const result = lineage('verify-oguri');
+    expect(result.trainee.resolution).toEqual({ ok: true });
+    expect(result.trainee.name).toBe('Oguri Cap');
+  });
+});
+
+describe('careerOdds invariants hold for callers that skip the HTTP boundary', () => {
+  it('never lets a non-finite rate reach the result', () => {
+    // build-fixtures.mjs and M3's roster path never call parseExplainRequest,
+    // so the cap and the clamp cannot live only at the edge.
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      const { once, twice } = careerOdds([bad, 0.2]);
+      expect(Number.isFinite(once), String(bad)).toBe(true);
+      expect(Number.isFinite(twice), String(bad)).toBe(true);
+      expect(once).toBeGreaterThanOrEqual(0);
+      expect(once).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('clamps an out-of-range rate rather than propagating it', () => {
+    expect(careerOdds([1.5]).once).toBe(1);
+    expect(careerOdds([-0.5]).once).toBe(0);
   });
 });
 

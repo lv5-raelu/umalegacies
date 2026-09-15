@@ -100,4 +100,78 @@ describe('parseExplainRequest', () => {
     });
     expect(parsed.grandparents).toEqual([null, null, null, null]);
   });
+
+  describe('factorIds', () => {
+    const withFactors = (factorIds: unknown) => {
+      const request = valid();
+      request.parents[0].factorIds = factorIds;
+      return request;
+    };
+
+    it('accepts a normal spark list', () => {
+      const parsed = parseExplainRequest(withFactors([101, 1102, 2000101]));
+      expect(parsed.parents[0].factorIds).toEqual([101, 1102, 2000101]);
+    });
+
+    it('rejects a repeated factor id', () => {
+      // Never legitimate: across 1,554 ancestor slots in a real roster there is
+      // not one repeat. Accepting one is not harmless, because each occurrence
+      // becomes an independent carrier -- 50 copies took a 6-star 43% spark to
+      // 104 stars and 99.99%, and those are numbers this product audits.
+      try {
+        parseExplainRequest(withFactors([101, 1102, 101]));
+        throw new Error('should have thrown');
+      } catch (error) {
+        expect((error as DomainError).code).toBe('DUPLICATE_FACTOR_ID');
+        expect((error as DomainError).field).toBe('parents[0].factorIds');
+      }
+    });
+
+    it('rejects a list longer than any ancestor can carry', () => {
+      // The summary is O(n^2) in the carrier count and the body is user-supplied.
+      try {
+        parseExplainRequest(withFactors(Array.from({ length: 65 }, (_, i) => 100000 + i)));
+        throw new Error('should have thrown');
+      } catch (error) {
+        expect((error as DomainError).code).toBe('TOO_MANY_FACTORS');
+      }
+    });
+
+    it('rejects a non-array', () => {
+      try {
+        parseExplainRequest(withFactors(101));
+        throw new Error('should have thrown');
+      } catch (error) {
+        expect((error as DomainError).code).toBe('INVALID_FACTOR_IDS');
+      }
+    });
+  });
+
+  describe('winSaddleIds', () => {
+    const withSaddles = (winSaddleIds: unknown) => {
+      const request = valid();
+      request.parents[0].winSaddleIds = winSaddleIds;
+      return request;
+    };
+
+    it('rejects a repeated saddle id', () => {
+      // A veteran wins each race at most once, and a repeat would misstate
+      // which G1s two members actually share.
+      try {
+        parseExplainRequest(withSaddles([10, 11, 10]));
+        throw new Error('should have thrown');
+      } catch (error) {
+        expect((error as DomainError).code).toBe('DUPLICATE_WIN_SADDLE_ID');
+      }
+    });
+
+    it('rejects a list longer than any ancestor can carry', () => {
+      try {
+        parseExplainRequest(withSaddles(Array.from({ length: 129 }, (_, i) => i + 1)));
+        throw new Error('should have thrown');
+      } catch (error) {
+        expect((error as DomainError).code).toBe('TOO_MANY_WIN_SADDLES');
+      }
+    });
+  });
 });

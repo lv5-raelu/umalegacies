@@ -67,7 +67,11 @@ function allSparks(set: AncestorSparkSet): AncestorSpark[] {
 export function careerOdds(perInspiration: number[]): { once: number; twice: number } {
   // Distribution of how many carriers fire within ONE inspiration.
   let dist = [1];
-  for (const p of perInspiration) {
+  for (const raw of perInspiration) {
+    // The HTTP boundary caps and dedupes carriers, but this function has callers
+    // that never pass through it (build-fixtures.mjs, and M3's own roster path),
+    // so the invariant lives here too rather than only at the edge.
+    const p = clamp01(raw);
     const next = new Array<number>(dist.length + 1).fill(0);
     for (let k = 0; k < dist.length; k++) {
       const weight = dist[k] as number;
@@ -87,6 +91,11 @@ export function careerOdds(perInspiration: number[]): { once: number; twice: num
 }
 
 function clamp01(n: number): number {
+  // NaN first: both comparisons below are false for NaN, so without this the
+  // "guard" that exists to stop a -0% reaching the screen happily passes NaN
+  // through, and the web app's percent() has no NaN branch either -- it prints
+  // the string "NaN%". A rate this code cannot compute is 0, not a glyph.
+  if (!Number.isFinite(n)) return 0;
   if (n < 0) return 0;
   if (n > 1) return 1;
   return n;

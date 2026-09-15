@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ErrorFilter } from './common/error.filter';
 import { MasterBootError } from './master/master.errors';
@@ -22,7 +23,15 @@ function allowedOrigins(): string[] {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: false,
+  });
+
+  // Explicit, not Express's undocumented 100 KB default. A lineage is six
+  // ancestors carrying a card id, a win list and a spark list: the largest
+  // fixture is under 8 KB. 256 KB leaves generous headroom and still bounds
+  // what an unauthenticated caller can make the server parse.
+  app.useBodyParser('json', { limit: '256kb' });
   const origins = allowedOrigins();
 
   app.enableCors({ origin: origins, methods: ['GET', 'POST'] });
