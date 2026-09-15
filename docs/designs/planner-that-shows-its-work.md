@@ -763,6 +763,60 @@ raise them exist.
   policy can cover because the sharing happens outside the server. Say so next to the share
   button whatever the data-handling decision turns out to be.
 
+- **M7 — The borrow search.** *Documented 2026-09-15, not scheduled.* Requested by the
+  builder's friends; the largest missing feature in `breeding-optimizer`.
+
+  **The inverse query.** M1-M5 answer "given this lineage, what do I get?". This answers
+  "given what I want, which lineage gets it?". The user states the sparks they want to
+  inherit and the tool finds the parent pair that delivers them, from their own veterans
+  and optionally from borrowable veterans on uma.moe.
+
+  **The unit of choice is a package, not an ancestor.** Picking a veteran as a parent also
+  fixes that veteran's own two parents as the grandparents: a veteran is an indivisible
+  three-slot package. The user is not choosing six ancestors, they are choosing **two
+  packages of three**. Half A is slots 10/11/12, half B is 20/21/22.
+
+  **Borrowing replaces exactly one package.** A borrowed veteran supplies parent B and
+  grandparents B1 and B2. Half A is always the builder's own. This is what makes the
+  two-stage search the builder described correct rather than merely convenient: pick the
+  best own package first, then search the borrowable pool for the complement that both
+  covers what half A lacks and reinforces what it already has.
+
+  **Two constraint scopes, and the second is grounded in mechanics.**
+  - *Lineage-wide*: a star total across all six ancestors. "12 Stamina" means twelve stars
+    of Stamina anywhere in the lineage, e.g. 2 stars on each of the six.
+  - *Direct parents only*: a requirement pinned to slots 10 and 20. This exists because a
+    parent's spark is far likelier to be inherited than a grandparent's: measured across
+    the roster, parent Individual Affinity has median **138** against a grandparent median
+    of **36**, and the activation rate is `base x (1 + IA/100)`. A 2-star Medium on a
+    parent is worth materially more than the same spark on a grandparent, so the user must
+    be able to demand it *there*.
+
+  **Hard versus soft, and this asymmetry is the feature.**
+  - Blue, pink and green filters are **requirements**. Unmet means no match, and the user
+    is told so plainly and expected to relax them. That loop is the main path, not an
+    error state: on the builder's roster, "Stamina >= 12 AND Medium >= 4" is satisfied by
+    **25 of 33,411** own-pairs, 0.07%.
+  - White filters are **never requirements**. They only rank. A result that misses a
+    wanted white is still a result; a result that hits more of them ranks higher.
+    Rationale: there are 231 distinct white types in the roster against 5 blue and 10
+    pink, so treating whites as hard constraints would return nothing almost always.
+
+  **Search space.** 259 veterans give 33,411 unordered own-by-own pairs, which brute
+  forces in milliseconds; no index or solver is needed for the own-only case. The
+  borrowable case is 259 x P where P is uma.moe's pool, and P is the part that decides
+  the architecture. Own-only must therefore be a first-class mode, not a degraded one.
+
+  **Ceilings worth encoding in the UI**, since a user can otherwise ask for the
+  impossible: every ancestor carries exactly one blue, one pink and one green, at 1-3
+  stars. So one blue type caps at 6 stars across the two parents, 12 across the four
+  grandparents, and 18 across all six.
+
+  Unresolved: uma.moe's API shape, terms of use and rate limits, none of which have been
+  checked; how affinity enters, since the best spark match may be a poor affinity pair and
+  the tool currently has no way to trade those off; and whether a veteran the user owns
+  twice can fill both halves.
+
 ## Open Questions
 
 1. Cite community research inline or link out? The `citation` field supports both; inline is
@@ -963,3 +1017,10 @@ engine and the builder's own roster).
   now match hakuraku's source exactly, but both are one implementation's belief. The
   per-inspiration vs full-run toggle (hakuraku's `isFullRun`) is unbuilt.
 - Whether the odds panel stays in M2 or reverts to M5, given it pulled M5's core forward
+- **M7's uma.moe dependency**: API shape, terms of use and rate limits, all unchecked. The
+  own-only half of the search needs none of it and should ship independently.
+- **How affinity enters M7's ranking.** The best spark match may be a poor affinity pair,
+  and nothing currently trades those off. A user who gets their sparks and a rank-1 icon
+  has been failed.
+- **Total blues as a target**, requested separately by a friend. Believed already covered
+  by M7's lineage-wide scope, but not confirmed with the person who asked.
