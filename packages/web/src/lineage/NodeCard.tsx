@@ -59,7 +59,18 @@ export function NodeCard({
         .join(' ')}
     >
       <span className={styles.portrait}>
-        <Portrait charaId={identity.charaId} name={identity.name} size={size} />
+        {/* Keyed by charaId so React REMOUNTS on a character change. Portrait
+            holds a `failed` flag from the image's error event, and these cards
+            are keyed by slot, so the instance survives a lineage switch: a slot
+            that 404'd once would keep showing initials for the next character
+            in it, even one that is cached. That is the ordinary state after a
+            game patch adds an uma the cache has not been refilled for. */}
+        <Portrait
+          key={identity.charaId ?? 'unresolved'}
+          charaId={identity.charaId}
+          name={identity.name}
+          size={size}
+        />
       </span>
       <div className={styles.name}>{identity.name}</div>
       {/* An unresolved lookup shows an em dash, never a 0: a 0 would be a

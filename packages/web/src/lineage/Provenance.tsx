@@ -6,6 +6,7 @@ import type {
   MasterRef,
   SparkSummaryRow,
 } from '../api/types';
+import { sumByRulePrefix } from './explain-node';
 import { SPARK_COLOR, isWhite, percent, plural, stars } from './sparks';
 import styles from './Provenance.module.css';
 
@@ -214,8 +215,16 @@ export function MemberProvenance({
             is the number that scales every spark rate below.
           </p>
           <ul className={styles.addends}>
-            {affinity.children.map((child) => (
-              <li key={child.label}>
+            {/* Keyed by index, NOT by label. One lineage can hold the same
+                character in several slots, so two of these links genuinely
+                share a label: fixture 5531 renders `El Condor Pasa <-> Inari
+                One` twice with different values. React then warns that
+                children may be duplicated or omitted, which in this product
+                means a wrong number against a right name. The list is a fixed,
+                engine-ordered set that never reorders or filters, so the index
+                is a stable identity. */}
+            {affinity.children.map((child, i) => (
+              <li key={i}>
                 <span>{child.label}</span>
                 <span className={styles.value}>{child.value}</span>
               </li>
@@ -326,8 +335,8 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
 
 /** The pair total, and the seven links that make it. */
 export function TotalProvenance({ lineage }: { lineage: LineageResponse }) {
-  const base = sumWhere(lineage.pairTotal, (id) => id.startsWith('base.'));
-  const bonus = sumWhere(lineage.pairTotal, (id) => id.startsWith('bonus.'));
+  const base = sumByRulePrefix(lineage.pairTotal, 'base.');
+  const bonus = sumByRulePrefix(lineage.pairTotal, 'bonus.');
   return (
     <section className={styles.panel}>
       <h3 className={styles.heading}>
@@ -347,8 +356,11 @@ export function TotalProvenance({ lineage }: { lineage: LineageResponse }) {
           non-zero.
         </p>
         <ul className={styles.addends}>
-          {lineage.pairTotal.children.map((link) => (
-            <li key={link.label}>
+          {/* Keyed by index for the same reason as the addends above: the
+              seven links are emitted in a fixed order and two of them can
+              share a label. */}
+          {lineage.pairTotal.children.map((link, i) => (
+            <li key={i}>
               <span>{link.label}</span>
               <span className={styles.value}>{link.value}</span>
             </li>
@@ -373,7 +385,3 @@ export function TotalProvenance({ lineage }: { lineage: LineageResponse }) {
   );
 }
 
-function sumWhere(node: ExplainNode, match: (ruleId: string) => boolean): number {
-  if (match(node.ruleId)) return node.value;
-  return node.children.reduce((total, child) => total + sumWhere(child, match), 0);
-}
