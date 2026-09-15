@@ -194,9 +194,12 @@ describe('a trainee master.mdb does not know', () => {
     // verdict, which is the exact failure types.ts declares unacceptable.
     const request = { ...loadFixture('verify-oguri').request, traineeCharaId: 999999 };
     const result = explainLineage(request, master, extractHash());
+    // unknown_chara, NOT no_relation_rows: the extract has never heard of this
+    // id, so a message about relation rows would be a claim about relations for
+    // a character that does not exist.
     expect(result.trainee.resolution).toEqual({
       ok: false,
-      reason: 'no_relation_rows',
+      reason: 'unknown_chara',
       id: 999999,
     });
   });

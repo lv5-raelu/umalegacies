@@ -53,7 +53,11 @@ export function percent(p: number): string {
   if (p <= 0) return '0%';
   if (p < 0.005) return '<1%';
   if (p >= 1) return '100%';
-  if (p > 0.995) return '>99%';
+  // >=, not >. Math.round(p * 100) reaches 100 at exactly 0.995, so a strict
+  // `>` let that single value through to print certainty for a spark that
+  // fails one career in 200 -- the one value in the whole range that claims
+  // something false.
+  if (p >= 0.995) return '>99%';
   return `${Math.round(p * 100)}%`;
 }
 

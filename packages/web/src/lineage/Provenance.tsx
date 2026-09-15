@@ -7,6 +7,7 @@ import type {
   SparkSummaryRow,
 } from '../api/types';
 import { sumByRulePrefix } from './explain-node';
+import { resolutionText } from './resolution';
 import { SPARK_COLOR, isWhite, percent, plural, stars } from './sparks';
 import styles from './Provenance.module.css';
 
@@ -47,7 +48,12 @@ function Term({ node }: { node: ExplainNode }) {
     <div className={styles.term}>
       <div className={styles.termHead}>
         <span className={styles.termLabel}>{termTitle(node)}</span>
-        <span className={isBonus ? styles.bonusValue : styles.value}>
+        {/* Amber is gated on the SAME condition as the `+`. Colouring on
+            `isBonus` alone printed a bare amber 0 for an absent slot and for a
+            pair sharing no G1s -- the `0 +0` problem already fixed on the edge
+            labels, reproduced in the drawer. Nothing was added, so nothing is
+            accent. */}
+        <span className={isBonus && node.value > 0 ? styles.bonusValue : styles.value}>
           {isBonus && node.value > 0 ? `+${node.value}` : node.value}
         </span>
       </div>
@@ -112,10 +118,7 @@ function RelationTotal({ node }: { node: ExplainNode }) {
 
   if (unresolved && unresolved.resolution?.ok === false) {
     return (
-      <p className={styles.unresolved}>
-        could not resolve {unresolved.resolution.reason.replace(/_/g, ' ')}{' '}
-        {unresolved.resolution.id}
-      </p>
+      <p className={styles.unresolved}>{resolutionText(unresolved.resolution)}</p>
     );
   }
   if (rows.length === 0) {
@@ -256,10 +259,9 @@ export function MemberProvenance({
               <ul className={styles.sparkList}>
                 {byKind[kind].map((spark) => (
                   <li key={spark.factorId}>
-                    <i
-                      className={isWhite(spark.kind) ? styles.tickOutlined : styles.tick}
-                      style={isWhite(spark.kind) ? undefined : { background: SPARK_COLOR[spark.kind] }}
-                    />
+                    {/* byKind is built by filtering to the three white kinds,
+                        so the tick is outlined by construction. */}
+                    <i className={styles.tickOutlined} />
                     <span className={styles.sparkName}>{spark.name}</span>
                     <span className={styles.value}>{stars(spark.stars)}</span>
                   </li>
@@ -321,9 +323,9 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
                 <td>{stars(carrier.stars)}</td>
                 <td className={styles.numeric}>{percent(carrier.baseRate)}</td>
                 <td className={styles.numeric}>{carrier.individualAffinity}</td>
-                <td className={styles.numeric}>
-                  {carrier.perInspiration >= 1 ? '100%' : percent(carrier.perInspiration)}
-                </td>
+                {/* percent() owns the >= 1 branch. A second copy of the
+                    threshold here is how the two drift apart. */}
+                <td className={styles.numeric}>{percent(carrier.perInspiration)}</td>
               </tr>
             ))}
           </tbody>

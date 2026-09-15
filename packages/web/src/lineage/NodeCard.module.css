@@ -60,12 +60,15 @@
 }
 
 .name {
+  /* A <button> may contain phrasing content only, so these are spans. */
+  display: block;
   font-size: var(--text-xs);
   min-height: 18px;
   padding-right: 58px;
 }
 
 .affinity {
+  display: block;
   font-family: var(--font-data);
   font-size: var(--text-lg);
   font-weight: 500;
@@ -79,6 +82,7 @@
 /* An aggregate prints its addends beneath it, permanently, full width and
  * clear of the portrait's lower edge. */
 .caption {
+  display: block;
   font-family: var(--font-data);
   font-size: var(--text-3xs);
   color: var(--ink-faint);
@@ -116,7 +120,6 @@
   gap: var(--space-tight);
   font-size: var(--text-2xs);
   color: var(--ink-muted);
-  padding: 0.5px 0;
 }
 
 .absent {

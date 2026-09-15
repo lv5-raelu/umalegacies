@@ -4,7 +4,7 @@ import { SPARK_COLOR, SPARK_KIND_ORDER, isWhite, percent, plural, stars } from '
 describe('percent', () => {
   it('rounds to whole numbers', () => {
     expect(percent(0.4334)).toBe('43%');
-    expect(percent(0.995)).toBe('100%');
+    expect(percent(0.99)).toBe('99%');
   });
 
   it('distinguishes a rounded-away certainty from a real one', () => {
@@ -12,6 +12,11 @@ describe('percent', () => {
     // into "100%" for a spark that fails one career in 250 -- next to an audit
     // trail that had just been fixed to KEEP exactly those rows.
     expect(percent(1)).toBe('100%');
+    // 0.995 is the exact boundary Math.round takes to 100. An earlier test in
+    // this file asserted it printed "100%", which locked the defect in: the
+    // correct behaviour would have read as a regression.
+    expect(percent(0.995)).toBe('>99%');
+    expect(percent(0.9949)).toBe('99%');
     expect(percent(0.996)).toBe('>99%');
     expect(percent(0.99927)).toBe('>99%');
     expect(percent(0.99)).toBe('99%');

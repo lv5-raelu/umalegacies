@@ -30,7 +30,7 @@ export class PortraitsController {
       res.setHeader('Cache-Control', 'no-store');
       if (found.reason === 'invalid_id') {
         throw new DomainError(
-          'INVALID_CHARA_ID',
+          'INVALID_CARD_ID',
           'cardId must be a number, e.g. /portraits/100601.png.',
           400,
           'cardId',
@@ -74,8 +74,8 @@ export class PortraitsController {
       );
     }
 
-    // Keyed by chara_id and only ever refilled by re-running the fetch script,
-    // so a day is safe and keeps the tree off the network on every navigation.
+    // Keyed by card_id (a costume) and only ever refilled by re-running the
+    // fetch script, so a day is safe and keeps the tree off the network.
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=86400');
 

@@ -14,6 +14,7 @@ import {
   TotalProvenance,
 } from './lineage/Provenance';
 import { sumByRulePrefix } from './lineage/explain-node';
+import { resolutionText } from './lineage/resolution';
 import { Tree, type Selection } from './lineage/Tree';
 import styles from './App.module.css';
 
@@ -161,11 +162,8 @@ function Lineage({
           </div>
           {/* An aggregate prints its addends beneath it, permanently. */}
           <div className={styles.addends}>
-            {traineeUnresolved && lineage.trainee.resolution.ok === false ? (
-              <span className={styles.disagree}>
-                could not resolve {lineage.trainee.resolution.reason.replace(/_/g, ' ')}{' '}
-                {lineage.trainee.resolution.id}
-              </span>
+            {traineeUnresolved ? (
+              <span className={styles.disagree}>{resolutionText(lineage.trainee.resolution)}</span>
             ) : addendsAgree ? (
               `${base} base + ${bonus} bonus`
             ) : (

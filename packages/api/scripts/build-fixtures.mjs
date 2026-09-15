@@ -279,10 +279,11 @@ const f_unresolved = {
 const fixtures = [fOguri, f5531, f5774, f_group, f_absent, f_unresolved];
 
 // Fixtures are derived from a personal save. Assert what leaves this script
-// rather than trust it: an ancestor may carry the two public game fields and
-// nothing else. data.json's slots also hold owner_viewer_id (another player's
-// 12-digit trainer id), rank, rarity, talent_level and factor_info_array, and
-// none of those may reach a committed file.
+// rather than trust it: an ancestor may carry the three public game fields
+// (cardId, factorIds, winSaddleIds) and nothing else. Only the factor IDS
+// travel, never the sibling `level`. data.json's slots also hold
+// owner_viewer_id (another player's 12-digit trainer id), rank, rarity and
+// talent_level, and none of those may reach a committed file.
 // An allowlist, not an exact shape: the synthetic fixtures carry no sparks
 // because no spark rule is under test there. What matters is that nothing
 // OUTSIDE this set can ever reach a committed file.

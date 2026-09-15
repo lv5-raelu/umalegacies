@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { ExplainNode, LineageResponse } from '../api/types';
-import { NodeCard } from './NodeCard';
+import type { AncestorIdentity, ExplainNode, LineageResponse } from '../api/types';
+import { NodeCard, type NodeSubject } from './NodeCard';
 import styles from './Tree.module.css';
 
 /** What the user has clicked. The provenance panel renders whatever this names. */
@@ -227,7 +227,7 @@ export function Tree({
           {[11, 12, 21, 22].map((position) => (
             <div key={position} ref={register(String(position))}>
               <NodeCard
-                identity={lineage.ancestors[position] ?? null}
+                subject={subjectFor(lineage.ancestors[position] ?? null)}
                 affinity={lineage.individualAffinity[position] ?? null}
                 caption="individual"
                 portraitCard={lineage.ancestors[position]?.cardId ?? null}
@@ -248,7 +248,7 @@ export function Tree({
               style={{ gridColumn: position === 10 ? '1 / 3' : '3 / 5' }}
             >
               <NodeCard
-                identity={lineage.ancestors[position] ?? null}
+                subject={subjectFor(lineage.ancestors[position] ?? null)}
                 affinity={lineage.individualAffinity[position] ?? null}
                 caption={addends(lineage.individualAffinity[position])}
                 portraitCard={lineage.ancestors[position]?.cardId ?? null}
@@ -264,16 +264,16 @@ export function Tree({
           <div ref={register('T')}>
             <NodeCard
               variant="trainee"
-              identity={{
-                position: 0,
-                cardId: 0,
-                charaId: lineage.trainee.charaId,
+              subject={{
                 name: lineage.trainee.name,
-                sparks: { blue: null, pink: null, green: null, whites: [], unknownFactorIds: [] },
                 // The server's answer, not a hardcoded true. An unresolvable
                 // trainee used to render as a confident card above a confident
                 // headline.
                 resolution: lineage.trainee.resolution,
+                // Not an ancestor: it has not been trained, so it carries
+                // nothing. `null` is "no sparks exist", distinct from an
+                // ancestor whose spark set is merely empty.
+                sparks: null,
               }}
               affinity={lineage.pairTotal}
               caption="trainee · pair total"
@@ -315,6 +315,12 @@ export function Tree({
       </div>
     </div>
   );
+}
+
+/** An ancestor as a node displays it. Null stays null: an empty slot. */
+function subjectFor(identity: AncestorIdentity | null): NodeSubject | null {
+  if (!identity) return null;
+  return { name: identity.name, resolution: identity.resolution, sparks: identity.sparks };
 }
 
 /** Splits a link into its base and bonus halves. A trainee link has no bonus. */

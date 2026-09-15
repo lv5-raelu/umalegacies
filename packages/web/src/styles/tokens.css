@@ -120,6 +120,10 @@ body {
   color: var(--ink);
 }
 
+body {
+  caret-color: var(--ink);
+}
+
 :root {
   scrollbar-color: var(--rule-strong) var(--paper);
   scrollbar-width: thin;

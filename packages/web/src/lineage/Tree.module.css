@@ -12,7 +12,10 @@
 
 .frame {
   position: relative;
-  min-width: 620px;
+  /* The figure this file's own header states. At 620px the tree did not
+     scroll, it COMPRESSED: four cards squeezed below their 216px max while the
+     name and affinity still reserved 58px for the portrait. */
+  min-width: 1038px;
   padding-bottom: var(--space-snug);
 }
 

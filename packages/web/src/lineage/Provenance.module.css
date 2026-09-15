@@ -189,7 +189,7 @@
   font-family: var(--font-data);
   font-size: var(--text-3xs);
   font-weight: 400;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   color: var(--ink-faint);
   text-align: left;
   padding: 0 var(--space-sm) var(--space-xs);

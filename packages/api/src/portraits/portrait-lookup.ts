@@ -33,7 +33,7 @@ export type PortraitLookup =
   | { ok: false; reason: 'not_cached' };
 
 /**
- * Resolves a chara_id to a cached file.
+ * Resolves a card_id to a cached file.
  *
  * Kept out of the controller so the traversal guard and the miss path can be
  * tested as plain functions, matching how the rest of this package is tested

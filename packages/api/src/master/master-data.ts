@@ -179,6 +179,20 @@ export class MasterData {
     return this.baseCardByCharaId.get(charaId) ?? null;
   }
 
+  /**
+   * Does master.mdb know this character AT ALL?
+   *
+   * Distinct from hasChara, which asks whether it has succession-relation rows.
+   * Collapsing the two reported a chara_id the extract has never heard of as
+   * `no_relation_rows`, which reaches the screen as "could not resolve no
+   * relation rows 999999" -- a statement about relations for a character that
+   * does not exist. The realistic trigger is a patch adding an uma before the
+   * extract is rebuilt, and that is `unknown_chara`.
+   */
+  knowsChara(charaId: number): boolean {
+    return this.charaNames.has(charaId) || this.baseCardByCharaId.has(charaId);
+  }
+
   hasChara(charaId: number): boolean {
     return this.relationTypesByChara.has(charaId);
   }

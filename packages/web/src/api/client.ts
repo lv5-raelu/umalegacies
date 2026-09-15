@@ -13,11 +13,6 @@ export interface ErrorResponse {
   field?: string;
 }
 
-export interface MasterMeta {
-  masterHash: string;
-  tables: Record<string, number>;
-}
-
 export class ApiError extends Error {
   constructor(readonly code: string, message: string, readonly field?: string) {
     super(message);
@@ -29,7 +24,7 @@ async function get<T>(path: string): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`);
-  } catch (cause) {
+  } catch {
     // A CORS rejection and a dead server both land here as a bare TypeError,
     // so say both out loud rather than guessing.
     throw new ApiError(
@@ -90,9 +85,6 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  */
 export const portraitUrl = (cardId: number): string =>
   `${API_BASE}/portraits/${cardId}.png`;
-
-export const fetchMasterMeta = (): Promise<MasterMeta> =>
-  get<MasterMeta>('/master/meta');
 
 export const fetchFixtureNames = (): Promise<{ names: string[] }> =>
   get<{ names: string[] }>('/affinity/fixtures');

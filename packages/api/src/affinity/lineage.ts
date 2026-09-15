@@ -67,6 +67,17 @@ export interface LineageResponse extends ExplainResponse {
   sparks: SparkSummaryRow[];
 }
 
+/**
+ * Three states, not two: known with relations, known with none, and never heard
+ * of. `unknown_chara` existed in the Resolution union and was emitted nowhere,
+ * while the case it was named for was being reported as `no_relation_rows`.
+ */
+function traineeResolution(charaId: number, master: MasterData): Resolution {
+  if (master.hasChara(charaId)) return { ok: true };
+  if (!master.knowsChara(charaId)) return { ok: false, reason: 'unknown_chara', id: charaId };
+  return { ok: false, reason: 'no_relation_rows', id: charaId };
+}
+
 function identify(
   position: Position,
   ref: AncestorRef,
@@ -134,9 +145,7 @@ export function explainLineage(
       charaId: request.traineeCharaId,
       name: master.charaName(request.traineeCharaId),
       portraitCardId: master.baseCardFor(request.traineeCharaId),
-      resolution: master.hasChara(request.traineeCharaId)
-        ? { ok: true }
-        : { ok: false, reason: 'no_relation_rows', id: request.traineeCharaId },
+      resolution: traineeResolution(request.traineeCharaId, master),
     },
     ancestors,
     sparks: summariseSparks(sparksByPosition, ia),

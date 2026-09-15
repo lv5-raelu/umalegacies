@@ -624,7 +624,9 @@ raise them exist.
   | **Absent** | `base.absent_ancestor`, `bonus.absent_ancestor` | the slot is empty | **Calm, not an error.** Tree node renders as a dashed outline with no colour band and the cap `empty slot`; its edge is a dashed connector labelled `0`. `individualAffinity` still emits keys 11/12/21/22 so the tree keeps six slots and never reflows. |
   | **Unresolved** | any node with `resolution.ok === false` | the lookup failed | **Amber, and it names itself.** The value slot shows an em dash, never `0`. The row reads `could not resolve <reason> <id>` using the `resolution.reason` and `resolution.id` the engine already sends. The ancestor node and the edge above it carry an amber dot, so an unresolved leaf is findable without expanding every link. |
 
-  **Node identity and sparks (design review, 2026-09-10).** A node shows a portrait
+  **Node identity and sparks (design review, 2026-09-10).** *Superseded by item 8
+  of the build note below: portraits key on `card_id`, not `chara_id`, and there
+  are 105 cards rather than 66 characters.* A node shows a portrait
   from `portraits/<chara_id>.png` and nothing else decorative; the missing-image state
   is a neutral disc with initials, which is what a fresh clone and every newly-patched
   uma looks like until its portrait is added. Only the **66** characters in `card_data`
@@ -739,7 +741,7 @@ raise them exist.
   **Built 2026-09-15.** `packages/web/src/lineage/` renders the tree, the audit
   trail and the provenance panel; `packages/api/src/sparks/` computes the spark
   taxonomy and the odds; `affinity/lineage.ts` composes the engine's affinity
-  tree with ancestor identity and the summary into one `LineageResponse`. Seven
+  tree with ancestor identity and the summary into one `LineageResponse`. Nine
   things the plan did not say, decided while building:
 
   1. **`AncestorRef` gains `factorIds`, optional.** Sparks come from the save's
@@ -772,9 +774,9 @@ raise them exist.
      else.
   7. **Portraits are a gitignored cache, decided 2026-09-15.** This closes the
      open "portrait extraction toolchain" decision. `scripts/fetch-portraits.mjs`
-     pulls one image per character from gametora into
+     pulls one image per card from gametora into
      `packages/api/data/portraits/`, which `.gitignore` excludes, and
-     `GET /portraits/:charaId.png` serves it.
+     `GET /portraits/:cardId.png` serves it.
 
      The reasoning is that the artwork is a different KIND of thing from
      `master.mdb`. The argument for committing the database was that it is the

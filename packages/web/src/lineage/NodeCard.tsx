@@ -1,5 +1,6 @@
-import type { AncestorIdentity, AncestorSpark, ExplainNode } from '../api/types';
+import type { AncestorSpark, AncestorSparkSet, ExplainNode, Resolution } from '../api/types';
 import { Portrait } from './Portrait';
+import { resolutionText } from './resolution';
 import { SPARK_COLOR, isWhite, plural, stars } from './sparks';
 import styles from './NodeCard.module.css';
 
@@ -8,13 +9,31 @@ import styles from './NodeCard.module.css';
  * entity and the 1px border is what makes it read as one: surface and paper
  * separate at 1.10:1, so the border is load-bearing.
  *
- * Every node renders the same four spark lines -- blue, pink, green, then the
- * whites as a bare count -- so the pattern is learned once and thereafter only
- * the values change. Competing tools render ~15 sparks as one uniform list,
- * which hides that three of them are structural and guaranteed.
+ * Every ANCESTOR node renders the same four spark lines -- blue, pink, green,
+ * then the whites as a bare count -- so the pattern is learned once and
+ * thereafter only the values change. Competing tools render ~15 sparks as one
+ * uniform list, which hides that three of them are structural and guaranteed.
+ *
+ * Two deliberate exceptions: the trainee passes `sparks: null` and renders no
+ * spark block at all, and an ancestor whose set is empty gets one "no spark
+ * data" line rather than four negatives. Nothing known is not something absent.
  */
+/**
+ * What a node displays. Deliberately NOT the wire type: the trainee is not an
+ * ancestor and has no slot, no card and no sparks, and forging an
+ * AncestorIdentity for it meant inventing `position: 0, cardId: 0` -- values the
+ * API's own Position union forbids and the server never sends. That widened the
+ * web's copy of the wire type to accommodate a local sentinel.
+ */
+export interface NodeSubject {
+  name: string;
+  resolution: Resolution;
+  /** null for the trainee, which has not been trained and so carries nothing. */
+  sparks: AncestorSparkSet | null;
+}
+
 export function NodeCard({
-  identity,
+  subject,
   affinity,
   caption,
   portraitCard,
@@ -23,7 +42,7 @@ export function NodeCard({
   onSelect,
 }: {
   /** null is an empty slot: calm, not an error. */
-  identity: AncestorIdentity | null;
+  subject: NodeSubject | null;
   /** The headline number on the card. Individual affinity, or the pair total. */
   affinity: ExplainNode | null;
   caption: string;
@@ -33,17 +52,17 @@ export function NodeCard({
   selected: boolean;
   onSelect: () => void;
 }) {
-  if (!identity) {
+  if (!subject) {
     return (
       <div className={`${styles.card} ${styles.empty}`}>
-        <div className={styles.name}>&nbsp;</div>
-        <div className={styles.affinity}>&mdash;</div>
-        <div className={styles.caption}>empty slot</div>
+        <span className={styles.name}>&nbsp;</span>
+        <span className={styles.affinity}>&mdash;</span>
+        <span className={styles.caption}>empty slot</span>
       </div>
     );
   }
 
-  const unresolved = identity.resolution.ok === false;
+  const unresolved = subject.resolution.ok === false;
   const size = variant === 'trainee' ? 54 : 48;
   // An unresolved card has no portrait to fetch, so fall straight to initials
   // rather than asking the API for an id it just told us it does not know.
@@ -79,53 +98,51 @@ export function NodeCard({
         <Portrait
           key={portraitCardId ?? 'unresolved'}
           cardId={portraitCardId}
-          name={identity.name}
+          name={subject.name}
           size={size}
         />
       </span>
-      <div className={styles.name}>{identity.name}</div>
+      <span className={styles.name}>{subject.name}</span>
       {/* An unresolved lookup shows an em dash, never a 0: a 0 would be a
           claim about the data rather than about the lookup. */}
-      <div className={styles.affinity}>{unresolved ? '—' : (affinity?.value ?? '—')}</div>
-      <div className={styles.caption}>
-        {unresolved && identity.resolution.ok === false
-          ? `could not resolve ${identity.resolution.reason.replace('_', ' ')} ${identity.resolution.id}`
-          : caption}
-      </div>
+      <span className={styles.affinity}>{unresolved ? '—' : (affinity?.value ?? '—')}</span>
+      <span className={styles.caption}>
+        {resolutionText(subject.resolution) ?? caption}
+      </span>
 
-      {/* The trainee has not been trained yet, so it carries no sparks at all.
-          Four "no blue spark" placeholders would be a claim about missing data
-          rather than a fact about the game. */}
-      {variant === 'ancestor' && !carriesNoSparks(identity) && (
-        <div className={styles.sparks}>
-          <SparkLine spark={identity.sparks.blue} placeholder="no blue spark" />
-          <SparkLine spark={identity.sparks.pink} placeholder="no pink spark" />
-          <SparkLine spark={identity.sparks.green} placeholder="no green spark" />
-          <div className={styles.sparkLine}>
+      {/* The trainee passes sparks: null -- it has not been trained, so it
+          carries nothing at all, and four "no blue spark" placeholders would be
+          a claim about missing data rather than a fact about the game. */}
+      {subject.sparks && !isEmpty(subject.sparks) && (
+        <span className={styles.sparks}>
+          <SparkLine spark={subject.sparks.blue} placeholder="no blue spark" />
+          <SparkLine spark={subject.sparks.pink} placeholder="no pink spark" />
+          <SparkLine spark={subject.sparks.green} placeholder="no green spark" />
+          <span className={styles.sparkLine}>
             <i className={`${styles.tick} ${styles.outlined}`} />
             <span className={styles.sparkName}>
-              {plural(identity.sparks.whites.length, 'white spark')}
+              {plural(subject.sparks.whites.length, 'white spark')}
             </span>
-          </div>
-        </div>
+          </span>
+        </span>
       )}
 
       {/* A request that carried no factorIds at all is a different fact from an
           ancestor missing its blue: nothing is known, rather than something is
           absent. Four negatives would state the stronger claim. */}
-      {variant === 'ancestor' && carriesNoSparks(identity) && (
-        <div className={`${styles.sparkLine} ${styles.absent}`}>
+      {subject.sparks && isEmpty(subject.sparks) && (
+        <span className={`${styles.sparkLine} ${styles.absent}`}>
           <i className={`${styles.tick} ${styles.outlined}`} />
           <span className={styles.sparkName}>no spark data</span>
-        </div>
+        </span>
       )}
     </button>
   );
 }
 
-function carriesNoSparks(identity: AncestorIdentity): boolean {
-  const { blue, pink, green, whites } = identity.sparks;
-  return !blue && !pink && !green && whites.length === 0;
+/** Nothing known, as opposed to something absent. */
+function isEmpty(sparks: AncestorSparkSet): boolean {
+  return !sparks.blue && !sparks.pink && !sparks.green && sparks.whites.length === 0;
 }
 
 /**
@@ -138,20 +155,18 @@ function carriesNoSparks(identity: AncestorIdentity): boolean {
 function SparkLine({ spark, placeholder }: { spark: AncestorSpark | null; placeholder: string }) {
   if (!spark) {
     return (
-      <div className={`${styles.sparkLine} ${styles.absent}`}>
+      <span className={`${styles.sparkLine} ${styles.absent}`}>
         <i className={`${styles.tick} ${styles.outlined}`} />
         <span className={styles.sparkName}>{placeholder}</span>
-      </div>
+      </span>
     );
   }
   return (
-    <div className={styles.sparkLine}>
-      <i
-        className={`${styles.tick} ${isWhite(spark.kind) ? styles.outlined : ''}`}
-        style={isWhite(spark.kind) ? undefined : { background: SPARK_COLOR[spark.kind] }}
-      />
+    <span className={styles.sparkLine}>
+      {/* Called only with the blue, pink and green slots, never a white. */}
+      <i className={styles.tick} style={{ background: SPARK_COLOR[spark.kind] }} />
       <span className={styles.sparkName}>{spark.name}</span>
       <span className={styles.sparkStars}>{stars(spark.stars)}</span>
-    </div>
+    </span>
   );
 }

@@ -74,11 +74,24 @@ export function AuditTrail({
                   {SPARK_GROUP_LABEL[kind]} · {group.length}
                 </td>
               </tr>,
+              // Rows are the table's primary control -- ~50 of them, each
+              // opening a spark's provenance -- so they must be reachable by
+              // keyboard and must be able to take the global focus ring. A bare
+              // <tr onClick> could do neither.
               ...group.map((row) => (
                 <tr
                   key={row.groupId}
                   className={row.groupId === selectedGroupId ? styles.selected : undefined}
+                  tabIndex={0}
+                  role="button"
+                  aria-pressed={row.groupId === selectedGroupId}
                   onClick={() => onSelect(row)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelect(row);
+                    }
+                  }}
                 >
                   <td className={styles.tickCell}>
                     <span
@@ -110,9 +123,11 @@ export function AuditTrail({
                     </div>
                   </td>
                   <td className={styles.pct}>{percent(row.onceInCareer)}</td>
-                  <td className={styles.pctFaint}>
-                    {row.twiceInCareer >= 0.005 ? percent(row.twiceInCareer) : '—'}
-                  </td>
+                  {/* percent() already separates 0% from <1% from an
+                      uncomputable value. Collapsing all three to an em dash
+                      threw that away AND collided with the em dash that means
+                      "unresolved" elsewhere on the same screen. */}
+                  <td className={styles.pctFaint}>{percent(row.twiceInCareer)}</td>
                 </tr>
               )),
             ];

@@ -22,7 +22,7 @@
   font-size: var(--text-3xs);
   font-weight: 400;
   color: var(--ink-faint);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-align: left;
   padding: 0 var(--space-sm) var(--space-tight);
   border-bottom: 1px solid var(--rule-strong);
@@ -41,6 +41,11 @@
   background: var(--surface);
 }
 
+.table tbody tr:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
 .selected {
   background: var(--surface);
   box-shadow: inset 2px 0 0 var(--ink);
@@ -51,9 +56,10 @@
   height: 30px;
 }
 
-.tickCell {
+.table tbody td.tickCell,
+.table thead th.tickCell {
   width: 3px;
-  padding: 0 !important;
+  padding: 0;
 }
 
 .tick,
@@ -114,22 +120,25 @@
   width: 50px;
 }
 
-.groupTitle {
+.table tbody td.groupTitle {
   font-family: var(--font-data);
   font-size: var(--text-3xs);
   letter-spacing: var(--tracking-label);
   color: var(--ink-faint);
   text-transform: uppercase;
-  padding: var(--space-md) var(--space-sm) var(--space-tight) !important;
-  height: auto !important;
+  padding: var(--space-md) var(--space-sm) var(--space-tight);
+  height: auto;
 }
 
+/* A ruled region, not a filled callout: the only card in the system is a tree
+ * node, and a surface-filled block with a coloured left border is the shape
+ * this design explicitly does not use. */
 .note {
   font-size: var(--text-xs);
   color: var(--ink-muted);
-  background: var(--surface);
-  border-left: 2px solid var(--rule-strong);
-  padding: var(--space-sm) var(--space-snug);
+  max-width: 72ch;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-snug);
   margin: var(--space-lg) 0 0;
 }
 

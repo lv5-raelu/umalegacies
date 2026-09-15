@@ -1,9 +1,11 @@
 /**
  * The wire shapes this app reads, mirrored from packages/api/src.
  *
- * Deliberately duplicated rather than imported. A shared types package is a
- * build-order dependency between the two workspaces, and these are six
- * interfaces. Revisit when the duplication actually costs something.
+ * Deliberately duplicated rather than imported: a shared package would be a
+ * build-order dependency between the two workspaces. That call is unchanged,
+ * but the file is now twelve interfaces and three type aliases mirroring three
+ * API files, so `contract.test.ts` binds the two at typecheck time. It found
+ * two real divergences the moment it was written.
  */
 
 export type RuleId =
@@ -26,7 +28,13 @@ export interface Citation {
 }
 
 export interface MasterRef {
-  table: string;
+  table:
+    | 'succession_relation'
+    | 'succession_relation_member'
+    | 'single_mode_wins_saddle'
+    | 'succession_relation_rank'
+    | 'card_data'
+    | 'text_data';
   key: Record<string, number>;
   columns: Record<string, number | string>;
 }
@@ -93,7 +101,7 @@ export interface SparkSummaryRow {
 }
 
 export interface AncestorIdentity {
-  position: number;
+  position: Position;
   cardId: number;
   charaId: number | null;
   name: string;
@@ -145,6 +153,5 @@ export interface FixtureSummary {
 }
 
 /** Slot order as the tree renders it: parents, then grandparents left to right. */
-export const PARENT_POSITIONS = [10, 20] as const;
-export const GRANDPARENT_POSITIONS = [11, 12, 21, 22] as const;
 export const ALL_POSITIONS = [10, 20, 11, 12, 21, 22] as const;
+export type Position = (typeof ALL_POSITIONS)[number];
