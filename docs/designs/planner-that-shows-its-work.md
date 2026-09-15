@@ -903,7 +903,15 @@ raise them exist.
 2. What happens when a game patch changes `master.mdb`? `GET /master/meta` gives the client
    a hash to echo, so staleness is *detectable*. Not answered: what the UI does about it, and
    whether old permalinks re-resolve or are rejected.
-3. **What does the server do with an uploaded `data.json`?** Genuinely undecided. Options
+3. **ANSWERED 2026-09-15: parse and discard.** The save is parsed within the request,
+   the resolved roster returns in the response, and nothing touches disk or outlives the
+   request. The deciding fact is the one already measured below: those 183 trainer IDs
+   belong to people who never used this tool and cannot consent to its retention policy,
+   so the only option that needs no retention story, no deletion story and no privacy
+   policy covering third parties is the one that retains nothing. It also makes the upload
+   screen's claim true rather than merely promised. Cost accepted: re-upload per browser,
+   softened by the IndexedDB cache M3 already plans. Revisit only on a concrete request for
+   cross-device rosters, which reopens Question 4. *Original framing follows.* Options
    run from parse-and-discard, through a short-lived cache keyed by content hash, to storing
    resolved rosters against accounts. This is a real product decision with real upside
    (returning users skip re-upload; a corpus becomes possible) and it is the builder's call.
@@ -939,9 +947,11 @@ raise them exist.
 
 Hosted web app with the NestJS API.
 
-- **Server-side data handling: undecided.** See Open Questions. Whatever is chosen, the
-  upload screen must describe it accurately; a claim of "we never store your data" is not
-  currently backed by a decision, let alone a mechanism.
+- **Server-side data handling: parse and discard** (2026-09-15, Open Question 3). Nothing
+  derived from an uploaded `data.json` outlives the request that carried it. The upload
+  screen may therefore say "we never store your data", and M3 must make that true in the
+  mechanism rather than only in the copy: no disk writes, no process-level cache, and no
+  logging of request bodies.
 - The resolved roster is cached client-side in IndexedDB and the user can clear it.
 - The `master.mdb` extraction must be reproducible from one documented command so a fork can
   rebuild it, and the resulting `masterHash` is what provenance records cite.
