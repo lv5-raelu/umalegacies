@@ -1,4 +1,16 @@
 import type { Database } from 'better-sqlite3';
+import type { SparkKind } from '../sparks/spark-types';
+import { SPARK_KIND_BY_FACTOR_TYPE } from '../sparks/spark-types';
+
+/** One succession_factor row, joined to its name. */
+export interface Factor {
+  factorId: number;
+  groupId: number;
+  /** succession_factor.rarity, the star count 1-3. Not a rarity tier. */
+  stars: number;
+  kind: SparkKind;
+  name: string;
+}
 
 /**
  * Every read of master.mdb the affinity rules need, loaded once into memory.
@@ -25,6 +37,8 @@ export class MasterData {
   }> = [];
   private readonly charaNames = new Map<number, string>();
   private readonly saddleNames = new Map<number, string>();
+  /** factor_id -> the succession_factor row, joined to its category 147 name. */
+  private readonly factors = new Map<number, Factor>();
 
   constructor(db: Database) {
     for (const r of db
@@ -85,6 +99,39 @@ export class MasterData {
       .iterate() as Iterable<{ idx: number; text: string }>) {
       this.saddleNames.set(r.idx, r.text);
     }
+
+    // Sparks. category 147 is the spark name and its `index` IS the factor_id,
+    // so the join is direct. Every one of the 663 factor ids a real roster
+    // surfaces has a row in both, verified 2026-09-15.
+    const factorNames = new Map<number, string>();
+    for (const r of db
+      .prepare('SELECT "index" AS idx, text FROM text_data WHERE category = 147')
+      .iterate() as Iterable<{ idx: number; text: string }>) {
+      factorNames.set(r.idx, r.text);
+    }
+    for (const r of db
+      .prepare(
+        'SELECT factor_id, factor_group_id, rarity, factor_type FROM succession_factor',
+      )
+      .iterate() as Iterable<{
+      factor_id: number;
+      factor_group_id: number;
+      rarity: number;
+      factor_type: number;
+    }>) {
+      const kind = SPARK_KIND_BY_FACTOR_TYPE[r.factor_type];
+      if (!kind) continue; // an unknown factor_type is a new game mechanic, not a spark this tool knows
+      this.factors.set(r.factor_id, {
+        factorId: r.factor_id,
+        // The 1/2/3-star variants of one spark are three factor_ids sharing a
+        // factor_group_id. Summarising per group is what makes "6 stars of
+        // Medium across the lineage" a sentence rather than three rows.
+        groupId: r.factor_group_id,
+        stars: r.rarity,
+        kind,
+        name: factorNames.get(r.factor_id) ?? `factor ${r.factor_id}`,
+      });
+    }
   }
 
   /**
@@ -133,6 +180,11 @@ export class MasterData {
 
   saddleName(saddleId: number): string {
     return this.saddleNames.get(saddleId) ?? `saddle ${saddleId}`;
+  }
+
+  /** Null for a factor id master.mdb has never heard of, so callers can say so. */
+  factor(factorId: number): Factor | null {
+    return this.factors.get(factorId) ?? null;
   }
 
   /** The ◎/〇/△ bucket a pair total falls in. 151+ is ◎. */
