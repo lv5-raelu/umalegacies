@@ -79,6 +79,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Portraits are served by the API, not from the web app's own public/ folder,
+ * because the cache they come from is a gitignored directory beside the master
+ * extract. A miss is a 404 and the component falls back to initials.
+ */
+export const portraitUrl = (charaId: number): string =>
+  `${API_BASE}/portraits/${charaId}.png`;
+
 export const fetchMasterMeta = (): Promise<MasterMeta> =>
   get<MasterMeta>('/master/meta');
 

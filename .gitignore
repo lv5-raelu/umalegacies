@@ -28,6 +28,15 @@ master.mdb*
 # including the trainer IDs of everyone they have borrowed from.
 data.json*
 
+# Character portraits, cached from gametora by scripts/fetch-portraits.mjs.
+# Not committed, deliberately: these are Cygames' character illustrations, and
+# gametora rehosts them rather than owning them, so nobody in that chain can
+# grant redistribution rights. A local cache on the machine running the app is
+# a different act from shipping them in git history and serving them publicly.
+# Nothing depends on this directory -- a clean clone renders initials, which is
+# the designed missing-image state.
+packages/api/data/portraits/
+
 # Logs
 *.log
 npm-debug.log*

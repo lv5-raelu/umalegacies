@@ -86,8 +86,29 @@ npm run dev:api     # http://localhost:3000
 npm run dev:web     # http://localhost:5173
 ```
 
+Optionally, fill the portrait cache. It is not required and nothing depends on
+it; without it every tree node shows initials, which is the designed
+missing-image state.
+
+```bash
+npm run fetch:portraits --workspace @umalegacies/api
+```
+
 Open the web app. It renders one committed fixture lineage, picked from the
 selector at the top right; `data.json` upload is M3 and does not exist yet.
+
+### Portraits are cached, not committed
+
+`packages/api/data/portraits/<chara_id>.png` is **gitignored on purpose.** These
+are Cygames' character illustrations; gametora, which the script fetches from,
+rehosts them rather than owning them, so nobody in that chain can grant
+redistribution rights. Caching them on the machine that runs the app is a
+different act from shipping them in git history and serving them publicly.
+
+`scripts/fetch-portraits.mjs` reads `card_data` from the committed extract,
+takes the lowest card id per character (the base outfit), verifies PNG magic
+bytes rather than trusting a 200, and skips anything already on disk, so a
+re-run after a patch fetches only what is new. 66 files, about 560 KB.
 
 ### The two data files
 
@@ -175,6 +196,11 @@ that twice.
 - **`win_saddle_type`** is `0` for epithets requiring a set of G1 wins (Triple Crown and
   friends), `3` for a single G1, `2` for G2, `1` for G3. Race grade `100/200/300` maps to
   G1/G2/G3.
+- **A portrait miss must never be cached.** `/portraits/:id.png` sets
+  `Cache-Control` only on the success path. A `@Header()` decorator applies
+  before the handler throws, so a 404 would inherit the 24-hour lifetime: you
+  would open the app, see initials, run `fetch:portraits`, reload, and still see
+  initials for a day with nothing to explain it. Misses are `no-store`.
 
 ## Design docs
 

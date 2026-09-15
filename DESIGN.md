@@ -186,7 +186,8 @@ the border is what makes it read as one. Surface `#1B1D23` on paper `#121317` se
 `rule-strong`. Nothing else in the product is a card: the table is a table, panels are ruled
 regions.
 
-**Node internals** — portrait 48px circle at the card's top-right (54px on the trainee, centred);
+**Node internals** — portrait 48px circle at the card's top-right (54px on the trainee, centred),
+served from an optional local cache so the initials disc is a routine state rather than an error;
 name and individual affinity to its left; the provenance line full width beneath it, clear of the
 portrait's lower edge, never wrapping mid-sum. Then the spark lines: blue, pink, green each named
 with its star level, then the whites as a bare count, pluralised. **The trainee node has no spark
@@ -242,3 +243,4 @@ and underline offset all derive from this palette.
 | 2026-09-15 | Star figures are lineage totals, not per-carrier maxima | The maximum carried no meaning and disagreed with the borrow search's filter unit. |
 | 2026-09-15 | Wide content scrolls in its own region, never the page body | Found at 390px: the seven-column audit trail pushed the whole document to 487px. The tree already had a region; the table did not. |
 | 2026-09-15 | An absent link's edge label is one faint `0`, not `0 +0` | Amber means added, and nothing is added across an empty slot. The connector is dashed for the same reason: absent is a fact and reads calm. |
+| 2026-09-15 | Portraits are cached locally, never committed | Builder's call. The art is Cygames' and gametora rehosts rather than owns it, so a repo bound for public hosting should not carry it. The initials disc was already designed, so the no-image state costs nothing. |
