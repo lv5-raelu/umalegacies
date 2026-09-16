@@ -1,7 +1,12 @@
+/*
+ * NOT sticky here. The sticky element has to be the grid ITEM (.paneColumn in
+ * App.module.css), because a sticky box can only travel inside its own
+ * containing block -- and this aside's containing block was a wrapper div sized
+ * to its own content, which gave it exactly zero room to move. It looked
+ * correct in the stylesheet and did nothing on screen.
+ */
 .pane {
-  position: sticky;
-  top: var(--space-lg);
-  align-self: start;
+  display: block;
 }
 
 .rubric {
