@@ -54,6 +54,13 @@ const TABLES = [
   { name: 'succession_relation_rank', where: null },
   { name: 'single_mode_wins_saddle', where: null },
   { name: 'card_data', where: null },
+  // The 98 career rank tiers, as rank_score ranges. The save carries a `rank`
+  // field and it agrees with this table on all 259 veterans in the builder's
+  // roster, so the tier is DERIVED from the score here rather than trusted from
+  // the upload -- one less save field on the wire, and it can be checked.
+  // The LABELS (A, SS, SS+, UG, UG2...) are not in master.mdb at all; they live
+  // in the game client. See rank-labels.ts.
+  { name: 'single_mode_rank', where: null },
   // Sparks. factor_type is the colour (1 blue, 2 pink, 3 green, 4/5/6 white
   // skill/race/scenario) and rarity is the star count 1-3, NOT a rarity tier.
   { name: 'succession_factor', where: null },

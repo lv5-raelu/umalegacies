@@ -36,6 +36,12 @@ export class MasterData {
   private readonly g1SaddleIds = new Set<number>();
   /** saddle id -> its group_id, kept for UI grouping and for NOTHING in the math. */
   private readonly groupIdBySaddle = new Map<number, number>();
+  /** The 98 career rank tiers, ascending by score. */
+  private readonly careerRankRows: Array<{
+    id: number;
+    min_value: number;
+    max_value: number;
+  }> = [];
   private readonly rankRows: Array<{
     relation_rank: number;
     rank_value_min: number;
@@ -94,6 +100,10 @@ export class MasterData {
       // 1 is G3. Only 3 feeds bonus affinity.
       if (r.win_saddle_type === 3) this.g1SaddleIds.add(r.id);
     }
+
+    this.careerRankRows = db
+      .prepare('SELECT id, min_value, max_value FROM single_mode_rank ORDER BY min_value')
+      .all() as typeof this.careerRankRows;
 
     this.rankRows = db
       .prepare(
@@ -265,6 +275,25 @@ export class MasterData {
 
   saddleName(saddleId: number): string {
     return this.saddleNames.get(saddleId) ?? `saddle ${saddleId}`;
+  }
+
+  /**
+   * The career rank TIER for a rank_score, 1-98, or null if it falls outside
+   * every band.
+   *
+   * Derived rather than taken from the save's own `rank` field, which agrees
+   * with this on all 259 veterans in the builder's roster. Deriving keeps one
+   * more personal-ish field off the wire and makes the number checkable against
+   * a committed table.
+   *
+   * This is the TIER, not its label. master.mdb has no labels: the ladder
+   * (A, SS, SS+, UG, UG2...) lives in the game client.
+   */
+  careerRankTier(rankScore: number): number | null {
+    const row = this.careerRankRows.find(
+      (r) => rankScore >= r.min_value && rankScore <= r.max_value,
+    );
+    return row?.id ?? null;
   }
 
   /** Null for a factor id master.mdb has never heard of, so callers can say so. */
