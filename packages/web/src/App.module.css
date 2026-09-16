@@ -17,7 +17,30 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: var(--space-xl);
-  align-items: start;
+  /* NOT `align-items: start`. The pane column is sticky, and a sticky box can
+     only travel inside its containing block: collapsing the column to its own
+     content height leaves it nowhere to go. Stretched, the column spans the full
+     row -- as tall as the 259-card list -- and the pane can ride it. */
+  align-items: stretch;
+}
+
+/*
+ * The compare pane follows the roster down.
+ *
+ * The number you are choosing against has to stay on screen while the list
+ * moves under it, otherwise comparing 259 cards becomes a memory test. Sticky
+ * lives on the grid item rather than on the <aside> inside it, for the
+ * containing-block reason above.
+ */
+.paneColumn {
+  position: sticky;
+  top: var(--space-lg);
+  align-self: start;
+  /* Never taller than the viewport, or the bottom of the pane would be
+     unreachable once it pins. The odds list scrolls inside itself. */
+  max-height: calc(100vh - var(--space-xl));
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 /* Below 900px there is no two-pane layout: 380px of pane against a 390px
@@ -27,8 +50,13 @@
   .panes {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* One column: the pane sits above the list and scrolls away with it. Pinning
+     it here would park a 400px block over the cards on a 844px phone. */
   .paneColumn {
     order: -1;
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 }
 
