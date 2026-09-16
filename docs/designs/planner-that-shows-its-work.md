@@ -904,6 +904,100 @@ raise them exist.
   The conclusion holds -- 0 card characters are missing from
   `succession_relation_member`, so the picker needs no empty state.
 
+
+
+  **Design-reviewed 2026-09-16.** Six decisions. The plan rated 3/10 on design
+  completeness going in: it knew what the three surfaces DID and almost nothing
+  about what a user sees.
+
+  *The row is the screen's hardest problem, and names cannot solve it.* Measured
+  on the real roster: **255 of 259 veterans share a character name with another**,
+  there are only 29 distinct names, and one character appears 54 times. The top 20
+  by score are 9 distinct characters. So the veteran row leads with **score and
+  what the veteran passes down** -- its blue, pink and green named with star
+  levels, plus its white count -- and identifies itself as **the veteran plus its
+  own two parents** ("out of A x B"). That 3-uma package is 166-distinct against
+  name's 29.
+
+  **A veteran package is THREE umas, not six.** Itself plus its own slots 10 and
+  20, which become the grandparents under it. `lineageFromPair` already works this
+  way. An earlier draft of this note said six; that was the composed tree's shape,
+  not a veteran's.
+
+  *Layout.* Two panes on desktop: the roster list scrolls on the left, a **sticky
+  compare pane** on the right. The pane shows the **inheritance odds for the
+  sparks the user filtered on**, because the thing being optimised is spark
+  inheritance, not the affinity total. **The large number stays the pair total**:
+  with no filter set, a "chance of your desired sparks" headline would show
+  nothing. The full pedigree tree moves to its own page, reached by a button --
+  the tree is provenance, not a compare surface, and it cannot fit a pane anyway
+  (it needs 848px; a 560px pane forces 120px cards, which cannot hold a
+  17-character name plus four spark lines).
+
+  **The list never collapses.** Comparing is the job.
+
+  *First run.* Before a file is loaded, only the drop zone exists -- the picker
+  and the list are absent, not disabled and not empty. One line says what to load,
+  one line says the file never leaves the machine, placed where that claim is
+  earned. Everything appears together after parsing.
+
+  *Narrowing, and what uma.moe already settled.* uma.moe/database tiers its filter
+  **Basic / Advanced / UQL**, with a scope selector (All / Main Parent / Great
+  Parent 1 / Great Parent 2), a **Split Sparks** toggle, Hide Sparks, and a
+  Per-Inheritance vs Stars measure. Their two constraint scopes are the same two
+  this doc's M7 section already specified independently: lineage-wide totals
+  versus a requirement pinned to the direct parents. **M3 builds the INDEX with
+  both dimensions** -- scope, and whether a threshold is met by one uma alone or
+  by the package summing -- **and ships a single criterion row plus the scope
+  selector.** Advanced's repeatable rows, presets and Hide Sparks land with M7 on
+  the same index, no rewrite. Matching uma.moe's scope axis now avoids a
+  translation layer when their API is queried later.
+
+  *Why narrowing is needed at all, since the raw numbers argue both ways.*
+  Globally, 15 cards account for 80% of every parent slot ever filled, which looks
+  like "no filter needed". But per trainee the picture differs: **any two trainees'
+  parent sets overlap only 48%**, and the most-run trainee used 22 distinct
+  parents. The working set is 13-22 candidates and roughly half of it changes with
+  the trainee. So narrowing belongs AFTER trainee selection, and the filter panel
+  lives with the list rather than above the picker.
+
+  *Responsive and accessibility.* Below ~900px the panes collapse and the compare
+  pane becomes a button through to the tree page. Rows grow to 44px on coarse
+  pointers. Keyboard reuses AuditTrail's existing pattern; the one new rule is
+  that Enter on a third row **replaces the older of the two picks**, and says so
+  visibly.
+
+  *DESIGN.md is extended as part of M3*, before implementation. It currently has
+  zero vocabulary for upload, list, loading or filter, and its "single column, max
+  900px, centred" rule directly contradicts the two-pane decision above. The
+  amendment covers the two-pane rule and when it applies, a drop-zone component,
+  a dense-list row, a filter region, and loading and empty treatments.
+
+  *Interaction states, all three surfaces.*
+
+  | SURFACE | LOADING | EMPTY | ERROR | SUCCESS | PARTIAL |
+  |---|---|---|---|---|---|
+  | Upload | progress while parsing; drop zone keeps its shape | the only thing on screen; what to load, where it lives, and that it stays local | named in place under the drop zone, zone still usable | zone shrinks to a one-line file summary | n/a |
+  | Trainee picker | absent until parsed | absent until parsed | n/a (list is from master data) | selection echoed with its costume tag | n/a |
+  | Veteran list | absent until parsed | "no veterans matched" with the filter named and a clear-filter action | row-level: unresolved veterans greyed with the reason | 2 of 2 picked, stated near the picks | banner naming how many failed and pointing at the extract rebuild |
+
+  *Storyboard.*
+
+  | STEP | USER DOES | USER FEELS | SUPPORTED BY |
+  |---|---|---|---|
+  | 1 | Lands, sees only a drop zone | Is this safe? | the local-only line, placed at the moment of decision |
+  | 2 | Picks data.json | Did that work? | parse progress, zone holds its shape |
+  | 3 | Roster appears | That's my box | 259 rows, score-led, sparks visible |
+  | 4 | Picks a trainee | Focused | costume tags; 74 of 105 options need one |
+  | 5 | Filters, scans, picks two | Comparing | row leads with what it passes down |
+  | 6 | Reads the odds | Payoff | sticky pane, updates on every swap |
+  | 7 | Opens the tree | Checking the work | its own page at full width |
+
+  *Unresolved, carried forward:* Split Sparks' exact semantics are inferred from a
+  toggle label and not confirmed against behaviour; uma.moe's API shape and terms
+  remain unchecked (Open Question in M7); the precise loading treatment
+  (progress bar versus skeleton) is unspecified.
+
 - **M4 — The tree.** *Design review 2026-09-10 moved this into M2: it is not optional
   decoration, it is the organising frame.* A list of seven links needs `position_id`
   tags to disambiguate (fixture 5531's six slots hold only three distinct characters,
@@ -1115,35 +1209,33 @@ inheritance, not oversights:
   That menu was the same move that had already been wrong six times.
 ## GSTACK REVIEW REPORT
 
-**Skill:** /plan-eng-review · **Date:** 2026-09-15 · **Target:** M3 (reduced) ·
-**Commit:** b7d57cf
+**Skill:** /plan-design-review · **Date:** 2026-09-16 · **Target:** M3 UI ·
+**Commit:** 4b5bbe5
 
 | Run | Status | Findings |
 |-----|--------|----------|
-| Step 0 scope challenge | complete | Complexity gate tripped (8+ files, 2+ services). Scope cut to a usable core; IndexedDB and list filtering deferred to M3.1. Found `lineageFromPair` already written in `build-fixtures.mjs` — lift, do not rewrite. |
-| 1. Architecture | complete | 4 findings, 4 resolved (1A body limit, 1B composition ownership, 1C error paths, 1D traineeCardId) |
-| 2. Code quality | complete | 1 finding, 1 resolved (2A hand-mirrored types → shared workspace) |
-| 3. Tests | complete | 27 paths traced, 0 pre-existing. All 27 required at implementation. Equivalence test redesigned after the outside voice showed it was circular. |
-| 4. Performance | complete | No issues found. Measured: parse 10.7 ms, response 363kb/29kb gzipped, ~1 MB heap. |
-| Outside voice (Codex, gpt-5.5) | complete | 14 findings. 2 already answered by 1B. 2 overturned approved decisions and were re-decided. 6 recorded as corrections. 2 stand as cross-model tension. |
+| Step 0 rating | complete | 3/10 design completeness. DESIGN.md exists but has zero vocabulary for upload, list, loading or filter. |
+| Mockups | **degraded** | gstack designer installed but has no OpenAI key, so no AI mockups. Fell back to hand-built HTML wireframes rendered from the REAL roster; two iterations. |
+| 1. Information architecture | complete | 1 finding, resolved. 255/259 veterans share a name; the row now leads with score and sparks. |
+| 2. Interaction states | complete | 1 finding, resolved. First-run state defined; full state table written. |
+| 3. User journey | complete | 1 finding, resolved after two holds. Two-pane sticky compare; tree moves to its own page. |
+| 4. AI slop risk | complete | No issues. OPERATE mode, all seven hard rejections avoided; dense table, not a card grid. |
+| 5. Design system alignment | complete | 1 finding, resolved. DESIGN.md extended as part of M3; single-column rule amended. |
+| 6. Responsive & a11y | complete | 1 finding, resolved. Panes collapse below ~900px; 44px rows on coarse pointers; replace-oldest keyboard rule. |
+| 7. Unresolved decisions | complete | 3 carried forward, all factual unknowns rather than open decisions. |
 
-**OUTSIDE COVERAGE:** completed. Provider codex, model gpt-5.5, high reasoning.
-gstack's pinned `gpt-6-astra` is rejected by this account (`model_unusable`);
-the override was dropped rather than falling back to a same-harness subagent,
-which would have lost the outside-model read entirely.
+**OUTSIDE COVERAGE: not run.** The design outside voices step was not reached;
+the review spent its budget on six issues and four holds. Not claimed as clean.
 
-**CROSS-MODEL TENSION:**
-- *Body-size limit (1A).* Builder chose no limit; Codex and this review both
-  argued bounded-but-larger scoped to the route. Builder's decision stands,
-  recorded with a before-deploy trigger.
-- *Shared types package (2A).* Builder chose the package; Codex and this review
-  independently preferred type-only cross-imports, already proven working in
-  `contract.test.ts`. Builder's decision stands; README to be corrected.
+**MOCKUP COVERAGE: degraded.** No AI-generated mockups. The wireframes were
+hand-built from `data.json` and the committed extract, which made them more
+honest about density than a generated mockup would have been -- the
+name-collision finding came directly from rendering real rows -- but they are
+one person's layout, not explored alternatives.
 
-**VERDICT: REVISE-THEN-BUILD.** The plan is sound and the scope is right, but it
-is not yet buildable as written: the response shape for `/roster/resolve`, the
-picker's costume labels, and the two verified test fixtures all need specifying
-before implementation starts. Everything needed to do that is decided and
-recorded above.
+**VERDICT: BUILD.** M3's UI went from 3/10 to a specified screen: every surface
+has a hierarchy, every state has a treatment, the layout and its narrow fallback
+are decided, and DESIGN.md gets extended before code. The three carried-forward
+items are unknowns to verify, not decisions to make.
 
 NO UNRESOLVED DECISIONS
