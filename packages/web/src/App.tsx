@@ -263,23 +263,13 @@ export function App() {
                 onChoose={setTraineeCardId}
               />
               {/*
-                THE TRAINEE COMES FIRST, and the roster is absent until it is
-                chosen rather than shown and inert.
-                Not merely a sequencing preference: who you are training decides
-                which veterans are legal parents, because a parent cannot be the
-                trainee. Showing 259 cards before that is known means showing
-                cards that are about to become unpickable, and a list that
-                rearranges its own rules under the reader is worse than a list
-                that waits. DESIGN.md: a surface with nothing useful to show yet
-                is absent, not disabled.
+                THE TRAINEE COMES FIRST, and the roster is simply absent until it
+                is chosen -- no placeholder, no explanation. Who you are training
+                decides which veterans are legal parents, so showing 259 cards
+                first means showing cards about to become unpickable. The empty
+                space under a picker nobody has used yet says that on its own.
               */}
-              {trainee === null ? (
-                <p className={styles.gate}>
-                  Choose who you are training first. Which veterans can be its
-                  parents depends on it — a parent cannot be the same uma as the
-                  trainee.
-                </p>
-              ) : (
+              {trainee !== null && (
                 <>
                   <SparkFilter
                     options={roster.sparkOptions}
