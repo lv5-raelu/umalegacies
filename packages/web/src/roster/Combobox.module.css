@@ -1,3 +1,11 @@
+/*
+ * The dropdown vocabulary, shared by the trainee picker and the spark filter.
+ *
+ * Both need the same thing and a native <select> gives neither of them: an
+ * <option> holds text and nothing else, so it cannot carry a portrait or a
+ * colour tick, and it cannot be searched. With 105 trainee cards and 297 spark
+ * groups, searching is not a nicety.
+ */
 .region {
   border-bottom: 1px solid var(--rule);
   padding: var(--space-snug) 0;
@@ -139,6 +147,33 @@
 
 .optionPortrait {
   --portrait-size: 32px;
+}
+
+/* Colour is a 3px tick and nothing else, in a control as much as in a table. */
+.optionTick {
+  width: 3px;
+  align-self: stretch;
+  min-height: 18px;
+  border-radius: 1px;
+  flex: none;
+}
+
+.groupLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  padding: var(--space-tight) var(--space-sm) var(--space-hair);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.count {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  flex: none;
 }
 
 .optionText {

@@ -1,6 +1,6 @@
 import type { FilterScope, FilterSplit, RosterSparkOption, SparkCriterion } from '@umalegacies/types';
-import { SPARK_GROUP_LABEL, SPARK_KIND_ORDER } from '../lineage/sparks';
 import { MAX_STARS_PER_UMA } from './filter';
+import { SparkPicker } from './SparkPicker';
 import styles from './Controls.module.css';
 
 const SCOPE_LABEL: Readonly<Record<FilterScope, string>> = {
@@ -39,11 +39,6 @@ export function SparkFilter({
   total: number;
   onChange: (criterion: SparkCriterion | null) => void;
 }) {
-  const grouped = SPARK_KIND_ORDER.map((kind) => ({
-    kind,
-    entries: options.filter((o) => o.kind === kind),
-  })).filter((g) => g.entries.length > 0);
-
   const set = (patch: Partial<SparkCriterion>): void => {
     if (!criterion) return;
     onChange({ ...criterion, ...patch });
@@ -59,31 +54,21 @@ export function SparkFilter({
     <div className={styles.region}>
       <span className={styles.label}>NARROW BY SPARK</span>
       <div className={styles.row}>
-        <select
-          className={`${styles.select} ${styles.grow}`}
-          value={criterion?.groupId ?? ''}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (value === '') return onChange(null);
-            onChange({
-              groupId: Number(value),
-              minStars: criterion?.minStars ?? 1,
-              scope: criterion?.scope ?? 'package',
-              split: criterion?.split ?? 'sum',
-            });
-          }}
-        >
-          <option value="">No filter — show every veteran</option>
-          {grouped.map((group) => (
-            <optgroup key={group.kind} label={SPARK_GROUP_LABEL[group.kind]}>
-              {group.entries.map((option) => (
-                <option key={option.groupId} value={option.groupId}>
-                  {option.name} ({option.veterans})
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        <div className={styles.grow}>
+          <SparkPicker
+            options={options}
+            chosen={criterion?.groupId ?? null}
+            onChoose={(groupId) => {
+              if (groupId === null) return onChange(null);
+              onChange({
+                groupId,
+                minStars: criterion?.minStars ?? 1,
+                scope: criterion?.scope ?? 'package',
+                split: criterion?.split ?? 'sum',
+              });
+            }}
+          />
+        </div>
 
         {criterion && (
           <>

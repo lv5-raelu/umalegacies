@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { TraineeOption } from '@umalegacies/types';
 import { Portrait } from '../lineage/Portrait';
-import styles from './TraineePicker.module.css';
+import styles from './Combobox.module.css';
 
 /**
  * Who you are about to train.
