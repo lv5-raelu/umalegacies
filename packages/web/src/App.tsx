@@ -19,8 +19,9 @@ import { ComparePane } from './roster/ComparePane';
 import { DropZone } from './roster/DropZone';
 import { SparkFilter } from './roster/SparkFilter';
 import { TraineePicker } from './roster/TraineePicker';
-import { catalogueOf, VeteranList } from './roster/VeteranList';
-import { filterVeterans } from './roster/filter';
+import { catalogueOf } from './roster/catalogue';
+import { VeteranList } from './roster/VeteranList';
+import { filterVeterans, pickBlock } from './roster/filter';
 import { SaveError, slimSave } from './roster/save';
 import styles from './App.module.css';
 
@@ -105,25 +106,45 @@ export function App() {
     );
   }, [roster, criterion]);
 
+  /**
+   * The picked veterans themselves. Kept separate from `shown` because a filter
+   * can hide a pick, and the rules that depend on what is already picked --
+   * two-is-the-limit, and no two parents of the same uma -- must hold whether or
+   * not the picked card is currently on screen.
+   */
+  const pickedVeterans = useMemo(
+    () =>
+      picks
+        .map((index) => roster?.veterans[index])
+        .filter((v): v is NonNullable<typeof v> => v !== undefined),
+    [roster, picks],
+  );
+
   const catalogue = useMemo(
     () => catalogueOf(roster?.sparkOptions ?? []),
     [roster],
   );
 
-  const pick = useCallback((index: number) => {
-    setPicks((current) => {
-      if (current.includes(index)) return current.filter((i) => i !== index);
-      // TWO IS THE LIMIT, and a third click does nothing rather than silently
-      // evicting a pick. Swapping a parent is a deliberate two-step: unselect
-      // the one you are replacing, then select its replacement. Auto-replacing
-      // the older pick guessed at which of the two the user meant to keep, and
-      // it guessed invisibly -- the card that vanished from the pair was
-      // whichever one they had chosen first, which is not the one they were
-      // thinking about.
-      if (current.length >= 2) return current;
-      return [...current, index];
-    });
-  }, []);
+  const pick = useCallback(
+    (index: number) => {
+      const veteran = roster?.veterans[index];
+      // The rule lives in one place and is enforced here too, not only by the
+      // card refusing its own click: a keyboard or a stale render must not be
+      // able to compose a pair the game does not allow.
+      if (veteran && pickBlock(veteran, pickedVeterans) !== null) return;
+      setPicks((current) => {
+        if (current.includes(index)) return current.filter((i) => i !== index);
+        // TWO IS THE LIMIT, and a third click does nothing rather than
+        // silently evicting a pick. Swapping a parent is a deliberate two-step:
+        // unselect the one you are replacing, then select its replacement.
+        // Auto-replacing the older pick guessed at which of the two the user
+        // meant to keep, and it guessed invisibly.
+        if (current.length >= 2) return current;
+        return [...current, index];
+      });
+    },
+    [roster, pickedVeterans],
+  );
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
@@ -243,6 +264,7 @@ export function App() {
               </div>
               <VeteranList
                 veterans={shown}
+                pickedVeterans={pickedVeterans}
                 catalogue={catalogue}
                 picked={picks}
                 onPick={pick}

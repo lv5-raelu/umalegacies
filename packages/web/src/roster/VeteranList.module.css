@@ -227,6 +227,16 @@
   color: var(--ink-faint);
 }
 
+/* Amber is the "added" accent and red means unresolved, so a refusal that is
+   neither gets plain muted ink and says its reason in words. */
+.blockNote {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  margin-top: var(--space-sm);
+  display: block;
+}
+
 .unresolvedNote {
   font-family: var(--font-data);
   font-size: var(--text-2xs);

@@ -1081,6 +1081,10 @@ raise them exist.
     guessed invisibly at which of the two the user meant to keep. Swapping is now
     two deliberate steps, and unpickable cards say so by dimming rather than by
     doing nothing when clicked.
+  - **The two parents cannot be the same uma.** A game rule the plan never
+    recorded. Compared by `chara_id`, so the two Oguri Cap costumes cannot fill
+    both slots. On the builder's roster, picking one Oguri Cap blocks 53 others,
+    which is the whole of that character's 54 entries.
   - **The trainee picker is a real combobox**, with each costume's portrait and a
     search box. A native `<option>` holds text and nothing else, which is exactly
     what fails when the list holds "Oguri Cap" three times.
