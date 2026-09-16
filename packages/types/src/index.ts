@@ -357,6 +357,16 @@ export interface ResolvedVeteran {
    */
   index: number;
   score: number;
+  /**
+   * The career rank TIER this score falls in, 1-98, or null if it falls outside
+   * every band in `single_mode_rank`.
+   *
+   * Derived from `score` server-side rather than taken from the save's own
+   * `rank` field, which agrees with it on all 259 veterans in the builder's
+   * roster. The LABEL for a tier (A, SS, SS+, UG, UG2...) is not in master.mdb
+   * -- it lives in the game client -- so the client owns that lookup.
+   */
+  rankTier: number | null;
   self: ResolvedMember;
   parents: [ResolvedMember | null, ResolvedMember | null];
   /**

@@ -10,6 +10,7 @@ const veteran = (
 ): ResolvedVeteran => ({
   index: over.index ?? 0,
   score: 1000,
+  rankTier: 12,
   self: {
     cardId: over.cardId ?? 1,
     charaId: over.charaId === undefined ? 1 : over.charaId,
