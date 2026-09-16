@@ -1,3 +1,4 @@
+import { DomainError } from '../common/error-response';
 import type { MasterData } from '../master/master-data';
 import { ancestorSparks, emptySparkSet, summariseSparks } from '../sparks/sparks';
 import type { AncestorSparkSet, SparkSummaryRow } from '../sparks/spark-types';
@@ -24,6 +25,42 @@ function traineeResolution(charaId: number, master: MasterData): Resolution {
   if (master.hasChara(charaId)) return { ok: true };
   if (!master.knowsChara(charaId)) return { ok: false, reason: 'unknown_chara', id: charaId };
   return { ok: false, reason: 'no_relation_rows', id: charaId };
+}
+
+/**
+ * Which card's art goes above the trainee.
+ *
+ * Three cases, and the middle one is the only one that refuses to guess.
+ *
+ * 1. No `traineeCardId`: fall back to the character's lowest card, the base
+ *    costume. An approximation, and a blessed one -- the trainee shows no sparks,
+ *    so the wrong costume there changes no number, only a face.
+ * 2. A `traineeCardId` belonging to a DIFFERENT character: reject. That is not an
+ *    approximation, it is somebody else's face over this lineage's numbers, and
+ *    it can only come from a client bug. Drawing card 100701's art above "Oguri
+ *    Cap" is the exact failure that made portraits key on card_id rather than
+ *    chara_id in the first place.
+ * 3. A `traineeCardId` this extract has never heard of -- a patch added a costume
+ *    and the extract has not been rebuilt: fall back to the base costume, same as
+ *    case 1. The character is still who they say they are.
+ */
+function traineePortrait(request: ExplainRequest, master: MasterData): number | null {
+  const { traineeCardId, traineeCharaId } = request;
+  if (traineeCardId === undefined) return master.baseCardFor(traineeCharaId);
+  const owner = master.charaIdFor(traineeCardId);
+  if (owner === null) return master.baseCardFor(traineeCharaId);
+  if (owner !== traineeCharaId) {
+    throw new DomainError(
+      'TRAINEE_CARD_MISMATCH',
+      `traineeCardId ${traineeCardId} belongs to chara ${owner} ` +
+        `(${master.charaName(owner)}), not to traineeCharaId ${traineeCharaId} ` +
+        `(${master.charaName(traineeCharaId)}). A card is a costume, so this would ` +
+        "draw one character's art above another character's affinity.",
+      400,
+      'traineeCardId',
+    );
+  }
+  return traineeCardId;
 }
 
 function identify(
@@ -92,7 +129,7 @@ export function explainLineage(
     trainee: {
       charaId: request.traineeCharaId,
       name: master.charaName(request.traineeCharaId),
-      portraitCardId: master.baseCardFor(request.traineeCharaId),
+      portraitCardId: traineePortrait(request, master),
       resolution: traineeResolution(request.traineeCharaId, master),
     },
     ancestors,

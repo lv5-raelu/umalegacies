@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:roster": "node scripts/check-roster.mjs",
-    "build:fixtures": "node scripts/build-fixtures.mjs",
+    "build:fixtures": "node -r ts-node/register scripts/build-fixtures.ts",
     "build:master": "node scripts/build-master-extract.mjs",
     "fetch:portraits": "node scripts/fetch-portraits.mjs"
   },

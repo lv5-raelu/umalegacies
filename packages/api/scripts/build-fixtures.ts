@@ -19,10 +19,16 @@
  */
 import Database from 'better-sqlite3';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import { lineageFromPair } from '../src/affinity/pair';
+import type { AncestorRef, ExplainPairRequest, VeteranPackage } from '@umalegacies/types';
 
-const here = dirname(fileURLToPath(import.meta.url));
+// TypeScript, run through ts-node, so it can import the SAME lineageFromPair the
+// API serves rather than keeping a second copy of the slot mapping. It used to
+// carry its own, which meant the golden fixtures and the endpoint could disagree
+// about which grandparent sits under which parent and every test would still
+// pass.
+const here = __dirname;
 const repoRoot = resolve(here, '../../..');
 const outDir = resolve(here, '../fixtures');
 
@@ -36,10 +42,13 @@ for (const p of [masterPath, dataPath]) {
 }
 
 const db = new Database(masterPath, { readonly: true, fileMustExist: true });
-const roster = JSON.parse(readFileSync(dataPath, 'utf8'));
-const byTrainedId = new Map(roster.map((e) => [e.trained_chara_id, e]));
-const charaIdByCard = new Map(
-  db.prepare('SELECT id, chara_id FROM card_data').all().map((r) => [r.id, r.chara_id]),
+const roster: any[] = JSON.parse(readFileSync(dataPath, 'utf8'));
+const byTrainedId = new Map<number, any>(roster.map((e: any) => [e.trained_chara_id, e]));
+const charaIdByCard = new Map<number, number>(
+  (db.prepare('SELECT id, chara_id FROM card_data').all() as any[]).map((r) => [
+    r.id,
+    r.chara_id,
+  ]),
 );
 
 /**
@@ -52,19 +61,19 @@ const charaIdByCard = new Map(
  * factor_info_array's sibling `level` field is 0 on all 1,554 ancestor slots in
  * the roster, so only the ids are carried.
  */
-function ancestorRef(slot) {
+function ancestorRef(slot: any): AncestorRef {
   return {
     cardId: slot.card_id,
-    factorIds: slot.factor_info_array.map((f) => f.factor_id),
+    factorIds: slot.factor_info_array.map((f: any) => f.factor_id),
     winSaddleIds: [...slot.win_saddle_id_array],
   };
 }
 
-function lineageOf(trainedCharaId) {
+function lineageOf(trainedCharaId: number) {
   const entry = byTrainedId.get(trainedCharaId);
   if (!entry) throw new Error(`no roster entry ${trainedCharaId}`);
-  const slots = new Map(entry.succession_chara_array.map((a) => [a.position_id, a]));
-  const need = (p) => {
+  const slots = new Map<number, any>(entry.succession_chara_array.map((a: any) => [a.position_id, a]));
+  const need = (p: number) => {
     const slot = slots.get(p);
     if (!slot) throw new Error(`lineage ${trainedCharaId} has no slot ${p}`);
     return ancestorRef(slot);
@@ -79,18 +88,18 @@ function lineageOf(trainedCharaId) {
 // ---------------------------------------------------------------- fixtures
 
 /** A top-level roster entry carries the same three public fields as a slot. */
-function veteranRef(entry) {
+function veteranRef(entry: any): AncestorRef {
   return {
     cardId: entry.card_id,
-    factorIds: entry.factor_info_array.map((f) => f.factor_id),
+    factorIds: entry.factor_info_array.map((f: any) => f.factor_id),
     winSaddleIds: [...entry.win_saddle_id_array],
   };
 }
 
 /** The one veteran of this character with this rank_score. Fails loudly otherwise. */
-function veteran(charaId, rankScore) {
+function veteran(charaId: number, rankScore: number) {
   const hits = roster.filter(
-    (e) => charaIdByCard.get(e.card_id) === charaId && e.rank_score === rankScore,
+    (e: any) => charaIdByCard.get(e.card_id) === charaId && e.rank_score === rankScore,
   );
   if (hits.length !== 1) {
     throw new Error(
@@ -102,26 +111,80 @@ function veteran(charaId, rankScore) {
 }
 
 /**
- * Two chosen veterans composed into a lineage, which is what M3's pair
- * selection will do and what M7 calls a package: taking a veteran as a parent
- * also fixes that veteran's own two parents as the grandparents beneath it.
+ * The one veteran with this card, this score and these two parent cards.
+ *
+ * `veteran(chara, score)` is not a unique key: the roster holds two Gold Ships
+ * at rank_score 16329 whose card ids also match, differing only in their own
+ * parents. Selecting a fixture by an ambiguous key silently picks whichever came
+ * first in the file, which is a fixture that changes meaning when the save is
+ * re-exported. The package IS the identity, so select on it.
+ *
+ * Selects on public game fields only. `trained_chara_id` would be a shorter key
+ * and is deliberately not used: it must not travel into a committed file.
  */
-function lineageFromPair(traineeCharaId, a, b) {
-  const own = (entry, position) => {
-    const slot = entry.succession_chara_array.find((s) => s.position_id === position);
-    if (!slot) throw new Error(`veteran ${entry.trained_chara_id} has no slot ${position}`);
-    return ancestorRef(slot);
+function veteranWithParents(cardId: number, rankScore: number, parentCardIds: [number, number]) {
+  const key = (e: any) =>
+    JSON.stringify(
+      e.succession_chara_array
+        .filter((s: any) => s.position_id === 10 || s.position_id === 20)
+        .sort((a: any, b: any) => a.position_id - b.position_id)
+        .map((s: any) => s.card_id),
+    );
+  const want = JSON.stringify(parentCardIds);
+  const hits = roster.filter(
+    (e: any) => e.card_id === cardId && e.rank_score === rankScore && key(e) === want,
+  );
+  if (hits.length !== 1) {
+    throw new Error(
+      `expected exactly 1 veteran with card ${cardId}, rank_score ${rankScore} and ` +
+        `parents ${want}, found ${hits.length}`,
+    );
+  }
+  return hits[0];
+}
+
+/**
+ * One roster entry as the indivisible three-uma package the user actually picks:
+ * itself, plus its own slots 10 and 20, which become the grandparents beneath it.
+ *
+ * Composing the package into a lineage is NOT done here any more. That is
+ * `lineageFromPair` in src/affinity/pair.ts, which is what the endpoint calls,
+ * so the fixtures and the running server cannot disagree about slot order.
+ */
+function veteranPackage(entry: any): VeteranPackage {
+  const own = (position: number): AncestorRef | null => {
+    const slot = entry.succession_chara_array.find((s: any) => s.position_id === position);
+    return slot ? ancestorRef(slot) : null;
   };
-  return {
-    traineeCharaId,
-    parents: [veteranRef(a), veteranRef(b)],
-    grandparents: [own(a, 10), own(a, 20), own(b, 10), own(b, 20)],
-  };
+  return { self: veteranRef(entry), parents: [own(10), own(20)] };
 }
 
 const MEJIRO_DOBER = 1059;
 const NARITA_BRIAN = 1016;
 const OGURI_CAP = 1006;
+
+/**
+ * A fixture carries the PAIR as well as the composed lineage.
+ *
+ * The pair is what M3's screen actually sends, and it is built here straight
+ * from the two roster entries, independently of `lineageFromPair`. The composed
+ * `request` is then produced BY `lineageFromPair`. That asymmetry is the point:
+ * a test that fed the composed request back through an inverse mapping would
+ * cancel out any error in the mapping and pass regardless.
+ */
+function pairOf(traineeCharaId: number, a: any, b: any): ExplainPairRequest {
+  return {
+    traineeCharaId,
+    veteranA: veteranPackage(a),
+    veteranB: veteranPackage(b),
+  };
+}
+
+const oguriPair = pairOf(
+  OGURI_CAP,
+  veteran(MEJIRO_DOBER, 18998),
+  veteran(NARITA_BRIAN, 17666),
+);
 
 const fOguri = {
   name: 'verify-oguri',
@@ -134,11 +197,8 @@ const fOguri = {
   provenance:
     "Builder's own roster, chosen 2026-09-11 for side-by-side checking against " +
     'breeding-optimizer. Public game fields only.',
-  request: lineageFromPair(
-    OGURI_CAP,
-    veteran(MEJIRO_DOBER, 18998),
-    veteran(NARITA_BRIAN, 17666),
-  ),
+  pair: oguriPair,
+  request: lineageFromPair(oguriPair),
   expected: {
     pairTotal: 352,
     baseTotal: 151,
@@ -150,6 +210,78 @@ const fOguri = {
     // computes both and feeds the four-link figure into its spark odds, so
     // this is the right quantity here. Do not "fix" it to match.
     individualAffinity: { 10: 186, 20: 225, 11: 50, 12: 47, 21: 68, 22: 69 },
+  },
+};
+
+const asymmetricPair = pairOf(
+  OGURI_CAP,
+  // Sakura Bakushin O out of Maruzensky x Taiki Shuttle.
+  veteranWithParents(104101, 12976, [100402, 101001]),
+  // Gold Ship out of Inari One x El Condor Pasa. Card and score alone match two
+  // different veterans here; the parents are what tell them apart.
+  veteranWithParents(100701, 16329, [103401, 101401]),
+);
+
+/**
+ * The slot-mapping DISCRIMINATOR. verify-oguri is the control that pins the
+ * numbers; this is the fixture that notices when they are pinned to the wrong
+ * slots.
+ *
+ * verify-oguri deliberately puts the same two characters behind both parents,
+ * which makes it strong against a wrong VALUE and weak against a wrong
+ * PLACEMENT. This pair is the opposite: six distinct characters, and all six
+ * individual-affinity figures distinct (46, 8, 17, 194, 80, 79), so moving any
+ * ancestor to any other slot changes the response.
+ *
+ * Two specific corruptions it catches, both of which a lift-and-reuse refactor
+ * produces and neither of which is otherwise visible:
+ *   - swapping veteranA and veteranB leaves pairTotal UNCHANGED at 228, because
+ *     the multiset of links is the same. Only the position-keyed individual
+ *     affinities move, which is why this fixture asserts the whole IA map and
+ *     not just the total.
+ *   - interleaving the grandparents as [A1, B1, A2, B2] instead of
+ *     [A1, A2, B1, B2] drops the total from 228 to 166, because a three-way
+ *     term pairs each grandparent with the parent it actually sits under.
+ *
+ * PROVENANCE, AND ITS LIMIT: unlike verify-oguri these numbers were NOT read
+ * off breeding-optimizer. They are this engine's own output, recorded to detect
+ * CHANGE. They are a regression guard, not an oracle, and they must never be
+ * cited as independent confirmation that the engine is right.
+ */
+const fAsymmetric = {
+  name: 'pair-asymmetric',
+  description:
+    'Oguri Cap trainee over Sakura Bakushin O (rank_score 12976) and Gold Ship ' +
+    '(16329). Six distinct characters and six distinct individual affinities, ' +
+    'so every slot is distinguishable from every other. The discriminator for ' +
+    'pair composition: swapping the two veterans leaves the total at 228 and ' +
+    'moves the whole affinity map, and interleaving the grandparents drops the ' +
+    'total to 166.',
+  provenance:
+    "Builder's own roster. Chosen 2026-09-16 by searching all 33,411 pairs for " +
+    'one with six distinct characters, six distinct individual affinities and a ' +
+    'total that moves under interleaving. Expected values are THIS ENGINE\'s ' +
+    'output, not an external oracle: a regression guard for slot mapping. ' +
+    'verify-oguri remains the only externally verified fixture.',
+  pair: asymmetricPair,
+  request: lineageFromPair(asymmetricPair),
+  expected: {
+    pairTotal: 228,
+    baseTotal: 90,
+    bonusTotal: 138,
+    relationRank: 3,
+    individualAffinity: { 10: 46, 20: 194, 11: 8, 12: 17, 21: 80, 22: 79 },
+    /** [10, 20, 11, 12, 21, 22] -- who must be where. */
+    slotCharaNames: [
+      'Sakura Bakushin O',
+      'Gold Ship',
+      'Maruzensky',
+      'Taiki Shuttle',
+      'Inari One',
+      'El Condor Pasa',
+    ],
+    /** Grandparents mis-ordered as [A1, B1, A2, B2]. Must NOT equal pairTotal. */
+    interleavedPairTotal: 166,
   },
 };
 
@@ -276,7 +408,7 @@ const f_unresolved = {
   },
 };
 
-const fixtures = [fOguri, f5531, f5774, f_group, f_absent, f_unresolved];
+const fixtures = [fOguri, fAsymmetric, f5531, f5774, f_group, f_absent, f_unresolved];
 
 // Fixtures are derived from a personal save. Assert what leaves this script
 // rather than trust it: an ancestor may carry the three public game fields
@@ -289,8 +421,29 @@ const fixtures = [fOguri, f5531, f5774, f_group, f_absent, f_unresolved];
 // OUTSIDE this set can ever reach a committed file.
 const ALLOWED_ANCESTOR_KEYS = new Set(['cardId', 'factorIds', 'winSaddleIds']);
 const REQUIRED_ANCESTOR_KEYS = ['cardId', 'winSaddleIds'];
+
+/**
+ * Every ancestor a fixture commits, from BOTH the composed request and the pair.
+ *
+ * `pair` is save-derived too, and it is the shape M3 actually sends. Checking
+ * only `request` would have left the new field unguarded while looking like the
+ * guard still covered the file.
+ */
+function committedAncestors(f: (typeof fixtures)[number]): (AncestorRef | null)[] {
+  const fromRequest = [...f.request.parents, ...f.request.grandparents];
+  const pair = (f as { pair?: ExplainPairRequest }).pair;
+  if (!pair) return fromRequest;
+  return [
+    ...fromRequest,
+    pair.veteranA.self,
+    ...pair.veteranA.parents,
+    pair.veteranB.self,
+    ...pair.veteranB.parents,
+  ];
+}
+
 for (const f of fixtures) {
-  for (const a of [...f.request.parents, ...f.request.grandparents]) {
+  for (const a of committedAncestors(f)) {
     if (!a) continue;
     const keys = Object.keys(a).sort();
     const extra = keys.filter((k) => !ALLOWED_ANCESTOR_KEYS.has(k));
@@ -303,17 +456,20 @@ for (const f of fixtures) {
     }
     if (
       !Number.isInteger(a.cardId) ||
-      !a.winSaddleIds.every(Number.isInteger) ||
-      !(a.factorIds ?? []).every(Number.isInteger)
+      !a.winSaddleIds.every((id) => Number.isInteger(id)) ||
+      !(a.factorIds ?? []).every((id) => Number.isInteger(id))
     ) {
       throw new Error(`fixture ${f.name}: ancestor fields must be integers`);
     }
   }
-  // The request is the only part built from the save. Nothing personal may
-  // appear anywhere in it, under any key.
-  const leak = /owner_viewer_id|nickname|viewer_id/i;
-  if (leak.test(JSON.stringify(f.request))) {
-    throw new Error(`fixture ${f.name}: request carries a personal field`);
+  // Nothing personal may appear anywhere in what gets written, under any key.
+  // `trained_chara_id` is used above to SELECT veterans and must not travel with
+  // them; `owner_viewer_id` is another player's 12-digit trainer id and there
+  // are 184 distinct ones in this save.
+  const leak = /owner_viewer_id|nickname|viewer_id|trained_chara_id|register_time|create_time/i;
+  const written = JSON.stringify({ request: f.request, pair: (f as { pair?: unknown }).pair });
+  if (leak.test(written)) {
+    throw new Error(`fixture ${f.name}: carries a personal field`);
   }
 }
 

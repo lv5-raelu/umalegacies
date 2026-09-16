@@ -46,7 +46,7 @@ export function ancestorSparks(ref: AncestorRef, data: MasterData): AncestorSpar
 }
 
 /** All of one ancestor's sparks in one list, named slots first. */
-function allSparks(set: AncestorSparkSet): AncestorSpark[] {
+export function allSparks(set: AncestorSparkSet): AncestorSpark[] {
   const named = [set.blue, set.pink, set.green].filter((s): s is AncestorSpark => s !== null);
   return [...named, ...set.whites];
 }
