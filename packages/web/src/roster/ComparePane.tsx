@@ -1,6 +1,11 @@
-import type { LineageResponse, SparkCriterion, SparkSummaryRow } from '@umalegacies/types';
+import type {
+  LineageResponse,
+  SparkCriterion,
+  SparkKind,
+  SparkSummaryRow,
+} from '@umalegacies/types';
 import { sumByRulePrefix } from '../lineage/explain-node';
-import { SPARK_COLOR, isWhite, percent } from '../lineage/sparks';
+import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER, isWhite, percent } from '../lineage/sparks';
 import { resolutionText } from '../lineage/resolution';
 import styles from './ComparePane.module.css';
 
@@ -40,7 +45,7 @@ export function ComparePane({
         <p className={styles.hint}>
           {state.picked === 0
             ? 'Pick two veterans from the list. They become the two parents.'
-            : 'Pick one more. A third pick replaces the older of the two.'}
+            : 'Pick one more.'}
         </p>
       )}
       {state.kind === 'loading' && <p className={styles.quiet}>Explaining…</p>}
@@ -107,31 +112,47 @@ function Result({
       </p>
 
       <div className={styles.odds}>
-        {criterion === null ? (
-          // No filter set, so there is no "desired spark" to quote odds for. The
-          // pane still answers the question the screen exists for -- what does
-          // this pair actually give me -- with the likeliest few. Without this
-          // the pane sits nearly empty beside a list 259 rows long.
-          <>
-            <p className={styles.oddsRubric}>Most likely to pass down</p>
-            {lineage.sparks.slice(0, 5).map((row) => (
-              <Odds key={row.groupId} row={row} />
-            ))}
-            <p className={styles.hint}>
-              Filter by a spark above to see this pair&rsquo;s odds for it.
-            </p>
-          </>
-        ) : wanted ? (
-          <>
+        {/* The filtered spark first and in full, because it is the one the user
+            asked about and a doubled spark stacks. */}
+        {criterion !== null && (
+          <div className={styles.filtered}>
             <p className={styles.oddsRubric}>Your filtered spark</p>
-            <Odds row={wanted} twice />
-          </>
-        ) : (
-          // The filter matched the veteran's package, but the composed lineage
-          // carries no such spark: say so rather than printing 0% and letting it
-          // read as a computed answer.
-          <p className={styles.quiet}>This pair carries none of that spark.</p>
+            {wanted ? (
+              <Odds row={wanted} twice />
+            ) : (
+              // The filter matched the veteran's package, but the composed
+              // lineage carries no such spark: say so rather than printing 0%
+              // and letting it read as a computed answer.
+              <p className={styles.quiet}>This pair carries none of that spark.</p>
+            )}
+          </div>
         )}
+
+        {/*
+          EVERY spark this pair can pass down, whites included.
+          A white is the largest group by far -- 231 distinct types across the
+          roster against 5 blue and 10 pink -- and its odds are the whole reason
+          to prefer one pair over another once affinity is close. Showing only
+          blue, pink and green answered the easy question and hid the one that
+          actually decides the pick.
+
+          Scrolls inside the pane rather than lengthening it, so the total and
+          the rank stay pinned while the list moves.
+        */}
+        <p className={styles.oddsRubric}>
+          Everything this pair can pass down{' '}
+          <span className={styles.oddsCount}>({lineage.sparks.length})</span>
+        </p>
+        <div className={styles.oddsScroll}>
+          {byKind(lineage.sparks).map(([kind, rows]) => (
+            <div key={kind} className={styles.group}>
+              <p className={styles.groupLabel}>{SPARK_GROUP_LABEL[kind]}</p>
+              {rows.map((row) => (
+                <Odds key={row.groupId} row={row} />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
       <button type="button" className={styles.open} onClick={onOpenTree}>
@@ -176,4 +197,17 @@ function Odds({ row, twice = false }: { row: SparkSummaryRow; twice?: boolean })
       )}
     </>
   );
+}
+
+/**
+ * The pair's sparks, grouped in render order and likeliest first within a group.
+ *
+ * `lineage.sparks` already arrives sorted that way from the engine, so this only
+ * partitions it -- it never re-sorts, which would let the pane and the audit
+ * trail on the tree page disagree about what "most likely" means.
+ */
+function byKind(sparks: readonly SparkSummaryRow[]): Array<[SparkKind, SparkSummaryRow[]]> {
+  return SPARK_KIND_ORDER.map(
+    (kind) => [kind, sparks.filter((row) => row.kind === kind)] as [SparkKind, SparkSummaryRow[]],
+  ).filter(([, rows]) => rows.length > 0);
 }

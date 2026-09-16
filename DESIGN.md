@@ -205,11 +205,12 @@ On nested elements, inner radius = outer radius − gap.
 
 ## Components
 
-**card** — the only card in the system is a tree node, because a node is a discrete entity and
-the border is what makes it read as one. Surface `#1B1D23` on paper `#121317` separates at
+**card** — a card is a discrete entity you can point at: a tree node, and a veteran in the
+roster. The border is what makes it read as one. Surface `#1B1D23` on paper `#121317` separates at
 1.10:1, so the 1px `rule` border is load-bearing, not decorative. The trainee card takes
 `rule-strong`. Nothing else in the product is a card: the table is a table, panels are ruled
-regions.
+regions. The veteran card is the same object one step earlier -- pick it and it becomes a
+parent node in the tree -- so the two surfaces agree about what a card means.
 
 **Node internals** — portrait 48px circle at the card's top-right (54px on the trainee, centred),
 served from an optional local cache so the initials disc is a routine state rather than an error;
@@ -234,16 +235,24 @@ line for progress. On success it collapses to a one-line file summary (name, vet
 with a control to replace it. On failure the error is named inside the zone and the zone stays
 usable, because the next thing the user does is pick a different file.
 
-**dense-list row** — the veteran row, two lines, 52px, separated by a 1px `rule` and nothing
-else. There is no card here: 259 bordered boxes is a texture, not a list. Line one is the score
-in mono, then the name with its costume tag, then the three named sparks each with its colour
-tick and star count, then the white count. Line two, indented past the score column and set in
-`text-faint` at 11px, names the package: `out of A x B`. The row leads with score and with what
-the veteran passes down because **names cannot identify these rows** — 255 of 259 veterans
-share a character name with another and only 29 distinct names exist across the roster, so a
-name-led list shows the same word seven times in a screen. The veteran plus its own two parents
-is 166-distinct and is the real unit of choice. Selected rows take a 2px `primary` left edge, not
-a fill. Hover lifts the ground one step. On coarse pointers rows grow to 44px minimum per line.
+**veteran card** — one card per veteran in the roster list, stacked with a 12px gap. It
+carries the portrait of the exact costume at 44px, the name with its costume tag, the package
+line (`out of A x B`), the score, then two ruled bands: the three named sparks at their fixed
+column widths, and **every white spark named**. Whites wrap rather than stacking, because a
+veteran carries 12-19 of them and one per line would make a 400px card out of a 120px one, 259
+times over. A count alone (`+7 whites`) is not enough: it says how many there are and nothing
+about whether one of them is the one you want, which is the only question a white answers.
+
+The card leads on portrait, score and sparks rather than on the name because **names cannot
+identify these rows** — 255 of 259 veterans share a character name with another and only 29
+distinct names exist across the roster. The veteran plus its own two parents is 166-distinct
+and is the real unit of choice.
+
+Selected cards take an `ink` border and an A/B mark, never a fill. **Selecting never moves a
+card**: the list holds still so the card under the cursor stays there. When two are already
+picked, the rest go to `.locked` — dimmed and `aria-disabled`, still readable and still
+focusable, because a card is information whether or not it can be selected right now. A third
+click does nothing; swapping a parent means unselecting one first.
 
 **filter region** — a ruled region directly above the list, never floating and never a modal,
 because the result of a filter is the list and the two must be readable together. One criterion
@@ -280,7 +289,8 @@ and underline offset all derive from this palette.
 - **Don't** give a control a spark colour, or a datum a control's colour.
 - **Don't** show a number without somewhere for it to open. If it cannot open, say why in place
   rather than leaving the drawer empty.
-- **Don't** use a card for anything that is not a tree node.
+- **Don't** use a card for anything that is not a discrete entity you pick or inspect. A
+  table is a table, a panel is a ruled region.
 - **Don't** add a second accent. Amber means added; that is the whole accent budget.
 
 ## Motion
@@ -313,3 +323,6 @@ and underline offset all derive from this palette.
 | 2026-09-16 | The tree keeps its own page and is never a pane | It needs 848px. A 380px pane forces 120px cards, which cannot hold a name plus four spark lines. Provenance and comparison are different jobs. |
 | 2026-09-16 | Before a save is parsed, surfaces are absent rather than disabled | A disabled control for data that does not exist yet invites a click that can never work. Absent, empty-after-filter and loading are three states with three treatments. |
 | 2026-09-16 | The local-only claim lives inside the drop zone | It is placed at the moment of decision rather than in a footer, because that is where it is being relied on. |
+| 2026-09-16 | Veterans are cards, reversing "dense-list row" | Builder's call. A veteran is a discrete entity with a portrait, a score and up to 22 sparks, and it is literally the thing that becomes a tree node once picked. The ruled row could not hold the full white list or a portrait. |
+| 2026-09-16 | Every white spark is named on the card | Builder's call. `+7 whites` answers "how many", and the only question a white spark raises is "is the one I want in there". |
+| 2026-09-16 | Selecting never reorders the list, and never evicts a pick | Builder's call. Pinning picks to the top made the list jump under the pointer; auto-replacing the older pick guessed invisibly at which one the user meant to keep. Swapping is now two deliberate steps. |

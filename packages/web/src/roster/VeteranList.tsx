@@ -1,4 +1,11 @@
-import type { PackageSpark, ResolvedMember, ResolvedVeteran, RosterSparkOption, SparkKind } from '@umalegacies/types';
+import type {
+  PackageSpark,
+  ResolvedMember,
+  ResolvedVeteran,
+  RosterSparkOption,
+  SparkKind,
+} from '@umalegacies/types';
+import { Portrait } from '../lineage/Portrait';
 import { SPARK_COLOR, isWhite } from '../lineage/sparks';
 import styles from './VeteranList.module.css';
 
@@ -8,13 +15,14 @@ export const catalogueOf = (options: readonly RosterSparkOption[]): Catalogue =>
   new Map(options.map((o) => [o.groupId, o]));
 
 /**
- * The roster, as rows that can be told apart.
+ * The roster, as cards that can be told apart.
  *
- * The hard problem here is identity, and the name does not solve it: measured on
+ * Identity is the hard problem here and the name does not solve it: measured on
  * the builder's save, 255 of 259 veterans share a character name with another,
- * there are 29 distinct names in total, and one character appears 54 times. So
- * the row leads with score and with what the veteran passes down, and identifies
- * itself as the veteran PLUS ITS OWN TWO PARENTS -- that package is 166-distinct.
+ * there are 29 distinct names in total, and one character appears 54 times. So a
+ * card carries four things that do separate them -- the portrait of the exact
+ * costume, the score, every spark it can pass down, and the two parents it comes
+ * out of, which is a 166-distinct package.
  */
 export function VeteranList({
   veterans,
@@ -41,14 +49,17 @@ export function VeteranList({
     );
   }
 
+  const full = picked.length >= 2;
+
   return (
     <ul className={styles.list}>
       {veterans.map((veteran) => (
         <li key={veteran.index}>
-          <Row
+          <Card
             veteran={veteran}
             catalogue={catalogue}
             pickedAt={picked.indexOf(veteran.index)}
+            locked={full && !picked.includes(veteran.index)}
             onPick={() => onPick(veteran.index)}
           />
         </li>
@@ -57,58 +68,111 @@ export function VeteranList({
   );
 }
 
-function Row({
+function Card({
   veteran,
   catalogue,
   pickedAt,
+  locked,
   onPick,
 }: {
   veteran: ResolvedVeteran;
   catalogue: Catalogue;
   pickedAt: number;
+  locked: boolean;
   onPick: () => void;
 }) {
   // The veteran's OWN sparks are the entries whose first star count is non-zero:
-  // stars is [the veteran, its slot 10, its slot 20]. Reading the row off the
-  // same list the filter reads means the two cannot disagree about what a
-  // veteran carries.
+  // stars is [the veteran, its slot 10, its slot 20]. Reading the card off the
+  // same list the filter reads means the two cannot disagree.
   const own = veteran.sparks.filter((s) => (s.stars[0] ?? 0) > 0);
-  const named = (kind: SparkKind) =>
-    own.find((s) => catalogue.get(s.groupId)?.kind === kind);
-  const whites = own.filter((s) => {
-    const kind = catalogue.get(s.groupId)?.kind;
-    return kind !== undefined && isWhite(kind);
-  }).length;
+  const kindOf = (spark: PackageSpark): SparkKind | undefined =>
+    catalogue.get(spark.groupId)?.kind;
+  const named = (kind: SparkKind) => own.find((s) => kindOf(s) === kind);
+  const whites = own
+    .filter((s) => {
+      const kind = kindOf(s);
+      return kind !== undefined && isWhite(kind);
+    })
+    .sort(
+      (a, b) =>
+        (b.stars[0] ?? 0) - (a.stars[0] ?? 0) ||
+        (catalogue.get(a.groupId)?.name ?? '').localeCompare(
+          catalogue.get(b.groupId)?.name ?? '',
+        ),
+    );
 
   return (
     <button
       type="button"
-      className={`${styles.row} ${pickedAt >= 0 ? styles.picked : ''} ${
-        veteran.ok ? '' : styles.unresolved
-      }`}
+      className={[
+        styles.card,
+        pickedAt >= 0 ? styles.picked : '',
+        locked ? styles.locked : '',
+        veteran.ok ? '' : styles.unresolved,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       onClick={onPick}
       aria-pressed={pickedAt >= 0}
+      // Not `disabled`: the card is still worth reading and worth reaching with
+      // a keyboard when the pair is full. It just cannot be selected.
+      aria-disabled={locked || undefined}
     >
-      <div className={styles.top}>
-        <span className={styles.score}>{veteran.score.toLocaleString()}</span>
-        <span className={styles.name}>
-          {veteran.self.name}
-          {veteran.self.costume && <span className={styles.costume}> {veteran.self.costume}</span>}
+      <span className={styles.head}>
+        <span className={styles.portrait}>
+          <Portrait cardId={veteran.self.cardId} name={veteran.self.name} />
         </span>
-        {pickedAt >= 0 && <span className={styles.pickMark}>{pickedAt === 0 ? 'A' : 'B'}</span>}
-        <span className={styles.sparks}>
-          {(['blue', 'pink', 'green'] as const).map((kind) => {
-            const spark = named(kind);
-            return spark ? (
-              <Spark key={kind} spark={spark} kind={kind} catalogue={catalogue} />
-            ) : null;
-          })}
-          <span className={styles.whites}>
-            +{whites} white{whites === 1 ? '' : 's'}
+        <span className={styles.identity}>
+          <span className={styles.name}>
+            {veteran.self.name}
+            {veteran.self.costume && (
+              <span className={styles.costume}> {veteran.self.costume}</span>
+            )}
           </span>
+          <span className={styles.package}>out of {packageLine(veteran)}</span>
         </span>
-      </div>
-      <div className={styles.package}>out of {packageLine(veteran)}</div>
+        <span className={styles.scoreBlock}>
+          <span className={styles.scoreLabel}>SCORE</span>
+          <span className={styles.score}>{veteran.score.toLocaleString()}</span>
+          {pickedAt >= 0 && (
+            <span className={styles.pickMark}>{pickedAt === 0 ? 'A' : 'B'}</span>
+          )}
+        </span>
+      </span>
+
+      <span className={styles.named}>
+        {(['blue', 'pink', 'green'] as const).map((kind) => {
+          const spark = named(kind);
+          return spark ? (
+            <Spark key={kind} spark={spark} kind={kind} catalogue={catalogue} />
+          ) : null;
+        })}
+      </span>
+
+      {/* Every white named, not a count. "+7 whites" said how many there were
+          and nothing about whether one of them was the one you wanted. */}
+      <span className={styles.whites}>
+        {whites.length === 0 ? (
+          <span className={styles.noWhites}>no white sparks</span>
+        ) : (
+          whites.map((spark) => (
+            <span key={spark.groupId} className={styles.white}>
+              <span
+                className={styles.whiteTick}
+                style={{ boxShadow: `inset 0 0 0 1px ${SPARK_COLOR.white_skill}` }}
+              />
+              {catalogue.get(spark.groupId)?.name ?? `spark ${spark.groupId}`}
+              <span className={styles.stars}>{spark.stars[0]}★</span>
+            </span>
+          ))
+        )}
+      </span>
+
+      {!veteran.ok && (
+        <span className={styles.unresolvedNote}>
+          {unresolvedNote(veteran)}
+        </span>
+      )}
     </button>
   );
 }
@@ -122,20 +186,11 @@ function Spark({
   kind: SparkKind;
   catalogue: Catalogue;
 }) {
-  const entry = catalogue.get(spark.groupId);
-  const name = entry?.name ?? `spark ${spark.groupId}`;
+  const name = catalogue.get(spark.groupId)?.name ?? `spark ${spark.groupId}`;
   return (
     <span className={`${styles.spark} ${styles[kind] ?? ''}`}>
-      <span
-        className={styles.tick}
-        style={
-          isWhite(kind)
-            ? { boxShadow: `inset 0 0 0 1px ${SPARK_COLOR[kind]}` }
-            : { background: SPARK_COLOR[kind] }
-        }
-      />
-      {/* title, because the longest unique skill is 35 characters and the
-          column is 21. The tree page shows it in full. */}
+      <span className={styles.tick} style={{ background: SPARK_COLOR[kind] }} />
+      {/* title, because the longest unique skill is 35 characters. */}
       <span className={styles.sparkName} title={name}>
         {name}
       </span>
@@ -148,11 +203,19 @@ function Spark({
  * "out of Mejiro Dober x Inari One".
  *
  * An empty slot says so rather than being skipped: a veteran out of one parent
- * is a different thing from a veteran whose second parent happened not to render,
- * and the engine treats the absence as real data.
+ * is a different thing from one whose second parent failed to render, and the
+ * engine treats the absence as real data.
  */
 function packageLine(veteran: ResolvedVeteran): string {
   const name = (member: ResolvedMember | null): string =>
     member === null ? 'no parent' : member.name + (member.costume ? ` ${member.costume}` : '');
   return `${name(veteran.parents[0])} × ${name(veteran.parents[1])}`;
+}
+
+/** Names which member failed, because "unresolved" alone is not actionable. */
+function unresolvedNote(veteran: ResolvedVeteran): string {
+  const broken = [veteran.self, ...veteran.parents]
+    .filter((m): m is ResolvedMember => m !== null && !m.resolution.ok)
+    .map((m) => m.name);
+  return `could not identify ${broken.join(', ')} — rebuild the master extract`;
 }

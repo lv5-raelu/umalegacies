@@ -73,6 +73,50 @@
   padding-top: var(--space-snug);
 }
 
+/* The filtered spark is set apart: it is the question, the rest is the answer. */
+.filtered {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-snug);
+  margin-bottom: var(--space-snug);
+}
+
+/*
+ * The full spark list scrolls INSIDE the pane.
+ *
+ * A pair carries around 50-58 distinct sparks. Letting the pane grow to fit them
+ * would push the pair total off the top of a sticky pane, which is the one thing
+ * the pane exists to hold still.
+ */
+.oddsScroll {
+  /* As tall as the viewport allows once the total, rank and pair have had their
+     room. A pair carries around 53 distinct sparks and roughly 41 of them are
+     whites, so this always scrolls -- the rubric prints the count so the reader
+     knows the list is longer than the box. */
+  max-height: calc(100vh - 420px);
+  min-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Themed rather than left to the platform, like every other browser surface. */
+  scrollbar-color: var(--rule-strong) var(--paper);
+  scrollbar-width: thin;
+}
+
+.group + .group {
+  margin-top: var(--space-snug);
+}
+
+.groupLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  margin: 0 0 var(--space-hair);
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  padding: var(--space-hair) 0;
+}
+
 .oddsRow {
   display: flex;
   align-items: baseline;
@@ -108,6 +152,11 @@
   font-size: var(--text-2xs);
   color: var(--ink-faint);
   flex: none;
+}
+
+.oddsCount {
+  font-family: var(--font-data);
+  color: var(--ink-faint);
 }
 
 .oddsRubric {
