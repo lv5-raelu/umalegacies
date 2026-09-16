@@ -302,6 +302,16 @@ export interface RosterResolveRequest {
   masterHash?: string;
 }
 
+/**
+ * Who one member of a package is. IDENTITY ONLY -- no sparks, no win list.
+ *
+ * The sparks live once per veteran in `ResolvedVeteran.sparks`, and the raw ids
+ * never come back at all: the browser still holds the slimmed input it sent, so
+ * echoing `factorIds` and `winSaddleIds` for 777 umas would be the server
+ * returning the client's own request to it. Measured: carrying them, plus a
+ * fully named spark set per member, made this response 1,581,847 bytes. Without
+ * them it is a fifth of that.
+ */
 export interface ResolvedMember {
   cardId: number;
   charaId: number | null;
@@ -312,7 +322,6 @@ export interface ResolvedMember {
    * belong to a character with more than one.
    */
   costume: string | null;
-  sparks: AncestorSparkSet;
   resolution: Resolution;
 }
 
@@ -325,11 +334,13 @@ export interface ResolvedMember {
  * parent alone, or the two grandparents); SPLIT decides whether they are
  * compared one at a time or added together. Summing at build time would throw
  * the split dimension away, and it is the dimension M7's borrow search needs.
+ *
+ * Carries no name and no kind. `sparkOptions` is the catalogue and holds each
+ * one once; repeating them here repeated 297 distinct names across 259 veterans.
  */
 export interface PackageSpark {
+  /** Look the name and kind up in `RosterResolveResponse.sparkOptions`. */
   groupId: number;
-  kind: SparkKind;
-  name: string;
   /** [the veteran itself, its slot 10, its slot 20]. 0 where that uma lacks it. */
   stars: [number, number, number];
 }
@@ -344,8 +355,22 @@ export interface ResolvedVeteran {
   score: number;
   self: ResolvedMember;
   parents: [ResolvedMember | null, ResolvedMember | null];
-  /** Every distinct spark in the package, for filtering. */
+  /**
+   * Every distinct spark in the package, for filtering AND for the row.
+   *
+   * The row's blue/pink/green are the entries whose `stars[0]` is non-zero --
+   * i.e. carried by the veteran itself rather than by one of its parents -- so
+   * this one list serves both the filter and the display and they cannot
+   * disagree about what a veteran carries.
+   */
   sparks: PackageSpark[];
+  /**
+   * factor ids the save carried that master.mdb has no row for, across the whole
+   * package. Named rather than swallowed: the realistic cause is a patch adding
+   * a spark before the extract was rebuilt, and a silently shorter spark list
+   * reads as a fact about the uma.
+   */
+  unknownFactorIds: number[];
   /**
    * False when any of the three members failed to resolve. A row-level failure,
    * never an upload-level one: one unknown card_id after a game patch must not
@@ -354,7 +379,12 @@ export interface ResolvedVeteran {
   ok: boolean;
 }
 
-/** Every distinct spark present in the roster, for the filter's selector. */
+/**
+ * Every distinct spark present in the roster.
+ *
+ * Two jobs: it populates the filter's spark selector, and it is the NAME
+ * CATALOGUE that `PackageSpark.groupId` refers into.
+ */
 export interface RosterSparkOption {
   groupId: number;
   kind: SparkKind;

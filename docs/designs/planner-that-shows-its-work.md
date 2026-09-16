@@ -844,10 +844,18 @@ raise them exist.
   2. **The server composes; the client never builds an ExplainRequest.**
      `POST /affinity/explain-pair` takes `{traineeCharaId, traineeCardId,
      veteranA, veteranB}` where each veteran carries its own three-slot package.
-     Measured at **772 bytes**, against 5,745 for a composed ExplainRequest.
      `lineageFromPair` is lifted out of `scripts/build-fixtures.mjs` into
      tested source, and the fixture builder then consumes that same code
      instead of its own copy.
+     ***Corrected during implementation, 2026-09-16.*** The wire-size
+     justification above was wrong. Measured on both pair fixtures, the pair
+     form is **35 bytes LARGER** than the composed request it becomes (1,680 vs
+     1,645 for verify-oguri; 1,272 vs 1,237 for pair-asymmetric), not "772
+     against 5,745". Both shapes carry exactly six `AncestorRef`s -- a veteran's
+     two parents *are* two of the four grandparents -- so the pair form only
+     adds nesting. The decision stands on its other and stronger ground: slot
+     mapping is the one step that can be wrong in a way nothing downstream
+     detects, so it belongs in tested source rather than in a React component.
   3. **The upload's own error paths ship with it**, closing part of the
      ten-error-path deferral recorded above. An unknown `card_id` is a
      **row-level** failure, not an upload-level one: that veteran is marked

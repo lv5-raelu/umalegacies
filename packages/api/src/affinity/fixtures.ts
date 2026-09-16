@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { findPackageFile } from '../common/find-file';
-import type { ExplainRequest } from './types';
+import type { ExplainPairRequest, ExplainRequest } from './types';
 
 /**
  * Loads the committed fixture lineages. Runs with neither master.mdb nor
@@ -23,6 +23,15 @@ export interface Fixture {
   name: string;
   description: string;
   provenance: string;
+  /**
+   * Present on the two fixtures built from a chosen PAIR of veterans, and the
+   * shape M3's roster screen actually posts. Built in the fixture script
+   * straight from the two roster entries, so a test can feed it to
+   * `explain-pair` and compare against `expected` WITHOUT going through
+   * `lineageFromPair` on the way in. Absent on the lineage and synthetic
+   * fixtures, which have no pair to be built from.
+   */
+  pair?: ExplainPairRequest;
   request: ExplainRequest;
   expected: Record<string, unknown>;
 }
@@ -33,6 +42,7 @@ export interface Fixture {
  */
 export const FIXTURE_NAMES = [
   'verify-oguri',
+  'pair-asymmetric',
   '5531',
   '5774',
   'synthetic-absent-ancestor',

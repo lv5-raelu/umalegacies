@@ -1,5 +1,11 @@
 import { DomainError } from '../common/error-response';
-import type { AncestorRef, ExplainRequest, GrandparentTuple } from './types';
+import type {
+  AncestorRef,
+  ExplainPairRequest,
+  ExplainRequest,
+  GrandparentTuple,
+  VeteranPackage,
+} from './types';
 
 /**
  * Generous against the observed maximum of 26. A cap at all exists because the
@@ -55,22 +61,84 @@ export function parseExplainRequest(body: unknown): ExplainRequest {
 
   const request: ExplainRequest = { traineeCharaId, parents, grandparents };
 
+  // The costume being trained. Optional, and it feeds no rule -- the trainee
+  // carries no sparks -- but it decides which art the tree draws above the
+  // trainee's name. Whether it actually BELONGS to traineeCharaId is checked in
+  // explainLineage, which is the layer that can ask master.mdb.
+  if (raw.traineeCardId !== undefined) {
+    request.traineeCardId = intField(raw.traineeCardId, 'traineeCardId');
+  }
+
   if (raw.masterHash !== undefined) {
-    // Bounded: it is a SHA-256 hex digest or it is not one. Accepting an
-    // arbitrary string capped only by the body limit, for a value whose whole
-    // job is to be compared against a digest, is not validation.
-    if (typeof raw.masterHash !== 'string' || !/^[0-9a-f]{64}$/.test(raw.masterHash)) {
-      throw new DomainError(
-        'INVALID_MASTER_HASH',
-        'masterHash must be a 64-character lowercase SHA-256 hex digest when present.',
-        400,
-        'masterHash',
-      );
-    }
-    request.masterHash = raw.masterHash;
+    request.masterHash = parseMasterHash(raw.masterHash);
   }
 
   return request;
+}
+
+/**
+ * Shape-check for the pair the roster screen posts.
+ *
+ * Deliberately NOT "parse an ExplainRequest and trust the client built it":
+ * composing two packages into six positioned slots is the one thing in this
+ * flow that can be wrong in a way no downstream check notices, so the client
+ * never does it. See `lineageFromPair`.
+ */
+export function parseExplainPairRequest(body: unknown): ExplainPairRequest {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new DomainError('INVALID_BODY', 'Request body must be a JSON object.');
+  }
+  const raw = body as Record<string, unknown>;
+
+  const request: ExplainPairRequest = {
+    traineeCharaId: intField(raw.traineeCharaId, 'traineeCharaId'),
+    veteranA: parseVeteran(raw.veteranA, 'veteranA'),
+    veteranB: parseVeteran(raw.veteranB, 'veteranB'),
+  };
+
+  if (raw.traineeCardId !== undefined) {
+    request.traineeCardId = intField(raw.traineeCardId, 'traineeCardId');
+  }
+  if (raw.masterHash !== undefined) {
+    request.masterHash = parseMasterHash(raw.masterHash);
+  }
+  return request;
+}
+
+/**
+ * One veteran package: itself, plus its own two parents.
+ *
+ * `parents` must be present and exactly two entries, but either may be null. A
+ * veteran with an empty parent slot is ordinary data -- the engine models an
+ * absent ancestor deliberately -- so the array length is structure and the nulls
+ * are content.
+ */
+function parseVeteran(value: unknown, field: string): VeteranPackage {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainError(
+      'INVALID_VETERAN',
+      `${field} must be an object with self and parents.`,
+      400,
+      field,
+    );
+  }
+  const raw = value as Record<string, unknown>;
+  const self = parseAncestor(raw.self, `${field}.self`, false) as AncestorRef;
+
+  if (!Array.isArray(raw.parents) || raw.parents.length !== 2) {
+    throw new DomainError(
+      'INVALID_VETERAN_PARENTS',
+      `${field}.parents must be an array of exactly 2 entries (the veteran's own ` +
+        'slots 10 and 20); use null for an empty slot.',
+      400,
+      `${field}.parents`,
+    );
+  }
+  const parents = raw.parents.map((p, i) =>
+    parseAncestor(p, `${field}.parents[${i}]`, true),
+  ) as [AncestorRef | null, AncestorRef | null];
+
+  return { self, parents };
 }
 
 /**
@@ -106,7 +174,7 @@ export function assertMasterHashCurrent(
   );
 }
 
-function parseAncestor(
+export function parseAncestor(
   value: unknown,
   field: string,
   nullable: boolean,
@@ -221,6 +289,23 @@ function intField(value: unknown, field: string): number {
       `${field} must be an integer.`,
       400,
       field,
+    );
+  }
+  return value;
+}
+
+/**
+ * Bounded: it is a SHA-256 hex digest or it is not one. Accepting an arbitrary
+ * string capped only by the body limit, for a value whose whole job is to be
+ * compared against a digest, is not validation.
+ */
+export function parseMasterHash(value: unknown): string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new DomainError(
+      'INVALID_MASTER_HASH',
+      'masterHash must be a 64-character lowercase SHA-256 hex digest when present.',
+      400,
+      'masterHash',
     );
   }
   return value;

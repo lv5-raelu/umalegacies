@@ -28,6 +28,10 @@ export class MasterData {
   private readonly charaIdByCardId = new Map<number, number>();
   /** chara_id -> its lowest card_id, i.e. the base costume. */
   private readonly baseCardByCharaId = new Map<number, number>();
+  /** chara_id -> every card_id it has, ascending. 35 of 66 characters have more than one. */
+  private readonly cardsByCharaId = new Map<number, number[]>();
+  /** card_id -> its bracketed costume label, e.g. "[Special Dreamer]". */
+  private readonly costumeByCardId = new Map<number, string>();
   /** single_mode_wins_saddle ids whose win_saddle_type is 3, i.e. a single G1. */
   private readonly g1SaddleIds = new Set<number>();
   /** saddle id -> its group_id, kept for UI grouping and for NOTHING in the math. */
@@ -72,6 +76,9 @@ export class MasterData {
       if (!this.baseCardByCharaId.has(r.chara_id)) {
         this.baseCardByCharaId.set(r.chara_id, r.id);
       }
+      const cards = this.cardsByCharaId.get(r.chara_id);
+      if (cards) cards.push(r.id);
+      else this.cardsByCharaId.set(r.chara_id, [r.id]);
     }
 
     for (const r of db
@@ -101,6 +108,14 @@ export class MasterData {
       .prepare('SELECT "index" AS idx, text FROM text_data WHERE category = 6')
       .iterate() as Iterable<{ idx: number; text: string }>) {
       this.charaNames.set(r.idx, r.text);
+    }
+    // category 5 is the costume label alone ("[Special Dreamer]"), keyed by CARD
+    // id. Category 4 is the same label with the character name already appended,
+    // which would mean splitting a string to get either half back.
+    for (const r of db
+      .prepare('SELECT "index" AS idx, text FROM text_data WHERE category = 5')
+      .iterate() as Iterable<{ idx: number; text: string }>) {
+      this.costumeByCardId.set(r.idx, r.text);
     }
     // category 111 is win-saddle names. They are epithets ("Classic Triple
     // Crown"), not race names, so they read oddly next to a single G1 win.
@@ -191,6 +206,33 @@ export class MasterData {
    */
   knowsChara(charaId: number): boolean {
     return this.charaNames.has(charaId) || this.baseCardByCharaId.has(charaId);
+  }
+
+  /**
+   * The costume label for a card, but ONLY where it is load-bearing.
+   *
+   * Returns null for a character with a single card, where a tag would be noise
+   * on every row. 74 of 105 cards belong to a character with more than one, and
+   * for those the tag is the only thing separating two otherwise identical rows
+   * that carry DIFFERENT unique skills, i.e. different green sparks.
+   */
+  costumeLabel(cardId: number): string | null {
+    const charaId = this.charaIdByCardId.get(cardId);
+    if (charaId === undefined) return null;
+    if ((this.cardsByCharaId.get(charaId)?.length ?? 0) < 2) return null;
+    return this.costumeByCardId.get(cardId) ?? null;
+  }
+
+  /** True when this character has more than one card, i.e. a bare name is ambiguous. */
+  hasMultipleCards(charaId: number): boolean {
+    return (this.cardsByCharaId.get(charaId)?.length ?? 0) > 1;
+  }
+
+  /** Every card, ascending by id. The trainee picker's whole source. */
+  allCards(): Array<{ cardId: number; charaId: number }> {
+    return [...this.charaIdByCardId.entries()]
+      .map(([cardId, charaId]) => ({ cardId, charaId }))
+      .sort((a, b) => a.cardId - b.cardId);
   }
 
   hasChara(charaId: number): boolean {

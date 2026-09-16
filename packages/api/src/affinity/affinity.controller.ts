@@ -4,7 +4,12 @@ import { MasterService } from '../master/master.service';
 import { FIXTURE_NAMES, loadFixture } from './fixtures';
 import { explainLineage, type LineageResponse } from './lineage';
 import type { ExplainRequest } from './types';
-import { assertMasterHashCurrent, parseExplainRequest } from './validate';
+import { lineageFromPair } from './pair';
+import {
+  assertMasterHashCurrent,
+  parseExplainPairRequest,
+  parseExplainRequest,
+} from './validate';
 
 @Controller('affinity')
 export class AffinityController {
@@ -23,6 +28,34 @@ export class AffinityController {
     // told so, rather than handed numbers from a different version of the game.
     assertMasterHashCurrent(request.masterHash, masterHash);
     return explainLineage(request, this.master.data, masterHash);
+  }
+
+  /**
+   * The roster screen's endpoint: two chosen veterans, explained as one lineage.
+   *
+   * The client sends two three-uma PACKAGES and the server composes them into
+   * six positioned slots.
+   *
+   * The reason is slot mapping, and only slot mapping. Which grandparent sits
+   * under which parent stops being something the UI can get wrong: a mis-composed
+   * request is still a well-formed request, and it returns a confident, plausible
+   * and wrong total that nothing downstream can detect. Keeping that one step
+   * server-side puts it under `pair.test.ts` instead of inside a React component.
+   *
+   * NOT for wire size, though the plan claimed it. Measured 2026-09-16 on both
+   * pair fixtures: the pair form is 1,680 B against the composed 1,645 B for
+   * verify-oguri, and 1,272 against 1,237 for pair-asymmetric -- 35 bytes LARGER
+   * each time, not smaller. Both shapes carry exactly six AncestorRefs, because a
+   * veteran's two parents ARE two of the four grandparents; the pair form just
+   * adds a level of nesting around them. The plan's "772 bytes against 5,745" is
+   * wrong and the design doc has been corrected.
+   */
+  @Post('explain-pair')
+  explainPair(@Body() body: unknown): LineageResponse {
+    const pair = parseExplainPairRequest(body);
+    const masterHash = this.master.getMeta().masterHash;
+    assertMasterHashCurrent(pair.masterHash, masterHash);
+    return explainLineage(lineageFromPair(pair), this.master.data, masterHash);
   }
 
   /**
