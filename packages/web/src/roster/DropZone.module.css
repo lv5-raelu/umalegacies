@@ -1,0 +1,110 @@
+/*
+ * The first-run surface. A ruled region, not a card: DESIGN.md reserves cards
+ * for tree nodes. 2px dashed so it reads as a place to put something.
+ */
+.zone {
+  display: block;
+  width: 100%;
+  border: 2px dashed var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  cursor: pointer;
+  /* The zone never changes size between its states. A layout that jumps on
+     drag-over reads as the page reacting to the pointer rather than to the file. */
+  min-height: 188px;
+  transition: border-color var(--duration-micro) var(--ease-enter),
+    background-color var(--duration-micro) var(--ease-enter);
+}
+
+.zone:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.over {
+  border-style: solid;
+  border-color: var(--ink);
+  background: var(--track);
+}
+
+.busy {
+  cursor: progress;
+}
+
+.headline {
+  font-size: var(--text-md);
+  margin: 0;
+}
+
+/* The claim, at the moment it is being relied on. Not in a footer. */
+.local {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  margin: var(--space-sm) 0 0;
+}
+
+.progress {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  margin: var(--space-sm) 0 0;
+}
+
+.error {
+  color: var(--error);
+  font-size: var(--text-xs);
+  margin: var(--space-sm) auto 0;
+  max-width: 56ch;
+}
+
+/* Once a save is loaded the zone collapses to one line that names the file. */
+.summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-sm);
+}
+
+.file {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+}
+
+.count {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+}
+
+.replace {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-hair) var(--space-snug);
+  cursor: pointer;
+}
+
+.replace:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.replace:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.hidden {
+  display: none;
+}

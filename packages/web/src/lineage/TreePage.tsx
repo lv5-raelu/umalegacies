@@ -1,0 +1,134 @@
+import { useState } from 'react';
+import type { LineageResponse, SparkSummaryRow } from '@umalegacies/types';
+import { AuditTrail } from './AuditTrail';
+import {
+  LinkProvenance,
+  MemberProvenance,
+  SparkProvenance,
+  TotalProvenance,
+} from './Provenance';
+import { sumByRulePrefix } from './explain-node';
+import { resolutionText } from './resolution';
+import { Tree, type Selection } from './Tree';
+import styles from '../App.module.css';
+
+/**
+ * The working, on its own page.
+ *
+ * The tree is PROVENANCE, not a compare surface, and it lost the fight for
+ * horizontal space on the roster screen: it needs 848px at its designed size,
+ * and the 380px compare pane would force 120px cards, which cannot hold a
+ * 17-character name plus four spark lines. So it gets the full single column,
+ * reached by a button, with the browser's own back button to return.
+ */
+export function TreePage({
+  lineage,
+  onBack,
+}: {
+  lineage: LineageResponse;
+  onBack: () => void;
+}) {
+  const [selection, setSelection] = useState<Selection>({ kind: 'total' });
+  const [spark, setSpark] = useState<SparkSummaryRow | null>(null);
+
+  // Both halves are SUMMED, never one subtracted from the total. Subtraction
+  // absorbs any discrepancy into bonus, which is two numbers for one quantity on
+  // one screen. If they ever disagree, say so instead of picking one.
+  const base = sumByRulePrefix(lineage.pairTotal, 'base.');
+  const bonus = sumByRulePrefix(lineage.pairTotal, 'bonus.');
+  const addendsAgree = base + bonus === lineage.pairTotal.value;
+  // An unresolvable trainee collapses every base term that touches it -- both
+  // trainee-parent links AND all four three-way grandparent terms -- so the
+  // total is not merely uncertain, it is wrong by a large margin and silently so.
+  const traineeUnresolved = lineage.trainee.resolution.ok === false;
+
+  return (
+    <main className={styles.shell}>
+      <header className={styles.top}>
+        <h1 className={styles.wordmark}>Uma Legacies</h1>
+        <button type="button" className={styles.back} onClick={onBack}>
+          ← Back to the roster
+        </button>
+      </header>
+
+      <h2 className={styles.rubric}>Decision surface</h2>
+      {/* Exactly one number on this screen is large. */}
+      <div className={styles.headline}>
+        <div>
+          <div className={styles.total}>
+            {traineeUnresolved ? '—' : lineage.pairTotal.value}
+          </div>
+          {/* An aggregate prints its addends beneath it, permanently. */}
+          <div className={styles.addends}>
+            {traineeUnresolved ? (
+              <span className={styles.disagree}>{resolutionText(lineage.trainee.resolution)}</span>
+            ) : addendsAgree ? (
+              `${base} base + ${bonus} bonus`
+            ) : (
+              <span className={styles.disagree}>
+                addends disagree: {base} base + {bonus} bonus ≠ {lineage.pairTotal.value}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className={styles.who}>{lineage.trainee.name} · pair total</div>
+        {/* No verdict from a total that could not be computed. */}
+        {!traineeUnresolved && (
+          <div className={styles.rank}>
+            <div className={styles.rankGlyph}>
+              {'◎〇△'[3 - lineage.relationRank.value] ?? '·'} rank {lineage.relationRank.value}
+            </div>
+            <div className={styles.rankBounds}>
+              {lineage.rankBounds.min}
+              {lineage.rankBounds.max >= 9999 ? '+' : `–${lineage.rankBounds.max}`}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Tree
+        lineage={lineage}
+        selection={selection}
+        onSelect={(next) => {
+          setSelection(next);
+          setSpark(null);
+        }}
+      />
+
+      {spark ? (
+        <SparkProvenance row={spark} />
+      ) : selection.kind === 'link' ? (
+        <LinkProvenance link={selection.node} />
+      ) : selection.kind === 'member' && selection.position !== 'T' ? (
+        <MemberProvenanceOrEmpty lineage={lineage} position={selection.position} />
+      ) : (
+        <TotalProvenance lineage={lineage} />
+      )}
+
+      <h2 className={styles.rubric}>Audit trail — every spark this lineage can pass down</h2>
+      <AuditTrail
+        sparks={lineage.sparks}
+        selectedGroupId={spark?.groupId ?? null}
+        onSelect={(row) => setSpark(row.groupId === spark?.groupId ? null : row)}
+      />
+
+      <footer className={styles.footer}>
+        master extract <code>{lineage.masterHash.slice(0, 12)}</code>
+      </footer>
+    </main>
+  );
+}
+
+function MemberProvenanceOrEmpty({
+  lineage,
+  position,
+}: {
+  lineage: LineageResponse;
+  position: number;
+}) {
+  const identity = lineage.ancestors[position];
+  if (!identity) return <TotalProvenance lineage={lineage} />;
+  return (
+    <MemberProvenance identity={identity} affinity={lineage.individualAffinity[position]} />
+  );
+}

@@ -1006,6 +1006,63 @@ raise them exist.
   remain unchecked (Open Question in M7); the precise loading treatment
   (progress bar versus skeleton) is unspecified.
 
+  **Built 2026-09-16.** Nine notes from implementation, each one a place the plan
+  and the code disagreed and the code won.
+
+  1. **The browser slims the save, and that is where the privacy promise now
+     lives.** The plan had the server receive `data.json` and strip it. Instead
+     `roster/save.ts` builds the request from an allowlist of three public fields
+     per uma, so `owner_viewer_id` -- 184 distinct 12-digit trainer ids belonging
+     to OTHER players in the builder's own file -- plus nicknames, timestamps,
+     stats, skills and race history have no wire representation at all. Measured:
+     5,283,444 bytes in, 160,495 out. A test runs this against the real save and
+     asserts none of those ids appears in the request; it skips when `data.json`
+     is absent, which is every CI run.
+  2. **The explain-pair wire-size claim was wrong.** "772 bytes against 5,745" is
+     not reproducible: both shapes carry exactly six `AncestorRef`s, because a
+     veteran's two parents ARE two of the four grandparents. Measured, the pair
+     form is 35 bytes LARGER on both fixtures. The decision stands on slot
+     mapping alone, which is the stronger ground anyway.
+  3. **`index` is the request position, and the response must not be sorted.**
+     Sorting server-side by score was the obvious thing and it silently broke the
+     join: the browser keeps the slimmed roster it sent and hands a package back
+     by index. Display order is the list's business.
+  4. **The response is normalised against its own catalogue.** First cut repeated
+     297 spark names across 259 veterans and measured 1,581,847 bytes.
+     `PackageSpark` is now `{groupId, stars}` and names live once in
+     `sparkOptions`: 387,459 bytes, 34 KB gzipped, which is the 363kb the plan
+     predicted.
+  5. **The body-limit exemption is now weakly motivated.** It is kept, because
+     the builder asked for it, but 157 KB fits inside the existing 256 KB global
+     limit with room to spare. Only a roster about 1.6x the builder's would cross
+     it. Revisit before deploy.
+  6. **The spark columns needed fixed widths, and the data sized them.** Letting
+     them size to content left the blue column starting anywhere between x=555
+     and x=676 on consecutive rows, which is the one thing a comparison list
+     cannot afford. Across the roster the blues are 5 distinct names of at most 7
+     characters and the pinks 10 of at most 12, so 10ch and 13ch align every row;
+     only the greens (36 names, up to 35 characters) truncate.
+  7. **Picked rows are pinned to the top of the list.** Narrowing the filter after
+     picking one veteran used to hide it, leaving the compare pane naming a parent
+     that was nowhere on screen -- and a third pick replaces the OLDER of the two,
+     which was exactly the invisible one.
+  8. **The compare pane shows the pair's likeliest sparks when no filter is set.**
+     The specified behaviour left it nearly empty beside a list 259 rows long. The
+     large number is still the pair total, as decided.
+  9. **The row stacks below 720px.** The fixed spark columns come to 424px, which
+     pushed a 390px viewport's document to 554px and scrolled the whole page
+     sideways, against DESIGN.md's standing rule. The columns keep their widths on
+     their own line, so they still align. Verified no horizontal overflow at 390,
+     768, 900, 1024 and 1440.
+
+  *Deviation worth naming:* below 900px the plan said the compare pane becomes a
+  button through to the tree page. It instead moves ABOVE the list, keeping the
+  total, the odds and the button. The user still gets the number without a
+  navigation, and the tree is one tap away either way.
+
+  *Still unverified:* Split Sparks' exact in-game semantics, inferred from a
+  toggle label; uma.moe's API shape and terms.
+
 - **M4 — The tree.** *Design review 2026-09-10 moved this into M2: it is not optional
   decoration, it is the organising frame.* A list of seven links needs `position_id`
   tags to disambiguate (fixture 5531's six slots hold only three distinct characters,

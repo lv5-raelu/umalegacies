@@ -37,7 +37,7 @@ export function resolveRoster(
 } {
   const catalogue = new Map<number, RosterSparkOption>();
 
-  const resolved = input.map((veteran): ResolvedVeteran => {
+  const resolved = input.map((veteran, index): ResolvedVeteran => {
     const members: Array<Member | null> = [
       resolveMember(veteran.self, master),
       veteran.parents[0] ? resolveMember(veteran.parents[0], master) : null,
@@ -46,8 +46,7 @@ export function resolveRoster(
     const self = members[0] as Member;
 
     return {
-      // Filled in below, once the list is in its final order.
-      index: -1,
+      index,
       score: veteran.score,
       self: self.identity,
       parents: [members[1]?.identity ?? null, members[2]?.identity ?? null],
@@ -60,13 +59,14 @@ export function resolveRoster(
     };
   });
 
-  // Score descending, because the row leads with score and the list is scanned
-  // top-down. Ties break on name so the order is stable across reloads of the
-  // same save rather than depending on the file's own ordering.
-  resolved.sort((a, b) => b.score - a.score || a.self.name.localeCompare(b.self.name));
-  resolved.forEach((veteran, i) => {
-    veteran.index = i;
-  });
+  // REQUEST ORDER IS PRESERVED, deliberately, and `index` is the position in it.
+  //
+  // Sorting here was the obvious thing and it was wrong: the browser keeps the
+  // slimmed roster it sent, and picking a veteran means handing that package
+  // back to explain-pair. `index` is the only thing joining the two, so a
+  // server-side reorder would silently pair display row N with request entry N
+  // of a different ordering. Display order is the list's business and it sorts
+  // by score there.
 
   return {
     veterans: resolved,

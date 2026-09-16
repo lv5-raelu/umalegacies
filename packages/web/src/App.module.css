@@ -1,8 +1,35 @@
-/* Single column, max 900px, centred. Content-driven, never full-bleed. */
+/*
+ * Two layouts, and which applies is decided by what the surface is for.
+ * DESIGN.md: reading a result is a single column; comparing candidates is two
+ * panes, and the roster screen is the only surface that earns them.
+ */
 .shell {
   max-width: var(--measure);
   margin: 0 auto;
   padding: var(--space-lg) var(--space-md) var(--space-2xl);
+}
+
+.wide {
+  max-width: 1400px;
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--space-xl);
+  align-items: start;
+}
+
+/* Below 900px there is no two-pane layout: 380px of pane against a 390px
+   viewport is not a layout. The compare pane moves above the list so the
+   number being chosen against is still seen before the scrolling starts. */
+@media (max-width: 900px) {
+  .panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .paneColumn {
+    order: -1;
+  }
 }
 
 .top {
@@ -19,33 +46,31 @@
   margin: 0;
 }
 
-.picker {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.pickerLabel {
-  font-family: var(--font-data);
-  font-size: var(--text-3xs);
-  letter-spacing: var(--tracking-label);
-  color: var(--ink-faint);
-}
-
-.picker select {
-  font-family: var(--font-data);
-  font-size: var(--text-2xs);
-  color: var(--ink);
-  background: var(--paper);
+.back {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  background: none;
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-xs) var(--space-snug);
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .lede {
   color: var(--ink-muted);
   font-size: var(--text-xs);
-  margin: var(--space-xs) 0 0;
+  margin: var(--space-xs) 0 var(--space-lg);
   max-width: 72ch;
 }
 
@@ -118,7 +143,7 @@
 
 .notice {
   font-size: var(--text-xs);
-  color: var(--accent, var(--bonus));
+  color: var(--bonus);
   border-top: 1px solid var(--rule);
   padding-top: var(--space-sm);
   margin: var(--space-md) 0 0;
@@ -149,4 +174,17 @@
   font-family: var(--font-data);
   font-size: var(--text-3xs);
   color: var(--ink-faint);
+}
+
+.listHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: var(--space-lg) 0 0;
+}
+
+.pickNote {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin-left: auto;
 }

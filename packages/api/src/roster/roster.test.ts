@@ -55,12 +55,15 @@ describe('resolveRoster: who each veteran is', () => {
     expect(byCard.get(SUZUKA)).toBeNull();
   });
 
-  it('sorts by score descending, and index follows the sorted order', () => {
+  it('preserves request order, because index is the browser\'s join key', () => {
+    // The browser keeps the slimmed roster it sent and hands a package back to
+    // explain-pair by index. Reordering here would pair display row N with a
+    // different request entry, silently. Display order is the list's business.
     const { veterans } = resolveRoster(
-      [veteran(10, member(SUZUKA)), veteran(30, member(SUZUKA)), veteran(20, member(SUZUKA))],
+      [veteran(10, member(SUZUKA)), veteran(30, member(OGURI_ASHEN)), veteran(20, member(SUZUKA))],
       master,
     );
-    expect(veterans.map((v) => v.score)).toEqual([30, 20, 10]);
+    expect(veterans.map((v) => v.score)).toEqual([10, 30, 20]);
     expect(veterans.map((v) => v.index)).toEqual([0, 1, 2]);
   });
 });

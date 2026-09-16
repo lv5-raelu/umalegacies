@@ -347,9 +347,13 @@ export interface PackageSpark {
 
 export interface ResolvedVeteran {
   /**
-   * Position in the request array. The client's handle for this veteran for the
-   * life of one page load. NOT a game id and not derived from one: the save's
-   * `trained_chara_id` never crosses the wire.
+   * Position in the REQUEST array, and the only thing joining this row back to
+   * the slimmed package the browser still holds and will hand to
+   * `explain-pair`. The response is in request order for exactly that reason;
+   * sorting is the list's business.
+   *
+   * NOT a game id and not derived from one: the save's `trained_chara_id` never
+   * crosses the wire.
    */
   index: number;
   score: number;
