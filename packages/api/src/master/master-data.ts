@@ -281,10 +281,11 @@ export class MasterData {
    * The career rank TIER for a rank_score, 1-98, or null if it falls outside
    * every band.
    *
-   * Derived rather than taken from the save's own `rank` field, which agrees
-   * with this on all 259 veterans in the builder's roster. Deriving keeps one
-   * more personal-ish field off the wire and makes the number checkable against
-   * a committed table.
+   * Nothing on the wire carries this: the web app labels a rank from the score
+   * directly, against the committed ladder in rank-ladder.ts. What this exists
+   * for is the CROSS-CHECK that binds that ladder to data with a committed
+   * source -- 92 of these 98 band minimums appear in it exactly, and
+   * rank-ladder.test.ts pins which six do not.
    *
    * This is the TIER, not its label. master.mdb has no labels: the ladder
    * (A, SS, SS+, UG, UG2...) lives in the game client.

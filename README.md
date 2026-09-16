@@ -107,6 +107,7 @@ missing-image state.
 
 ```bash
 npm run fetch:portraits --workspace @umalegacies/api
+npm run fetch:rank-icons --workspace @umalegacies/api
 ```
 
 Open the web app. It renders one committed fixture lineage, picked from the

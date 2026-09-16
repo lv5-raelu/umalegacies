@@ -1,0 +1,32 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.badge {
+  display: block;
+  background-repeat: no-repeat;
+  flex: none;
+}
+
+/* Loads the atlas only to learn whether it is there. Zero-sized, so it occupies
+   no space and shifts no layout while it resolves. */
+.probe {
+  width: 0;
+  height: 0;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The no-image state. The rank is derived from the score and stays readable
+   whether or not the optional art cache has been warmed. */
+.text {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-xs);
+}

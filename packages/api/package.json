@@ -14,7 +14,8 @@
     "check:roster": "node scripts/check-roster.mjs",
     "build:fixtures": "node -r ts-node/register scripts/build-fixtures.ts",
     "build:master": "node scripts/build-master-extract.mjs",
-    "fetch:portraits": "node scripts/fetch-portraits.mjs"
+    "fetch:portraits": "node scripts/fetch-portraits.mjs",
+    "fetch:rank-icons": "node scripts/fetch-rank-icons.mjs"
   },
   "dependencies": {
     "@nestjs/common": "12.0.1",

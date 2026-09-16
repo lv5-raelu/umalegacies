@@ -7,7 +7,7 @@ import type {
 import { Portrait } from '../lineage/Portrait';
 import type { Catalogue } from './catalogue';
 import { pickBlock, type PickBlock } from './filter';
-import { rankLabel } from './rank-labels';
+import { RankBadge } from './RankBadge';
 import { SPARK_COLOR, isWhite } from '../lineage/sparks';
 import styles from './VeteranList.module.css';
 
@@ -151,12 +151,10 @@ function Card({
         </span>
         <span className={styles.scoreBlock}>
           <span className={styles.scoreLabel}>SCORE</span>
-          <span className={styles.score}>
-            {veteran.score.toLocaleString()}
-            {/* The rank the game shows, beside the number it comes from. */}
-            {rankLabel(veteran.rankTier) && (
-              <span className={styles.rank}>{rankLabel(veteran.rankTier)}</span>
-            )}
+          <span className={styles.score}>{veteran.score.toLocaleString()}</span>
+          {/* The rank the game shows, beside the number it is banded from. */}
+          <span className={styles.rankRow}>
+            <RankBadge score={veteran.score} />
           </span>
           {pickedAt >= 0 && (
             <span className={styles.pickMark}>{pickedAt === 0 ? 'A' : 'B'}</span>
