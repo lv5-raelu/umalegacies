@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ExplainPairRequest,
   LineageResponse,
-  ResolvedVeteran,
   RosterResolveResponse,
   RosterVeteranInput,
   SparkCriterion,
@@ -97,22 +96,14 @@ export function App() {
     if (!roster) return [];
     // Sorted HERE, not on the server: `index` joins a row back to the slimmed
     // package the browser still holds, so the response stays in request order.
-    const matching = filterVeterans(roster.veterans, criterion).sort(
+    // A PICK NEVER MOVES A CARD. Selecting is not a sort key: the list holds
+    // still so the card you just clicked stays under the cursor and the one you
+    // were about to compare it against stays where you last saw it. An earlier
+    // cut pinned picks to the top and it made the list jump under the pointer.
+    return filterVeterans(roster.veterans, criterion).sort(
       (a, b) => b.score - a.score || a.self.name.localeCompare(b.self.name),
     );
-    // PICKED ROWS ARE PINNED TO THE TOP, whether or not they match.
-    //
-    // Narrowing the filter after picking one veteran used to hide it, which left
-    // the compare pane naming a parent that was nowhere on screen -- and a third
-    // pick replaces the OLDER of the two, which was exactly the invisible one.
-    // Comparing is the job, so the two things being compared stay visible and
-    // adjacent. The filter's own count still reports the match, not this list.
-    const pinned = picks
-      .map((index) => roster.veterans[index])
-      .filter((v): v is ResolvedVeteran => v !== undefined);
-    const pinnedIds = new Set(pinned.map((v) => v.index));
-    return [...pinned, ...matching.filter((v) => !pinnedIds.has(v.index))];
-  }, [roster, criterion, picks]);
+  }, [roster, criterion]);
 
   const catalogue = useMemo(
     () => catalogueOf(roster?.sparkOptions ?? []),
@@ -122,9 +113,15 @@ export function App() {
   const pick = useCallback((index: number) => {
     setPicks((current) => {
       if (current.includes(index)) return current.filter((i) => i !== index);
-      // A third pick replaces the OLDER of the two, which is what makes
-      // comparing feel like swapping one side rather than starting over.
-      return current.length < 2 ? [...current, index] : [current[1] as number, index];
+      // TWO IS THE LIMIT, and a third click does nothing rather than silently
+      // evicting a pick. Swapping a parent is a deliberate two-step: unselect
+      // the one you are replacing, then select its replacement. Auto-replacing
+      // the older pick guessed at which of the two the user meant to keep, and
+      // it guessed invisibly -- the card that vanished from the pair was
+      // whichever one they had chosen first, which is not the one they were
+      // thinking about.
+      if (current.length >= 2) return current;
+      return [...current, index];
     });
   }, []);
 
@@ -240,7 +237,7 @@ export function App() {
                 <h2 className={styles.rubric}>Your veterans</h2>
                 <span className={styles.pickNote}>
                   {picks.length === 2
-                    ? '2 of 2 picked — a third replaces the older one'
+                    ? '2 of 2 picked — unselect one to swap it'
                     : `${picks.length} of 2 picked`}
                 </span>
               </div>
@@ -301,6 +298,3 @@ function paneState(
   if (loading || !lineage) return { kind: 'loading' };
   return { kind: 'ok', lineage };
 }
-
-/** Kept so the type is referenced where it reads naturally. */
-export type { ResolvedVeteran };

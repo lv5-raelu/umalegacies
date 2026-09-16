@@ -1055,6 +1055,36 @@ raise them exist.
      their own line, so they still align. Verified no horizontal overflow at 390,
      768, 900, 1024 and 1440.
 
+  **Revised by the builder after first use, 2026-09-16.** Six corrections, and
+  four of them reverse decisions this design review took.
+
+  - **Veterans are CARDS, not dense ruled rows.** The review argued 259 bordered
+    boxes would read as a texture; the builder's point is that a veteran is a
+    discrete entity with a portrait, a score and up to 22 sparks, and it is
+    literally the thing that becomes a tree node once picked. DESIGN.md's "don't
+    use a card for anything that is not a tree node" is amended rather than left
+    contradicted.
+  - **Every white spark is named on the card**, not counted. `+7 whites` answers
+    "how many", and the only question a white raises is "is the one I want in
+    there". They wrap rather than stack: 12-19 per veteran would otherwise turn a
+    120px card into a 400px one, 259 times.
+  - **Veterans show their portrait**, at 44px, of the exact costume. Lazily
+    loaded, because the tree needed seven of these and the roster needs 259.
+  - **White spark odds belong in the compare pane.** Showing blue, pink and green
+    answered the easy question: whites are 231 distinct types across the roster
+    against 5 blue and 10 pink, and they are what decides a pick once affinity is
+    close. All 53 rows for a pair, grouped, scrolling inside the pane so the total
+    stays pinned.
+  - **Selecting never moves a card.** The pinning added during the build made the
+    list jump under the pointer.
+  - **A third pick is refused, not substituted.** Auto-replacing the older pick
+    guessed invisibly at which of the two the user meant to keep. Swapping is now
+    two deliberate steps, and unpickable cards say so by dimming rather than by
+    doing nothing when clicked.
+  - **The trainee picker is a real combobox**, with each costume's portrait and a
+    search box. A native `<option>` holds text and nothing else, which is exactly
+    what fails when the list holds "Oguri Cap" three times.
+
   *Deviation worth naming:* below 900px the plan said the compare pane becomes a
   button through to the tree page. It instead moves ABOVE the list, keeping the
   total, the odds and the button. The user still gets the number without a

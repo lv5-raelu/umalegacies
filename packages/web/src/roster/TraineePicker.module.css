@@ -1,0 +1,177 @@
+.region {
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-snug) 0;
+}
+
+.label {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: var(--space-tight);
+}
+
+.wrap {
+  position: relative;
+  max-width: 420px;
+}
+
+/* Achromatic like every other control. The portrait inside it is a datum; the
+   control around it is not. */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  cursor: pointer;
+  text-align: left;
+  min-height: 40px;
+}
+
+.trigger:hover {
+  border-color: var(--rule-strong);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.triggerPortrait {
+  --portrait-size: 26px;
+}
+
+.triggerText {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.placeholder {
+  color: var(--ink-faint);
+}
+
+.caret {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  flex: none;
+}
+
+/*
+ * The popup. Not a native <select>: a native option list cannot hold an image,
+ * and with 105 cards across 66 characters the picture is the fastest way to
+ * tell "Oguri Cap" from "Oguri Cap".
+ */
+.popup {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-xs));
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
+}
+
+.search {
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.search:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.option:hover,
+.active {
+  background: var(--track);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.optionPortrait {
+  --portrait-size: 32px;
+}
+
+.optionText {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.optionName {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionCostume {
+  display: block;
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chosen {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  flex: none;
+}
+
+.none {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  padding: var(--space-sm);
+  margin: 0;
+}

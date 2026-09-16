@@ -35,6 +35,12 @@ export function Portrait({
           className={styles.image}
           src={portraitUrl(cardId)}
           alt=""
+          // The tree shows seven of these; the roster shows 259. Lazy is the
+          // difference between one request per visible card and 259 on load,
+          // and the initials disc is already the designed state for one that
+          // has not arrived.
+          loading="lazy"
+          decoding="async"
           onError={() => setFailed(true)}
         />
       ) : (
