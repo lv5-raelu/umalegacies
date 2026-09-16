@@ -1,0 +1,20 @@
+{
+  "name": "@umalegacies/types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The wire types both workspaces read. Types only: nothing here emits JavaScript.",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"process.stdout.write('no tests: this package emits no code\\n')\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

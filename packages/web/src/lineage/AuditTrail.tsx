@@ -1,5 +1,5 @@
-import type { SparkSummaryRow } from '../api/types';
-import { ALL_POSITIONS } from '../api/types';
+import type { SparkSummaryRow } from '@umalegacies/types';
+import { ALL_POSITIONS } from './positions';
 import { positionLabel } from './positions';
 import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER, isWhite, percent } from './sparks';
 import styles from './AuditTrail.module.css';

@@ -1,4 +1,4 @@
-import type { AncestorSpark, AncestorSparkSet, ExplainNode, Resolution } from '../api/types';
+import type { AncestorSpark, AncestorSparkSet, ExplainNode, Resolution } from '@umalegacies/types';
 import { Portrait } from './Portrait';
 import { resolutionText } from './resolution';
 import { SPARK_COLOR, isWhite, plural, stars } from './sparks';

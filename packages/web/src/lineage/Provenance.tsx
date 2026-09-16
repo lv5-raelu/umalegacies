@@ -5,7 +5,7 @@ import type {
   LineageResponse,
   MasterRef,
   SparkSummaryRow,
-} from '../api/types';
+} from '@umalegacies/types';
 import { sumByRulePrefix } from './explain-node';
 import { positionLabel } from './positions';
 import { resolutionText } from './resolution';

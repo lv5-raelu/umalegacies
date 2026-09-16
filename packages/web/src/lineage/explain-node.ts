@@ -1,4 +1,4 @@
-import type { ExplainNode } from '../api/types';
+import type { ExplainNode } from '@umalegacies/types';
 
 /**
  * Sums every node whose rule id starts with the given prefix, stopping at the

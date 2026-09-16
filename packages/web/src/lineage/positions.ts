@@ -1,4 +1,7 @@
-import type { Position } from '../api/types';
+import type { Position } from '@umalegacies/types';
+
+/** Slot order as the tree renders it: parents, then grandparents left to right. */
+export const ALL_POSITIONS = [10, 20, 11, 12, 21, 22] as const satisfies readonly Position[];
 
 export type Member = Position | 'T';
 

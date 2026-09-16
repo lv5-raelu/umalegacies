@@ -8,6 +8,7 @@
     "node": ">=20.19.0"
   },
   "workspaces": [
+    "packages/types",
     "packages/api",
     "packages/web"
   ],

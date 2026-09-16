@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { AncestorIdentity, ExplainNode, LineageResponse } from '../api/types';
+import type { AncestorIdentity, ExplainNode, LineageResponse } from '@umalegacies/types';
 import { NodeCard, type NodeSubject } from './NodeCard';
 import styles from './Tree.module.css';
 

@@ -145,7 +145,29 @@ the hierarchy; nothing occupies it.
 
 ## Layout
 
-Single column, max 900px, centred. Content-driven widths, never full-bleed by habit.
+**Two layouts, and which one applies is decided by what the surface is for.**
+
+**Reading a result: single column, max 900px, centred.** Content-driven widths, never
+full-bleed by habit. The lineage tree, the audit trail and every provenance panel live here.
+Nothing about reading one answer wants more width than a line of prose.
+
+**Comparing candidates: two panes, max 1400px.** A scrolling list on the left at
+`minmax(0, 1fr)`, a sticky compare pane on the right at a fixed 380px, 32px between them.
+This is the roster screen and it is the only surface that earns it. The justification is that
+comparing is the job: the user is choosing between 259 veterans and the number they are
+choosing *against* has to stay on screen while the list moves under it. A single column would
+put the pair total above the fold at first and nowhere at all by row 40, which turns a
+comparison into a memory test.
+
+**Below 900px the panes collapse to one column** and the compare pane becomes a button
+through to its own page. There is no two-pane phone layout; 380px of pane against a 390px
+viewport is not a layout.
+
+**The tree is never a pane.** It needs 848px at its designed size, and a 380px pane forces
+120px cards, which cannot hold a 17-character name plus four spark lines. It keeps its own
+page at full single-column width, reached by a button from the compare pane. The tree is
+provenance; the pane is a decision surface; they are different jobs and the tree loses the
+fight for horizontal space every time.
 
 **The pedigree tree** is four grandparent cards across, two parent cards each spanning two
 columns, and the trainee centred below. Connectors are orthogonal brackets: each child drops to
@@ -201,6 +223,43 @@ four negatives.
 **Spark row** — a 3px colour tick at the left edge, name, star total, carrier slots, odds bar,
 two percentages. White sparks use an outlined tick rather than a filled one. No pills anywhere.
 
+**drop zone** — the first-run surface and the only thing on screen before a save is loaded.
+A ruled region, not a card: 2px dashed `rule`, `radius-md`, centred in the single column,
+with `surface` as its ground so it separates from paper. It holds exactly two lines. The first
+says what to load. The second says the file never leaves the machine, and it is placed *here*,
+at the moment of decision, because that is where the claim is earned and a footer is not. On
+drag-over the border goes solid `primary` and the ground lifts one step; nothing else moves,
+and the zone never changes size. While parsing it keeps its exact shape and swaps its second
+line for progress. On success it collapses to a one-line file summary (name, veteran count)
+with a control to replace it. On failure the error is named inside the zone and the zone stays
+usable, because the next thing the user does is pick a different file.
+
+**dense-list row** — the veteran row, two lines, 52px, separated by a 1px `rule` and nothing
+else. There is no card here: 259 bordered boxes is a texture, not a list. Line one is the score
+in mono, then the name with its costume tag, then the three named sparks each with its colour
+tick and star count, then the white count. Line two, indented past the score column and set in
+`text-faint` at 11px, names the package: `out of A x B`. The row leads with score and with what
+the veteran passes down because **names cannot identify these rows** — 255 of 259 veterans
+share a character name with another and only 29 distinct names exist across the roster, so a
+name-led list shows the same word seven times in a screen. The veteran plus its own two parents
+is 166-distinct and is the real unit of choice. Selected rows take a 2px `primary` left edge, not
+a fill. Hover lifts the ground one step. On coarse pointers rows grow to 44px minimum per line.
+
+**filter region** — a ruled region directly above the list, never floating and never a modal,
+because the result of a filter is the list and the two must be readable together. One criterion
+row: spark, comparator, star threshold, plus a scope selector. Controls are achromatic like every
+other control; the only colour in the region is the tick on a chosen spark, which is a datum. The
+region states its own result (`31 of 259`) and carries a clear action whenever it is narrowing
+anything. It sits below the trainee picker, not above it, because the working set changes with the
+trainee: measured on the roster, any two trainees' parent sets overlap only 48%.
+
+**Loading and empty, as a general rule.** A surface that is waiting keeps its own shape and says
+what it is waiting for. A surface that has nothing to show yet is **absent**, not empty and not
+disabled: before a save is parsed there is no picker and no list on the page at all, because a
+disabled control for data that does not exist yet invites a click that can never work. A surface
+that has nothing to show *after* filtering says so in place, names the filter that emptied it, and
+offers to clear it. These are three different states and they never share a treatment.
+
 **States** — hover: surface lifts one step. focus-visible: 2px `primary` ring, offset 2px, never
 removed. active: no transform. disabled: `text-faint`, no pointer events.
 
@@ -249,3 +308,8 @@ and underline offset all derive from this palette.
 | 2026-09-15 | The tree fits the column instead of scrolling | Builder's call: a sideways scrollbar under the decision surface is annoying. It only ever overflowed by 44px, because the card max-width asked for 912px against an 868px column. |
 | 2026-09-15 | Portraits key on card_id, not chara_id | A card is a costume and a costume carries its own unique skill, which is the green spark printed under the portrait. Builder caught the base costume's face rendering above the alternate costume's spark. |
 | 2026-09-15 | Portraits are cached locally, never committed | Builder's call. The art is Cygames' and gametora rehosts rather than owns it, so a repo bound for public hosting should not carry it. The initials disc was already designed, so the no-image state costs nothing. |
+| 2026-09-16 | Two panes on the roster screen, amending the single-column rule | Comparing is the job. The number being chosen against must stay on screen while 259 rows move under it; a single column puts it above the fold at first and nowhere by row 40. Scoped to that one surface. |
+| 2026-09-16 | The veteran row leads with score and sparks, not the name | Measured on the real roster: 255 of 259 veterans share a character name, 29 distinct names total, one character appears 54 times. A name-led list is unreadable. The veteran plus its own two parents is 166-distinct. |
+| 2026-09-16 | The tree keeps its own page and is never a pane | It needs 848px. A 380px pane forces 120px cards, which cannot hold a name plus four spark lines. Provenance and comparison are different jobs. |
+| 2026-09-16 | Before a save is parsed, surfaces are absent rather than disabled | A disabled control for data that does not exist yet invites a click that can never work. Absent, empty-after-filter and loading are three states with three treatments. |
+| 2026-09-16 | The local-only claim lives inside the drop zone | It is placed at the moment of decision rather than in a footer, because that is where it is being relied on. |

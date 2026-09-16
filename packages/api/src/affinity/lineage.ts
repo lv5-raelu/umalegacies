@@ -2,6 +2,7 @@ import type { MasterData } from '../master/master-data';
 import { ancestorSparks, emptySparkSet, summariseSparks } from '../sparks/sparks';
 import type { AncestorSparkSet, SparkSummaryRow } from '../sparks/spark-types';
 import { explain } from './engine';
+import type { AncestorIdentity, LineageResponse } from '@umalegacies/types';
 import {
   GRANDPARENT_POSITIONS,
   PARENT_POSITIONS,
@@ -12,60 +13,7 @@ import {
   type Resolution,
 } from './types';
 
-/**
- * Who sits in one slot, and what it can pass down.
- *
- * The affinity engine deliberately does not carry this: it computes numbers and
- * cites rows, and a portrait is neither. But a screen of seven link values with
- * no names on them cannot be read, and fixture 5531's six slots hold only three
- * distinct characters, so `El Condor Pasa <-> Inari One` appears twice with
- * different values. Position in the tree disambiguates; the name is what makes
- * position legible.
- */
-export interface AncestorIdentity {
-  position: Position;
-  cardId: number;
-  /** null when card_data has no such card; `resolution` then says so. */
-  charaId: number | null;
-  name: string;
-  sparks: AncestorSparkSet;
-  resolution: Resolution;
-}
-
-export interface LineageResponse extends ExplainResponse {
-  /**
-   * The trainee resolves or it does not, and this says which.
-   *
-   * Without it an unknown chara_id produced a CONFIDENT wrong answer: every
-   * trainee-touching base term silently collapsed (both trainee-parent links and
-   * all four three-way grandparent terms, which include the trainee), so a
-   * lineage worth 352 printed 352 -> 227 under an unqualified headline and a
-   * rank-3 verdict. types.ts says a zero from "they share nothing" and a zero
-   * from "I could not resolve this" must never look alike; this is that rule
-   * applied to the one member that had been exempt from it.
-   *
-   * The realistic trigger is not adversarial: a patch adds an uma, the extract
-   * has not been rebuilt, the user picks her.
-   */
-  trainee: {
-    charaId: number;
-    name: string;
-    /**
-     * The base costume's card, for the portrait only. The request carries no
-     * trainee card, and the trainee shows no sparks, so this affects no number.
-     */
-    portraitCardId: number | null;
-    resolution: Resolution;
-  };
-  /**
-   * Keyed by position_id, and ALWAYS carrying all six keys. An absent slot is
-   * `null`, not a missing key, so the tree keeps six slots and never reflows
-   * between one lineage and the next.
-   */
-  ancestors: Record<number, AncestorIdentity | null>;
-  /** One row per distinct spark across the whole lineage, likeliest first. */
-  sparks: SparkSummaryRow[];
-}
+export type { AncestorIdentity, LineageResponse } from '@umalegacies/types';
 
 /**
  * Three states, not two: known with relations, known with none, and never heard

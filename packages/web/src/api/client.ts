@@ -1,4 +1,9 @@
-import type { ExplainRequest, FixtureSummary, LineageResponse } from './types';
+import type {
+  ErrorResponse,
+  ExplainRequest,
+  FixtureSummary,
+  LineageResponse,
+} from '@umalegacies/types';
 
 /**
  * The API base URL. The API's CORS allowlist is explicit and must contain the
@@ -6,12 +11,7 @@ import type { ExplainRequest, FixtureSummary, LineageResponse } from './types';
  */
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000';
 
-/** Mirrors the API's ErrorResponse. Kept narrow until a shared types package earns its keep. */
-export interface ErrorResponse {
-  code: string;
-  message: string;
-  field?: string;
-}
+export type { ErrorResponse };
 
 export class ApiError extends Error {
   constructor(readonly code: string, message: string, readonly field?: string) {

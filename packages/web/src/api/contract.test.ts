@@ -1,39 +1,22 @@
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { POSITION_LABEL as apiPositions } from '../../../api/src/affinity/positions';
 import { SPARK_KIND_ORDER as apiOrder } from '../../../api/src/sparks/spark-types';
-import type { AncestorIdentity as ApiIdentity, LineageResponse as ApiLineage } from '../../../api/src/affinity/lineage';
-import type * as Api from '../../../api/src/affinity/types';
-import type * as ApiSparks from '../../../api/src/sparks/spark-types';
 import { POSITION_LABEL as webPositions } from '../lineage/positions';
 import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER as webOrder } from '../lineage/sparks';
-import type * as Web from './types';
 
 /**
- * The web app hand-mirrors the API's wire types. There is no shared package and
- * no codegen, which is a deliberate call -- but nothing enforced it, so the
- * mirror was correct only by luck: this milestone added `trainee`, `resolution`,
- * `portraitCardId`, `factorIds` and the whole spark block, and every one had to
- * be retyped by hand.
+ * What is left to check once the wire types are shared.
  *
- * `import type` erases at runtime, so this costs no build-order dependency
- * between the two workspaces.
+ * This file used to assert the web's hand-mirrored copy of every wire type was
+ * assignable to the API's, in both directions, and it earned its keep: it caught
+ * two real divergences the day it was written. @umalegacies/types deleted the
+ * mirror and with it that whole class of drift, so those assertions are gone
+ * rather than kept as tautologies -- both sides now name the same declaration.
+ *
+ * The RUNTIME tables cannot move into a types-only package, so they are still
+ * two copies and still the only thing here that can drift.
  */
-describe('the web mirror matches the API wire types', () => {
-  it('is assignable in both directions', () => {
-    expectTypeOf<ApiLineage>().toExtend<Web.LineageResponse>();
-    expectTypeOf<Web.LineageResponse>().toExtend<ApiLineage>();
-    expectTypeOf<Api.ExplainRequest>().toEqualTypeOf<Web.ExplainRequest>();
-    expectTypeOf<Api.AncestorRef>().toEqualTypeOf<Web.AncestorRef>();
-    expectTypeOf<Api.ExplainNode>().toEqualTypeOf<Web.ExplainNode>();
-    expectTypeOf<Api.Resolution>().toEqualTypeOf<Web.Resolution>();
-    expectTypeOf<Api.MasterRef>().toEqualTypeOf<Web.MasterRef>();
-    expectTypeOf<Api.RuleId>().toEqualTypeOf<Web.RuleId>();
-    expectTypeOf<ApiIdentity>().toEqualTypeOf<Web.AncestorIdentity>();
-    expectTypeOf<ApiSparks.SparkKind>().toEqualTypeOf<Web.SparkKind>();
-    expectTypeOf<ApiSparks.SparkSummaryRow>().toEqualTypeOf<Web.SparkSummaryRow>();
-    expectTypeOf<ApiSparks.AncestorSparkSet>().toEqualTypeOf<Web.AncestorSparkSet>();
-  });
-
+describe('the runtime tables the two workspaces each keep a copy of', () => {
   it('names every slot the same way the engine does', () => {
     // The engine bakes these labels into every link label ("Oguri Cap (Trainee)
     // <-> Mejiro Dober (P1)"), and the tree prints them beside the cards. If
