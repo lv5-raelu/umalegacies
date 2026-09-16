@@ -1,0 +1,121 @@
+import type { RosterMemberInput, RosterVeteranInput } from '@umalegacies/types';
+
+/**
+ * Turns the game's `data.json` into the three public fields per uma that the API
+ * is allowed to see.
+ *
+ * THIS FUNCTION IS THE PRIVACY PROMISE. The screen says the file never leaves
+ * your machine, and what makes that true is not a server policy but this: the
+ * request is BUILT from an allowlist, so a personal field has no path onto the
+ * wire even by accident. A save entry carries `owner_viewer_id` on every ancestor
+ * slot -- 184 distinct 12-digit trainer ids belonging to OTHER players in the
+ * builder's own file -- plus nicknames, registration timestamps, stats, skills,
+ * race history and the save's internal `trained_chara_id`. None of them are read
+ * here, so none of them can be sent.
+ *
+ * Measured on the builder's save: 5,283,444 bytes in, 160,495 out.
+ */
+export class SaveError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SaveError';
+  }
+}
+
+/** The veteran's own slots 10 and 20, which become the grandparents beneath it. */
+const PARENT_SLOTS = [10, 20] as const;
+
+export function slimSave(text: string): RosterVeteranInput[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new SaveError(
+      'That file is not valid JSON. Export your trained characters again and pick the ' +
+        'data.json the exporter writes.',
+    );
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new SaveError(
+      'That JSON file is not a roster. data.json is a list of trained characters; this ' +
+        `file is ${describe(parsed)}.`,
+    );
+  }
+  if (parsed.length === 0) {
+    throw new SaveError('That roster is empty. There are no trained characters in it to compare.');
+  }
+
+  const veterans = parsed.map((entry, i) => slimVeteran(entry, i));
+  return veterans;
+}
+
+function slimVeteran(entry: unknown, index: number): RosterVeteranInput {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+    throw new SaveError(`Entry ${index + 1} in that roster is not a trained character.`);
+  }
+  const raw = entry as Record<string, unknown>;
+
+  const slots = Array.isArray(raw.succession_chara_array) ? raw.succession_chara_array : [];
+  const slotAt = (position: number): unknown =>
+    slots.find(
+      (s) => typeof s === 'object' && s !== null && (s as Record<string, unknown>).position_id === position,
+    );
+
+  return {
+    // rank_score is the only figure here that is not an id into master.mdb. It
+    // is the game's own strength number for the veteran and it leads every row.
+    score: typeof raw.rank_score === 'number' ? raw.rank_score : 0,
+    self: slimMember(raw, `entry ${index + 1}`),
+    // A missing slot is null rather than an error: the engine models an absent
+    // ancestor deliberately, so a veteran with an empty parent slot is usable.
+    parents: [
+      optionalMember(slotAt(PARENT_SLOTS[0])),
+      optionalMember(slotAt(PARENT_SLOTS[1])),
+    ],
+  };
+}
+
+const optionalMember = (slot: unknown): RosterMemberInput | null =>
+  slot === undefined ? null : slimMember(slot as Record<string, unknown>, 'an ancestor slot');
+
+function slimMember(raw: Record<string, unknown>, where: string): RosterMemberInput {
+  const cardId = raw.card_id;
+  if (typeof cardId !== 'number' || !Number.isInteger(cardId)) {
+    throw new SaveError(
+      `${where} has no card_id, so there is no way to tell which uma it is. That file ` +
+        'does not look like a trained-character export.',
+    );
+  }
+  return {
+    cardId,
+    // Deduped because the API refuses repeats: a repeated spark would be counted
+    // as a second independent carrier and inflate both its star total and its
+    // odds. Never observed in a real save, but this is user-supplied data.
+    winSaddleIds: unique(numbers(raw.win_saddle_id_array)),
+    // Only the factor IDS travel. The sibling `level` is 0 on all 1,554 ancestor
+    // slots in the builder's roster, so it carries no information.
+    factorIds: unique(
+      Array.isArray(raw.factor_info_array)
+        ? raw.factor_info_array
+            .map((f) =>
+              typeof f === 'object' && f !== null
+                ? (f as Record<string, unknown>).factor_id
+                : undefined,
+            )
+            .filter((id): id is number => typeof id === 'number' && Number.isInteger(id))
+        : [],
+    ),
+  };
+}
+
+const numbers = (value: unknown): number[] =>
+  Array.isArray(value) ? value.filter((n): n is number => typeof n === 'number' && Number.isInteger(n)) : [];
+
+const unique = (ids: number[]): number[] => [...new Set(ids)];
+
+function describe(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value === 'object') return 'a single object';
+  return `a ${typeof value}`;
+}

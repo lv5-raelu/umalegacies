@@ -1,0 +1,242 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/*
+ * A dense list, not 259 cards. DESIGN.md reserves the card for tree nodes, and
+ * 259 bordered boxes is a texture rather than a list. One rule between rows.
+ */
+.row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-left: 2px solid transparent;
+  padding: var(--space-tight) var(--space-snug);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  color: var(--ink);
+}
+
+.row:hover {
+  background: var(--surface);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+/* Selection is a left edge, never a fill: a filled row would read as a datum. */
+.picked {
+  border-left-color: var(--ink);
+  background: var(--surface);
+}
+
+.unresolved {
+  opacity: 0.55;
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-snug);
+}
+
+/* The row leads with score. Names cannot identify these rows: 255 of 259
+   veterans share a character name with another and there are 29 distinct
+   names in the whole roster. */
+.score {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  min-width: 6ch;
+  text-align: right;
+  flex: none;
+}
+
+.name {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+}
+
+.costume {
+  color: var(--ink-faint);
+  font-size: var(--text-2xs);
+}
+
+.sparks {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-snug);
+  margin-left: auto;
+  flex: none;
+}
+
+/*
+ * FIXED WIDTHS, so the three columns line up down the whole list.
+ *
+ * Sized from the real data rather than guessed: across the builder's roster the
+ * blue names are 5 distinct values of at most 7 characters, the pinks 10 values
+ * of at most 12, and the greens 36 values running to 35 characters. Letting them
+ * size to content left the blue column starting anywhere between x=555 and
+ * x=676 on consecutive rows, which is the one thing a comparison list cannot
+ * afford: the eye has to be able to run down a column.
+ *
+ * The group is flush right and every row now has the same total width, so the
+ * columns align without a grid spanning the two lines.
+ */
+.spark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  flex: none;
+}
+
+.blue {
+  width: 10ch;
+}
+
+.pink {
+  width: 13ch;
+}
+
+/* The unique skill, and the only one that ever needs truncating. Its full text
+   is on the tree page, and the star count beside it never truncates. */
+.green {
+  width: 21ch;
+}
+
+.sparkName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Colour is a 3px tick and nothing else. Never a fill. */
+.tick {
+  width: 3px;
+  align-self: stretch;
+  min-height: 11px;
+  border-radius: 1px;
+  flex: none;
+}
+
+.stars {
+  font-family: var(--font-data);
+  color: var(--ink);
+  flex: none;
+}
+
+.whites {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  white-space: nowrap;
+  width: 10ch;
+  text-align: right;
+  flex: none;
+}
+
+/* Line two: the package. A veteran plus its own two parents is 166-distinct
+   against the bare name's 29. */
+.package {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin-top: var(--space-hair);
+  padding-left: calc(6ch + var(--space-snug));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pickMark {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-xs);
+  flex: none;
+}
+
+.empty {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  padding: var(--space-lg) 0;
+}
+
+.clear {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 0;
+  cursor: pointer;
+}
+
+/*
+ * Narrow: the row stacks instead of overflowing.
+ *
+ * The fixed spark columns come to 424px, which is wider than a 390px phone on
+ * its own, so keeping score, name and sparks on one line pushed the document to
+ * 554px and scrolled the whole page sideways. DESIGN.md: the page body never
+ * scrolls horizontally. The sparks keep their fixed widths on their own line, so
+ * the columns still align down the list -- only the line they sit on changes.
+ */
+@media (max-width: 720px) {
+  .top {
+    flex-wrap: wrap;
+  }
+  .name {
+    flex: 1 1 auto;
+  }
+  .sparks {
+    margin-left: 0;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    row-gap: var(--space-hair);
+  }
+  .whites {
+    width: auto;
+    text-align: left;
+  }
+  .package {
+    padding-left: 0;
+  }
+}
+
+/* Narrower still: the 21ch unique-skill column alone is most of the viewport. */
+@media (max-width: 420px) {
+  .green {
+    width: 100%;
+  }
+}
+
+@media (pointer: coarse) {
+  .row {
+    padding: var(--space-snug);
+  }
+  .top {
+    min-height: 44px;
+    align-items: center;
+  }
+}

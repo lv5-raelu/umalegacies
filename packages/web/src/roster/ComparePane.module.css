@@ -1,0 +1,158 @@
+.pane {
+  position: sticky;
+  top: var(--space-lg);
+  align-self: start;
+}
+
+.rubric {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  margin: 0 0 var(--space-snug);
+  padding-bottom: var(--space-tight);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* The one large number on this screen, and it stays the PAIR TOTAL. With no
+   filter set, a "chance of your desired sparks" headline would show nothing. */
+.total {
+  font-family: var(--font-data);
+  font-size: var(--text-display);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: var(--tracking-display);
+}
+
+/* An aggregate prints its addends beneath it, permanently. */
+.addends {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  margin-top: var(--space-tight);
+}
+
+.disagree {
+  color: var(--error);
+}
+
+.rank {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-hair) var(--space-snug);
+  display: inline-block;
+  margin-top: var(--space-snug);
+}
+
+.pair {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  margin: var(--space-snug) 0 0;
+}
+
+.slot {
+  display: block;
+  margin-top: var(--space-xs);
+}
+
+.slotLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  margin-right: var(--space-sm);
+}
+
+.odds {
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-snug);
+}
+
+.oddsRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  padding: var(--space-xs) 0;
+}
+
+.tick {
+  width: 3px;
+  align-self: stretch;
+  min-height: 12px;
+  border-radius: 1px;
+  flex: none;
+}
+
+.oddsName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oddsValue {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  flex: none;
+}
+
+.oddsStars {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  flex: none;
+}
+
+.oddsRubric {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  margin: 0 0 var(--space-tight);
+}
+
+.hint {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  margin: var(--space-snug) 0 0;
+}
+
+.quiet {
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+}
+
+.error {
+  color: var(--error);
+  font-size: var(--text-xs);
+}
+
+.open {
+  display: inline-block;
+  margin-top: var(--space-lg);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--on-primary, #121317);
+  background: var(--ink);
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+}
+
+.open:hover {
+  background: #ffffff;
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}

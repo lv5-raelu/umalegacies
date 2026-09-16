@@ -1,0 +1,95 @@
+/* The trainee picker and the filter share their control vocabulary. */
+.region {
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-snug) 0;
+}
+
+.label {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: var(--space-tight);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/* Achromatic, always. DESIGN.md: nothing clickable is ever a spark colour,
+   because a coloured control would read as a datum. */
+.select,
+.number {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  max-width: 100%;
+}
+
+.number {
+  font-family: var(--font-data);
+  flex: none;
+}
+
+.select:focus-visible,
+.number:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.grow {
+  flex: 1 1 14ch;
+  min-width: 0;
+}
+
+.result {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.clear {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-hair) var(--space-snug);
+  cursor: pointer;
+}
+
+.clear:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.clear:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.note {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin: var(--space-tight) 0 0;
+}
+
+.warn {
+  color: var(--bonus);
+}
+
+.echo {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}

@@ -1,8 +1,12 @@
 import type {
   ErrorResponse,
+  ExplainPairRequest,
   ExplainRequest,
   FixtureSummary,
   LineageResponse,
+  RosterResolveResponse,
+  RosterVeteranInput,
+  TraineeOption,
 } from '@umalegacies/types';
 
 /**
@@ -103,3 +107,38 @@ export const explainLineage = (
   masterHash?: string,
 ): Promise<LineageResponse> =>
   post<LineageResponse>('/affinity/explain', masterHash ? { ...request, masterHash } : request);
+
+/**
+ * Resolves a slimmed roster into names, costumes and sparks.
+ *
+ * `veterans` has already been through `slimSave`, so it carries three public
+ * fields per uma and nothing personal. Do not pass a raw save here.
+ */
+export const resolveRoster = (
+  veterans: RosterVeteranInput[],
+  masterHash?: string,
+): Promise<RosterResolveResponse> =>
+  post<RosterResolveResponse>(
+    '/roster/resolve',
+    masterHash ? { veterans, masterHash } : { veterans },
+  );
+
+/** Every trainable card. Master data, so it does not depend on the save. */
+export const fetchTrainees = (): Promise<{ trainees: TraineeOption[]; masterHash: string }> =>
+  get<{ trainees: TraineeOption[]; masterHash: string }>('/roster/trainees');
+
+/**
+ * Explains a chosen pair.
+ *
+ * The client sends two three-uma packages and the SERVER composes them into six
+ * positioned slots. Nothing here builds an ExplainRequest: a mis-composed one is
+ * still well-formed and returns a confident, plausible, wrong total.
+ */
+export const explainPair = (
+  request: ExplainPairRequest,
+  masterHash?: string,
+): Promise<LineageResponse> =>
+  post<LineageResponse>(
+    '/affinity/explain-pair',
+    masterHash ? { ...request, masterHash } : request,
+  );
