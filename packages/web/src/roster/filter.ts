@@ -65,31 +65,41 @@ export const MAX_STARS_PER_UMA = 3;
 /**
  * Why a veteran cannot be picked right now, or null if it can.
  *
- * Two rules, and the second is a rule of the GAME rather than of this screen:
+ * Three rules, and two of them are rules of the GAME rather than of this screen.
  *
- * 1. Two parents is the whole lineage. A third pick is refused rather than
+ * 1. **A parent cannot be the trainee.** You are not your own parent. Note the
+ *    narrowness: this blocks the PARENT slot only. The trainee's character may
+ *    still appear as a grandparent -- fixture 5774 is exactly that, and the
+ *    engine models it deliberately, suppressing the base term while the bonus
+ *    survives. So a veteran whose own mother is the trainee is still a perfectly
+ *    good parent; only the veteran itself is barred.
+ * 2. **The two parents cannot be the same uma**, whatever costume each wears.
+ * 3. Two parents is the whole lineage. A third pick is refused rather than
  *    silently evicting one, so swapping is unselect-then-select.
- * 2. **The two parents cannot be the same uma**, whatever costume each is
- *    wearing. Oguri Cap [Starlight Beat] and Oguri Cap [Ashen Miracle] are two
- *    cards of one character, so they cannot fill both parent slots -- the
- *    comparison is by `charaId`, never by `cardId`, because card equality would
- *    wave the pair through on a costume change.
  *
- * An unresolved member has a null `charaId`. It is never blocked by this rule:
- * we cannot show it is the same character, and refusing a pick on a lookup
- * failure would punish the user for a stale master extract.
+ * Every comparison is by `charaId`, never `cardId`: two costumes of one
+ * character are still one character, and card equality would wave through
+ * precisely the cases these rules exist for.
+ *
+ * An unresolved member has a null `charaId` and is never blocked by the identity
+ * rules. We cannot show it is the same character, and refusing a pick on a
+ * lookup failure would punish the user for a stale master extract.
  */
-export type PickBlock = 'pair-full' | 'same-uma';
+export type PickBlock = 'is-trainee' | 'same-uma' | 'pair-full';
 
 export function pickBlock(
   veteran: ResolvedVeteran,
   picked: readonly ResolvedVeteran[],
+  traineeCharaId: number | null,
 ): PickBlock | null {
   if (picked.some((p) => p.index === veteran.index)) return null;
-  if (picked.some((p) => sameUma(p, veteran))) return 'same-uma';
+  // Ordered by how actionable the reason is. "Unselect one to swap it" is
+  // useless advice for a card that can never be a parent at all.
+  if (isChara(veteran, traineeCharaId)) return 'is-trainee';
+  if (picked.some((p) => isChara(veteran, p.self.charaId))) return 'same-uma';
   if (picked.length >= 2) return 'pair-full';
   return null;
 }
 
-const sameUma = (a: ResolvedVeteran, b: ResolvedVeteran): boolean =>
-  a.self.charaId !== null && a.self.charaId === b.self.charaId;
+const isChara = (veteran: ResolvedVeteran, charaId: number | null): boolean =>
+  charaId !== null && veteran.self.charaId === charaId;

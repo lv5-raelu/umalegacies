@@ -101,40 +101,60 @@ describe('filterVeterans', () => {
 describe('pickBlock: what the pair will not accept', () => {
   const OGURI = 1006;
   const GOLD_SHIP = 1007;
-  // Two CARDS of one character. This is the case the rule exists for: different
-  // costumes, different unique skills, same uma.
+  const SUZUKA = 1002;
+  // Two CARDS of one character. This is the case the identity rules exist for:
+  // different costumes, different unique skills, same uma.
   const oguriStarlight = veteran([0, 0, 0], { index: 0, cardId: 100601, charaId: OGURI });
   const oguriAshen = veteran([0, 0, 0], { index: 1, cardId: 100602, charaId: OGURI });
   const goldShip = veteran([0, 0, 0], { index: 2, cardId: 100701, charaId: GOLD_SHIP });
+  const suzuka = veteran([0, 0, 0], { index: 3, cardId: 100201, charaId: SUZUKA });
 
-  it('accepts anything when nothing is picked', () => {
-    expect(pickBlock(oguriStarlight, [])).toBeNull();
+  it('accepts anything when nothing is picked and no trainee is chosen', () => {
+    expect(pickBlock(oguriStarlight, [], null)).toBeNull();
   });
 
-  it('refuses the same uma in the other parent slot, across costumes', () => {
-    // Comparison is by charaId, never cardId: 100601 and 100602 are different
-    // cards, and card equality would wave this pair straight through.
-    expect(pickBlock(oguriAshen, [oguriStarlight])).toBe('same-uma');
+  describe('a parent cannot be the trainee', () => {
+    it('blocks the trainee itself', () => {
+      expect(pickBlock(oguriStarlight, [], OGURI)).toBe('is-trainee');
+    });
+
+    it('blocks a DIFFERENT costume of the trainee', () => {
+      // The whole point of comparing by charaId: the user trains one card and
+      // owns another of the same character, and they are still one uma.
+      expect(pickBlock(oguriAshen, [], OGURI)).toBe('is-trainee');
+    });
+
+    it('leaves every other uma alone', () => {
+      expect(pickBlock(goldShip, [], OGURI)).toBeNull();
+    });
+
+    it('is reported ahead of the other reasons, being the least recoverable', () => {
+      // "Unselect one to swap it" is useless advice for a card that can never be
+      // a parent of this trainee at all.
+      expect(pickBlock(oguriAshen, [goldShip, suzuka], OGURI)).toBe('is-trainee');
+    });
   });
 
-  it('still accepts a different uma while one slot is open', () => {
-    expect(pickBlock(goldShip, [oguriStarlight])).toBeNull();
+  describe('the two parents cannot be the same uma', () => {
+    it('refuses the same uma in the other slot, across costumes', () => {
+      expect(pickBlock(oguriAshen, [oguriStarlight], null)).toBe('same-uma');
+    });
+
+    it('still accepts a different uma while one slot is open', () => {
+      expect(pickBlock(goldShip, [oguriStarlight], null)).toBeNull();
+    });
   });
 
   it('never blocks the already-picked card, so it can be unselected', () => {
-    expect(pickBlock(oguriStarlight, [oguriStarlight])).toBeNull();
-    expect(pickBlock(oguriStarlight, [oguriStarlight, goldShip])).toBeNull();
+    expect(pickBlock(oguriStarlight, [oguriStarlight], null)).toBeNull();
+    expect(pickBlock(oguriStarlight, [oguriStarlight, goldShip], null)).toBeNull();
+    // Even when the trainee changed underneath it: the card has to remain
+    // unselectable-away, or the pair would be stuck in a state the rules forbid.
+    expect(pickBlock(oguriStarlight, [oguriStarlight], OGURI)).toBeNull();
   });
 
   it('refuses a third pick once two are chosen', () => {
-    const other = veteran([0, 0, 0], { index: 3, cardId: 100801, charaId: 1008 });
-    expect(pickBlock(other, [oguriStarlight, goldShip])).toBe('pair-full');
-  });
-
-  it('reports same-uma ahead of pair-full, because that is the actionable reason', () => {
-    // "Unselect one to swap it" is useless advice when the real problem is that
-    // this card can never be the other parent.
-    expect(pickBlock(oguriAshen, [oguriStarlight, goldShip])).toBe('same-uma');
+    expect(pickBlock(suzuka, [oguriStarlight, goldShip], null)).toBe('pair-full');
   });
 
   it('does not block an unresolved card, whose character is unknown', () => {
@@ -142,6 +162,7 @@ describe('pickBlock: what the pair will not accept', () => {
     // same uma, and refusing the pick would punish the user for a stale extract.
     const unknownA = veteran([0, 0, 0], { index: 4, cardId: 999998, charaId: null });
     const unknownB = veteran([0, 0, 0], { index: 5, cardId: 999999, charaId: null });
-    expect(pickBlock(unknownB, [unknownA])).toBeNull();
+    expect(pickBlock(unknownB, [unknownA], null)).toBeNull();
+    expect(pickBlock(unknownB, [], OGURI)).toBeNull();
   });
 });

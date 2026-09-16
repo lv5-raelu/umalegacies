@@ -1081,6 +1081,15 @@ raise them exist.
     guessed invisibly at which of the two the user meant to keep. Swapping is now
     two deliberate steps, and unpickable cards say so by dimming rather than by
     doing nothing when clicked.
+  - **A parent cannot be the trainee, and the trainee is chosen FIRST.** Two game
+    rules the plan never recorded, and the second follows from the first: which
+    veterans are legal parents depends on who is being trained, so the roster is
+    absent until that choice is made rather than shown and inert. The storyboard
+    had the roster appear before the trainee; that order was wrong. Note the
+    rule's narrowness -- it bars the PARENT slot only, and the trainee's
+    character may still appear as a grandparent, which is fixture 5774 exactly
+    and which the engine already models by suppressing the base term while the
+    bonus survives.
   - **The two parents cannot be the same uma.** A game rule the plan never
     recorded. Compared by `chara_id`, so the two Oguri Cap costumes cannot fill
     both slots. On the builder's roster, picking one Oguri Cap blocks 53 others,

@@ -106,6 +106,11 @@ export function App() {
     );
   }, [roster, criterion]);
 
+  const trainee = useMemo(
+    () => trainees.find((t) => t.cardId === traineeCardId) ?? null,
+    [trainees, traineeCardId],
+  );
+
   /**
    * The picked veterans themselves. Kept separate from `shown` because a filter
    * can hide a pick, and the rules that depend on what is already picked --
@@ -131,7 +136,8 @@ export function App() {
       // The rule lives in one place and is enforced here too, not only by the
       // card refusing its own click: a keyboard or a stale render must not be
       // able to compose a pair the game does not allow.
-      if (veteran && pickBlock(veteran, pickedVeterans) !== null) return;
+      if (veteran && pickBlock(veteran, pickedVeterans, trainee?.charaId ?? null) !== null)
+        return;
       setPicks((current) => {
         if (current.includes(index)) return current.filter((i) => i !== index);
         // TWO IS THE LIMIT, and a third click does nothing rather than
@@ -143,16 +149,25 @@ export function App() {
         return [...current, index];
       });
     },
-    [roster, pickedVeterans],
+    [roster, pickedVeterans, trainee],
   );
+
+  // Changing the trainee can invalidate a pick that was legal a moment ago: you
+  // are not your own parent. Drop those rather than leave the pair in a state
+  // the rules forbid and the pick handler would refuse to recreate.
+  useEffect(() => {
+    if (!roster || trainee === null) return;
+    setPicks((current) =>
+      current.filter((index) => roster.veterans[index]?.self.charaId !== trainee.charaId),
+    );
+  }, [roster, trainee]);
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
-    if (!save || !roster || traineeCardId === null || picks.length !== 2) {
+    if (!save || !roster || trainee === null || picks.length !== 2) {
       setLineage(null);
       return;
     }
-    const trainee = trainees.find((t) => t.cardId === traineeCardId);
     if (!trainee) return;
 
     const request: ExplainPairRequest = {
@@ -186,7 +201,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [save, roster, trainees, traineeCardId, picks]);
+  }, [save, roster, trainee, picks]);
 
   if (onTreePage && lineage) {
     return (
@@ -247,29 +262,51 @@ export function App() {
                 chosen={traineeCardId}
                 onChoose={setTraineeCardId}
               />
-              <SparkFilter
-                options={roster.sparkOptions}
-                criterion={criterion}
-                matching={shown.length}
-                total={roster.veterans.length}
-                onChange={setCriterion}
-              />
-              <div className={styles.listHead}>
-                <h2 className={styles.rubric}>Your veterans</h2>
-                <span className={styles.pickNote}>
-                  {picks.length === 2
-                    ? '2 of 2 picked — unselect one to swap it'
-                    : `${picks.length} of 2 picked`}
-                </span>
-              </div>
-              <VeteranList
-                veterans={shown}
-                pickedVeterans={pickedVeterans}
-                catalogue={catalogue}
-                picked={picks}
-                onPick={pick}
-                onClearFilter={() => setCriterion(null)}
-              />
+              {/*
+                THE TRAINEE COMES FIRST, and the roster is absent until it is
+                chosen rather than shown and inert.
+                Not merely a sequencing preference: who you are training decides
+                which veterans are legal parents, because a parent cannot be the
+                trainee. Showing 259 cards before that is known means showing
+                cards that are about to become unpickable, and a list that
+                rearranges its own rules under the reader is worse than a list
+                that waits. DESIGN.md: a surface with nothing useful to show yet
+                is absent, not disabled.
+              */}
+              {trainee === null ? (
+                <p className={styles.gate}>
+                  Choose who you are training first. Which veterans can be its
+                  parents depends on it — a parent cannot be the same uma as the
+                  trainee.
+                </p>
+              ) : (
+                <>
+                  <SparkFilter
+                    options={roster.sparkOptions}
+                    criterion={criterion}
+                    matching={shown.length}
+                    total={roster.veterans.length}
+                    onChange={setCriterion}
+                  />
+                  <div className={styles.listHead}>
+                    <h2 className={styles.rubric}>Parents for {trainee.name}</h2>
+                    <span className={styles.pickNote}>
+                      {picks.length === 2
+                        ? '2 of 2 picked — unselect one to swap it'
+                        : `${picks.length} of 2 picked`}
+                    </span>
+                  </div>
+                  <VeteranList
+                    veterans={shown}
+                    pickedVeterans={pickedVeterans}
+                    catalogue={catalogue}
+                    picked={picks}
+                    traineeCharaId={trainee.charaId}
+                    onPick={pick}
+                    onClearFilter={() => setCriterion(null)}
+                  />
+                </>
+              )}
             </div>
 
             <div className={styles.paneColumn}>

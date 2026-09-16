@@ -25,6 +25,7 @@ export function VeteranList({
   pickedVeterans,
   catalogue,
   picked,
+  traineeCharaId,
   onPick,
   onClearFilter,
 }: {
@@ -33,6 +34,8 @@ export function VeteranList({
   pickedVeterans: readonly ResolvedVeteran[];
   catalogue: Catalogue;
   picked: readonly number[];
+  /** Who is being trained. A parent cannot be the same uma. */
+  traineeCharaId: number | null;
   onPick: (index: number) => void;
   onClearFilter: () => void;
 }) {
@@ -56,7 +59,7 @@ export function VeteranList({
             veteran={veteran}
             catalogue={catalogue}
             pickedAt={picked.indexOf(veteran.index)}
-            block={pickBlock(veteran, pickedVeterans)}
+            block={pickBlock(veteran, pickedVeterans, traineeCharaId)}
             onPick={() => onPick(veteran.index)}
           />
         </li>
@@ -66,8 +69,16 @@ export function VeteranList({
 }
 
 const BLOCK_REASON: Readonly<Record<PickBlock, string>> = {
+  'is-trainee': 'This is the uma you are training. A parent cannot be the trainee.',
+  'same-uma':
+    'Already picked as the other parent. The two parents cannot be the same uma, whatever costume each wears.',
   'pair-full': 'Two are already picked. Unselect one to swap it.',
-  'same-uma': 'Already picked as the other parent. The two parents cannot be the same uma, whatever costume each wears.',
+};
+
+/** Said in place as well as in the tooltip, for the reasons a reader can act on. */
+const BLOCK_NOTE: Readonly<Partial<Record<PickBlock, string>>> = {
+  'is-trainee': 'this is the uma you are training — a parent cannot be the trainee',
+  'same-uma': 'already picked as the other parent — the two parents must be different umas',
 };
 
 function Card({
@@ -174,12 +185,10 @@ function Card({
         )}
       </span>
 
-      {block === 'same-uma' && (
-        // Said in place, not only in a tooltip: a card that refuses a click has
-        // to explain itself where the click happened.
-        <span className={styles.blockNote}>
-          already picked as the other parent — the two parents must be different umas
-        </span>
+      {block && BLOCK_NOTE[block] && (
+        // A card that refuses a click explains itself where the click happened,
+        // not only in a tooltip nobody hovers for.
+        <span className={styles.blockNote}>{BLOCK_NOTE[block]}</span>
       )}
 
       {!veteran.ok && (
