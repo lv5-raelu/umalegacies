@@ -45,8 +45,8 @@ if (!existsSync(masterPath)) {
  *
  * GROWING THIS LIST is a one-line change plus a regeneration. M5 (spark odds)
  * will want succession_factor, whose `rarity` column is the star count.
- * text_data is filtered because it holds every string in the game: category 6
- * is chara names and 111 is win-saddle epithets, and nothing else is read.
+ * text_data is filtered because it holds every string in the game: only the
+ * four categories named on the entry below are read.
  */
 const TABLES = [
   { name: 'succession_relation', where: null },
@@ -62,13 +62,19 @@ const TABLES = [
   // and relation labelling was dropped -- but it is 7 KB and the roster screens
   // in M3 are the likely first consumer.
   { name: 'chara_data', where: null },
-  // 6 chara names, 111 win-saddle epithets, 147 spark names. 147 names 100% of
-  // the 663 factor ids a real roster surfaces; succession_factor without it is
-  // star counts with nothing to call them.
+  // 5 costume labels, 6 chara names, 111 win-saddle epithets, 147 spark names.
+  // 147 names 100% of the 663 factor ids a real roster surfaces;
+  // succession_factor without it is star counts with nothing to call them.
+  // Category 5 is keyed by CARD id and holds the bracketed costume alone
+  // ("[Special Dreamer]"); category 4 is the same label with the character
+  // name already appended, which would force splitting a string to get either
+  // half back. All 105 cards have a row in 5, and 74 of them belong to a
+  // character with more than one card, so without this the trainee picker
+  // lists "Oguri Cap" three times identically.
   // Category 172 holds spark DESCRIPTIONS ("A Spark that increases Guts and max
   // Guts value."). Left out deliberately: 10.7 KB in git and nothing reads it.
   // Add it to this list when a tooltip actually needs it.
-  { name: 'text_data', where: 'WHERE category IN (6, 111, 147)' },
+  { name: 'text_data', where: 'WHERE category IN (5, 6, 111, 147)' },
 ];
 
 const db = new Database(masterPath, { readonly: true, fileMustExist: true });
