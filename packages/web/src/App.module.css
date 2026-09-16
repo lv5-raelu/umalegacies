@@ -210,6 +210,13 @@
   color: var(--ink-faint);
 }
 
+.gate {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  max-width: 56ch;
+  margin: var(--space-xl) 0 0;
+}
+
 .listHead {
   display: flex;
   align-items: baseline;
