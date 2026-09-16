@@ -25,18 +25,33 @@ An npm-workspaces monorepo.
 
 ```
 packages/
+  types/  The wire types both sides read. Types only; emits no JavaScript.
   api/    NestJS. Reads master.mdb, resolves IDs to names, computes affinity.
   web/    React + Vite + TypeScript. All UI.
 ```
+
+**`packages/types` has no build step**, and that is what makes it affordable. Every import
+of it is an `import type`, which erases, so neither workspace gains a build-order dependency
+on it and `tsc`, Vite and Vitest all read it as plain source. The rule that keeps this true
+is that nothing in it may emit a runtime value -- no `const`, no `enum`, no function -- and
+`packages/api/src/types-package.test.ts` enforces that, because the failure mode is invisible
+until the built API tries to `require` a `.ts` file at startup. Runtime tables that describe
+these shapes (position tuples, spark base rates, render order) stay in the workspace that
+owns the behaviour. It replaced a 158-line hand-mirrored copy in the web app.
 
 **Why a backend at all:** because it is the version worth writing, not because a static
 build is impossible. A slim extract of `master.mdb` would fit in a browser — other tools in
 this space ship one at around 80 KB — so this is a preference, and it is recorded as one in
 `docs/designs/`. The API owns the database and the web app asks questions of it.
 
-**Data flow:** you export your trained characters as `data.json` and upload it. The API
-resolves the raw IDs into names, skills, sparks and race wins. The web app caches the
-resolved roster locally and never re-uploads it.
+**Data flow:** you export your trained characters as `data.json` and open it. The browser
+parses it and **slims it to three public fields per uma** (card id, win-saddle ids, spark
+factor ids) before anything is sent; the API resolves those raw ids into names, costumes and
+sparks, and retains nothing. Personal fields -- `owner_viewer_id`, which is other players'
+12-digit trainer ids, plus nicknames, timestamps, stats, skills and race history -- have no
+wire representation at all, so the promise that the save stays on your machine is enforced
+by the request shape rather than by server policy. Caching the resolved roster across page
+loads is M3.1; today a reload re-reads the file.
 
 ### Domain model
 

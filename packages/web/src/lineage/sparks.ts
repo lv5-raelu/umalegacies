@@ -1,4 +1,4 @@
-import type { SparkKind } from '../api/types';
+import type { SparkKind } from '@umalegacies/types';
 
 /**
  * A spark's hue is category identity, never decoration, and it appears only as

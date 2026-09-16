@@ -5,7 +5,7 @@ import {
   fetchFixture,
   fetchFixtureNames,
 } from './api/client';
-import type { LineageResponse, SparkSummaryRow } from './api/types';
+import type { LineageResponse, SparkSummaryRow } from '@umalegacies/types';
 import { AuditTrail } from './lineage/AuditTrail';
 import {
   LinkProvenance,

@@ -1,4 +1,4 @@
-import type { Resolution } from '../api/types';
+import type { Resolution } from '@umalegacies/types';
 
 /**
  * The one sentence this app uses to report a failed lookup.

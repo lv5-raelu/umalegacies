@@ -1,21 +1,24 @@
-import type { Position } from '../affinity/types';
-
 /**
- * The spark taxonomy and the wire types for the lineage spark summary.
+ * The spark taxonomy and the runtime tables behind it.
  *
  * Kept separate from affinity/types.ts because nothing here feeds an affinity
  * rule: sparks are what the affinity numbers are FOR. The one dependency runs
  * the other way, since a spark's activation rate is scaled by the Individual
  * Affinity of the ancestor carrying it.
+ *
+ * The wire SHAPES live in @umalegacies/types and are re-exported here so the
+ * import sites do not care which of the two files a name comes from. What stays
+ * is the runtime: the factor_type map, the base rates, and the render order.
  */
+export type {
+  AncestorSpark,
+  AncestorSparkSet,
+  SparkCarrier,
+  SparkKind,
+  SparkSummaryRow,
+} from '@umalegacies/types';
 
-export type SparkKind =
-  | 'blue'
-  | 'pink'
-  | 'green'
-  | 'white_skill'
-  | 'white_race'
-  | 'white_scenario';
+import type { SparkKind } from '@umalegacies/types';
 
 /**
  * succession_factor.factor_type. Verified against the extract 2026-09-15: the
@@ -63,63 +66,3 @@ export const SPARK_KIND_ORDER: readonly SparkKind[] = [
   'white_skill',
   'white_scenario',
 ];
-
-/** One spark on one ancestor. */
-export interface AncestorSpark {
-  factorId: number;
-  groupId: number;
-  kind: SparkKind;
-  name: string;
-  /** succession_factor.rarity, 1-3. */
-  stars: number;
-}
-
-/**
- * Every ancestor carries exactly one blue, one pink and one green, and 12-19
- * whites. Measured across all 1,554 ancestor slots in the builder's roster:
- * type 1 1,554, type 2 1,554, type 3 1,514, types 4/5/6 14,184. The three
- * named slots are nullable only because a slot can be empty or unresolved.
- */
-export interface AncestorSparkSet {
-  blue: AncestorSpark | null;
-  pink: AncestorSpark | null;
-  green: AncestorSpark | null;
-  /** The bag. The tree node shows its length; the detail panel shows its contents. */
-  whites: AncestorSpark[];
-  /** factor ids the save carried that master.mdb has no row for. Named, not swallowed. */
-  unknownFactorIds: number[];
-}
-
-/** One ancestor's contribution to a summary row. */
-export interface SparkCarrier {
-  /** Always one of the six ancestor slots, never the trainee. */
-  position: Position;
-  stars: number;
-  /** The Individual Affinity that scaled this carrier's rate. */
-  individualAffinity: number;
-  /** Activation rate before affinity, straight from BASE_RATES. */
-  baseRate: number;
-  /** baseRate x (1 + IA/100), capped at 1. One inspiration, this carrier alone. */
-  perInspiration: number;
-}
-
-/**
- * One distinct spark across the whole lineage. The decision is about the
- * lineage, not about one ancestor: measured on fixture 5531, 52 distinct
- * sparks sit across the six ancestors and 30 of them are on more than one.
- */
-export interface SparkSummaryRow {
-  groupId: number;
-  kind: SparkKind;
-  name: string;
-  /**
-   * Lineage TOTAL of stars, not a maximum across carriers. A maximum carries no
-   * meaning and would disagree with M7's filter unit.
-   */
-  stars: number;
-  carriers: SparkCarrier[];
-  /** P(at least one activation) across the two inspirations a career gives. */
-  onceInCareer: number;
-  /** P(at least two). A doubled spark stacks, so it is worth its own column. */
-  twiceInCareer: number;
-}
