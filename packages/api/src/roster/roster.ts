@@ -48,7 +48,6 @@ export function resolveRoster(
     return {
       index,
       score: veteran.score,
-      rankTier: master.careerRankTier(veteran.score),
       self: self.identity,
       parents: [members[1]?.identity ?? null, members[2]?.identity ?? null],
       sparks: packageSparks(members, catalogue),

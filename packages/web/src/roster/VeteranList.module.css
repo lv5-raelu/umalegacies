@@ -113,16 +113,11 @@
   display: block;
 }
 
-/* The rank sits with the score because it IS the score, banded. Bordered rather
-   than coloured: it is a datum, and the palette's accent means "added". */
-.rank {
-  font-family: var(--font-data);
-  font-size: var(--text-2xs);
-  color: var(--ink-muted);
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-xs);
-  margin-left: var(--space-tight);
+/* The rank sits under the score because it IS the score, banded. */
+.rankRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-hair);
 }
 
 .pickMark {

@@ -37,6 +37,12 @@ data.json*
 # the designed missing-image state.
 packages/api/data/portraits/
 
+# The rank badge atlas, cached from daftuyda.moe by scripts/fetch-rank-icons.mjs.
+# Same reasoning as the portraits: Cygames' artwork, rehosted by a community site
+# that cannot grant redistribution rights it does not hold. The COORDINATES that
+# crop it are committed (packages/web/src/roster/rank-ladder.ts); the image is not.
+packages/api/data/rank-icons/
+
 # Logs
 *.log
 npm-debug.log*

@@ -124,6 +124,12 @@ export const resolveRoster = (
   );
 
 /** Every trainable card. Master data, so it does not depend on the save. */
+/**
+ * The rank badge atlas, served from the same optional cache as the portraits.
+ * A miss is a 404 and the rank renders as text.
+ */
+export const rankAtlasUrl = (): string => `${API_BASE}/assets/rank-atlas.webp`;
+
 export const fetchTrainees = (): Promise<{ trainees: TraineeOption[]; masterHash: string }> =>
   get<{ trainees: TraineeOption[]; masterHash: string }>('/roster/trainees');
 
