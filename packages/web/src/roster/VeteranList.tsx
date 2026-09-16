@@ -2,17 +2,13 @@ import type {
   PackageSpark,
   ResolvedMember,
   ResolvedVeteran,
-  RosterSparkOption,
   SparkKind,
 } from '@umalegacies/types';
 import { Portrait } from '../lineage/Portrait';
+import type { Catalogue } from './catalogue';
+import { pickBlock, type PickBlock } from './filter';
 import { SPARK_COLOR, isWhite } from '../lineage/sparks';
 import styles from './VeteranList.module.css';
-
-export type Catalogue = ReadonlyMap<number, RosterSparkOption>;
-
-export const catalogueOf = (options: readonly RosterSparkOption[]): Catalogue =>
-  new Map(options.map((o) => [o.groupId, o]));
 
 /**
  * The roster, as cards that can be told apart.
@@ -26,12 +22,15 @@ export const catalogueOf = (options: readonly RosterSparkOption[]): Catalogue =>
  */
 export function VeteranList({
   veterans,
+  pickedVeterans,
   catalogue,
   picked,
   onPick,
   onClearFilter,
 }: {
   veterans: readonly ResolvedVeteran[];
+  /** The picked veterans themselves, which may be filtered out of `veterans`. */
+  pickedVeterans: readonly ResolvedVeteran[];
   catalogue: Catalogue;
   picked: readonly number[];
   onPick: (index: number) => void;
@@ -49,8 +48,6 @@ export function VeteranList({
     );
   }
 
-  const full = picked.length >= 2;
-
   return (
     <ul className={styles.list}>
       {veterans.map((veteran) => (
@@ -59,7 +56,7 @@ export function VeteranList({
             veteran={veteran}
             catalogue={catalogue}
             pickedAt={picked.indexOf(veteran.index)}
-            locked={full && !picked.includes(veteran.index)}
+            block={pickBlock(veteran, pickedVeterans)}
             onPick={() => onPick(veteran.index)}
           />
         </li>
@@ -68,19 +65,25 @@ export function VeteranList({
   );
 }
 
+const BLOCK_REASON: Readonly<Record<PickBlock, string>> = {
+  'pair-full': 'Two are already picked. Unselect one to swap it.',
+  'same-uma': 'Already picked as the other parent. The two parents cannot be the same uma, whatever costume each wears.',
+};
+
 function Card({
   veteran,
   catalogue,
   pickedAt,
-  locked,
+  block,
   onPick,
 }: {
   veteran: ResolvedVeteran;
   catalogue: Catalogue;
   pickedAt: number;
-  locked: boolean;
+  block: PickBlock | null;
   onPick: () => void;
 }) {
+  const locked = block !== null;
   // The veteran's OWN sparks are the entries whose first star count is non-zero:
   // stars is [the veteran, its slot 10, its slot 20]. Reading the card off the
   // same list the filter reads means the two cannot disagree.
@@ -112,7 +115,10 @@ function Card({
       ]
         .filter(Boolean)
         .join(' ')}
-      onClick={onPick}
+      onClick={() => {
+        if (!locked) onPick();
+      }}
+      title={block ? BLOCK_REASON[block] : undefined}
       aria-pressed={pickedAt >= 0}
       // Not `disabled`: the card is still worth reading and worth reaching with
       // a keyboard when the pair is full. It just cannot be selected.
@@ -167,6 +173,14 @@ function Card({
           ))
         )}
       </span>
+
+      {block === 'same-uma' && (
+        // Said in place, not only in a tooltip: a card that refuses a click has
+        // to explain itself where the click happened.
+        <span className={styles.blockNote}>
+          already picked as the other parent — the two parents must be different umas
+        </span>
+      )}
 
       {!veteran.ok && (
         <span className={styles.unresolvedNote}>

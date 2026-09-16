@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import type { PackageSpark, ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
-import { filterVeterans, matchesCriterion, starsInScope } from './filter';
+import { filterVeterans, matchesCriterion, pickBlock, starsInScope } from './filter';
 
 const STAMINA = 2;
 
-const veteran = (stars: [number, number, number]): ResolvedVeteran => ({
-  index: 0,
+const veteran = (
+  stars: [number, number, number],
+  over: { index?: number; cardId?: number; charaId?: number | null } = {},
+): ResolvedVeteran => ({
+  index: over.index ?? 0,
   score: 1000,
-  self: { cardId: 1, charaId: 1, name: 'A', costume: null, resolution: { ok: true } },
+  self: {
+    cardId: over.cardId ?? 1,
+    charaId: over.charaId === undefined ? 1 : over.charaId,
+    name: 'A',
+    costume: null,
+    resolution: { ok: true },
+  },
   parents: [null, null],
   sparks: [{ groupId: STAMINA, stars }] satisfies PackageSpark[],
   unknownFactorIds: [],
@@ -86,5 +95,53 @@ describe('filterVeterans', () => {
     const copy = [...roster];
     filterVeterans(roster, criterion());
     expect(roster).toEqual(copy);
+  });
+});
+
+describe('pickBlock: what the pair will not accept', () => {
+  const OGURI = 1006;
+  const GOLD_SHIP = 1007;
+  // Two CARDS of one character. This is the case the rule exists for: different
+  // costumes, different unique skills, same uma.
+  const oguriStarlight = veteran([0, 0, 0], { index: 0, cardId: 100601, charaId: OGURI });
+  const oguriAshen = veteran([0, 0, 0], { index: 1, cardId: 100602, charaId: OGURI });
+  const goldShip = veteran([0, 0, 0], { index: 2, cardId: 100701, charaId: GOLD_SHIP });
+
+  it('accepts anything when nothing is picked', () => {
+    expect(pickBlock(oguriStarlight, [])).toBeNull();
+  });
+
+  it('refuses the same uma in the other parent slot, across costumes', () => {
+    // Comparison is by charaId, never cardId: 100601 and 100602 are different
+    // cards, and card equality would wave this pair straight through.
+    expect(pickBlock(oguriAshen, [oguriStarlight])).toBe('same-uma');
+  });
+
+  it('still accepts a different uma while one slot is open', () => {
+    expect(pickBlock(goldShip, [oguriStarlight])).toBeNull();
+  });
+
+  it('never blocks the already-picked card, so it can be unselected', () => {
+    expect(pickBlock(oguriStarlight, [oguriStarlight])).toBeNull();
+    expect(pickBlock(oguriStarlight, [oguriStarlight, goldShip])).toBeNull();
+  });
+
+  it('refuses a third pick once two are chosen', () => {
+    const other = veteran([0, 0, 0], { index: 3, cardId: 100801, charaId: 1008 });
+    expect(pickBlock(other, [oguriStarlight, goldShip])).toBe('pair-full');
+  });
+
+  it('reports same-uma ahead of pair-full, because that is the actionable reason', () => {
+    // "Unselect one to swap it" is useless advice when the real problem is that
+    // this card can never be the other parent.
+    expect(pickBlock(oguriAshen, [oguriStarlight, goldShip])).toBe('same-uma');
+  });
+
+  it('does not block an unresolved card, whose character is unknown', () => {
+    // charaId is null when master.mdb has no such card. We cannot show it is the
+    // same uma, and refusing the pick would punish the user for a stale extract.
+    const unknownA = veteran([0, 0, 0], { index: 4, cardId: 999998, charaId: null });
+    const unknownB = veteran([0, 0, 0], { index: 5, cardId: 999999, charaId: null });
+    expect(pickBlock(unknownB, [unknownA])).toBeNull();
   });
 });

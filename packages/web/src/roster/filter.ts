@@ -61,3 +61,35 @@ const sum = (ns: readonly number[]): number => ns.reduce((total, n) => total + n
  * reason a `single` criterion above it can never be met.
  */
 export const MAX_STARS_PER_UMA = 3;
+
+/**
+ * Why a veteran cannot be picked right now, or null if it can.
+ *
+ * Two rules, and the second is a rule of the GAME rather than of this screen:
+ *
+ * 1. Two parents is the whole lineage. A third pick is refused rather than
+ *    silently evicting one, so swapping is unselect-then-select.
+ * 2. **The two parents cannot be the same uma**, whatever costume each is
+ *    wearing. Oguri Cap [Starlight Beat] and Oguri Cap [Ashen Miracle] are two
+ *    cards of one character, so they cannot fill both parent slots -- the
+ *    comparison is by `charaId`, never by `cardId`, because card equality would
+ *    wave the pair through on a costume change.
+ *
+ * An unresolved member has a null `charaId`. It is never blocked by this rule:
+ * we cannot show it is the same character, and refusing a pick on a lookup
+ * failure would punish the user for a stale master extract.
+ */
+export type PickBlock = 'pair-full' | 'same-uma';
+
+export function pickBlock(
+  veteran: ResolvedVeteran,
+  picked: readonly ResolvedVeteran[],
+): PickBlock | null {
+  if (picked.some((p) => p.index === veteran.index)) return null;
+  if (picked.some((p) => sameUma(p, veteran))) return 'same-uma';
+  if (picked.length >= 2) return 'pair-full';
+  return null;
+}
+
+const sameUma = (a: ResolvedVeteran, b: ResolvedVeteran): boolean =>
+  a.self.charaId !== null && a.self.charaId === b.self.charaId;
