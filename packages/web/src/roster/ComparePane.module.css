@@ -79,6 +79,32 @@
   margin-right: var(--space-sm);
 }
 
+/* Achromatic and secondary: clearing is a way back, not the thing to do. The
+   primary control on this pane is still "Show the working". */
+.clearPicks {
+  align-self: flex-start;
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-hair) var(--space-snug);
+  margin-top: var(--space-snug);
+  cursor: pointer;
+  flex: none;
+}
+
+.clearPicks:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.clearPicks:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 .odds {
   margin-top: var(--space-lg);
   border-top: 1px solid var(--rule);
