@@ -49,36 +49,42 @@ export function App() {
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
   const [onTreePage, setOnTreePage] = useState(() => location.hash === '#tree');
-  const paneColumn = useRef<HTMLDivElement>(null);
+  const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
   // The extract every number on screen was computed from. Echoed on the next
   // request so a rebuilt extract is caught rather than silently mixed in.
   const seenMasterHash = useRef<string | undefined>(undefined);
 
   /**
-   * Publishes the pane column's own distance from the top of the document as
-   * `--pane-top`, so its height can be "everything from here down".
+   * Publishes where the two-pane grid starts, as `--pane-top`, so the compare
+   * pane can be sized "everything from here down".
    *
-   * The pane is sticky at 24px but does not START there: at scroll 0 it sits
-   * below the header and the file summary. Sizing it to `100vh - stickyTop`
-   * therefore overflowed the viewport by exactly that difference -- measured at
-   * 32px -- and put the button below the fold until the user scrolled, which is
-   * the one thing a pane that must be fully visible cannot do.
+   * MEASURED ON THE GRID, NOT ON THE PANE. The pane is `position: sticky`, and a
+   * stuck element's `getBoundingClientRect().top` reports where it is PINNED,
+   * not where it sits in flow -- so `rect.top + scrollY` returned 80 at the top
+   * of the page and 5,024 once scrolled to 5,000. `offsetTop` is no better; it
+   * reported 5,024 too. Either one collapsed the pane to a sliver showing only
+   * the headline number, and it was certain to happen rather than unlucky: 259
+   * lazily-loaded portraits resize the document constantly while you scroll, and
+   * every one of them re-fires this.
    *
-   * Its flow offset is a layout constant, unaffected by scrolling, so this
-   * measures once per layout change rather than on every scroll event.
+   * The grid container is not sticky, so its offset is genuinely constant. The
+   * pane column is its only child in that row, so the two share a top edge.
    */
   useEffect(() => {
-    const el = paneColumn.current;
-    if (!el) return;
+    const grid = panes.current;
+    if (!grid) return;
     let last = -1;
     const measure = (): void => {
-      const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-      // Guarded: writing an unchanged value would feed the ResizeObserver its
-      // own output on every layout pass.
+      const top = Math.round(grid.getBoundingClientRect().top + window.scrollY);
+      // A value taller than the viewport would leave the pane with negative
+      // height and clip it to nothing. Nothing legitimate produces one, so
+      // refuse it rather than render a sliver: whatever measured wrong, the
+      // last good value is a better answer than an empty pane.
+      if (top < 0 || top > window.innerHeight) return;
       if (top === last) return;
       last = top;
-      el.style.setProperty('--pane-top', `${top}px`);
+      grid.style.setProperty('--pane-top', `${top}px`);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -293,7 +299,7 @@ export function App() {
             </p>
           )}
 
-          <div className={styles.panes}>
+          <div className={styles.panes} ref={panes}>
             <div>
               <TraineePicker
                 trainees={trainees}
@@ -337,7 +343,7 @@ export function App() {
               )}
             </div>
 
-            <div className={styles.paneColumn} ref={paneColumn}>
+            <div className={styles.paneColumn}>
               <ComparePane
                 state={paneState(traineeCardId, picks, pairLoading, pairError, lineage)}
                 criterion={criterion}
