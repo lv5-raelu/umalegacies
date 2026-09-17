@@ -195,6 +195,16 @@ export function App() {
     [roster, picks],
   );
 
+  /**
+   * Picks the filter is currently hiding. Narrow on a spark neither pick
+   * carries and both vanish, which makes "unselect one to swap it" advice the
+   * reader cannot act on.
+   */
+  const hiddenPicks = useMemo(
+    () => picks.filter((index) => !shown.some((v) => v.index === index)).length,
+    [picks, shown],
+  );
+
   const catalogue = useMemo(
     () => catalogueOf(roster?.sparkOptions ?? []),
     [roster],
@@ -359,7 +369,11 @@ export function App() {
                     <h2 className={styles.rubric}>Parents for {trainee.name}</h2>
                     <span className={styles.pickNote}>
                       {picks.length === 2
-                        ? '2 of 2 picked — unselect one to swap it'
+                        ? hiddenPicks > 0
+                          ? `2 of 2 picked — ${
+                              hiddenPicks === 2 ? 'both are' : 'one is'
+                            } hidden by the filter`
+                          : '2 of 2 picked — unselect one to swap it'
                         : `${picks.length} of 2 picked`}
                     </span>
                   </div>
@@ -380,6 +394,8 @@ export function App() {
               <ComparePane
                 state={paneState(traineeCardId, picks, pairLoading, pairError, lineage)}
                 criterion={criterion}
+                pickedCount={picks.length}
+                onClearPicks={() => setPicks([])}
                 onOpenTree={() => {
                   location.hash = '#tree';
                 }}

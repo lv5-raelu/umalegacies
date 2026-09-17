@@ -24,6 +24,8 @@ import styles from './ComparePane.module.css';
 export function ComparePane({
   state,
   criterion,
+  pickedCount,
+  onClearPicks,
   onOpenTree,
 }: {
   state:
@@ -33,6 +35,9 @@ export function ComparePane({
     | { kind: 'error'; message: string }
     | { kind: 'ok'; lineage: LineageResponse };
   criterion: SparkCriterion | null;
+  /** How many veterans are picked, whether or not the filter shows them. */
+  pickedCount: number;
+  onClearPicks: () => void;
   onOpenTree: () => void;
 }) {
   return (
@@ -47,6 +52,20 @@ export function ComparePane({
             ? 'Pick two veterans from the list. They become the two parents.'
             : 'Pick one more.'}
         </p>
+      )}
+
+      {/*
+        CLEARING LIVES HERE, not in the list, because the list is exactly where
+        it stops working. A filter can hide both picks -- narrow on a spark
+        neither of them carries and every remaining card is locked "two are
+        already picked", with nothing on screen to unselect. The pane always
+        names what is picked and is always visible, so this is the one place the
+        way out cannot itself be filtered away.
+      */}
+      {pickedCount > 0 && (
+        <button type="button" className={styles.clearPicks} onClick={onClearPicks}>
+          Clear {pickedCount === 1 ? 'pick' : 'both picks'}
+        </button>
       )}
       {state.kind === 'loading' && <p className={styles.quiet}>Explaining…</p>}
       {state.kind === 'error' && <p className={styles.error}>{state.message}</p>}
