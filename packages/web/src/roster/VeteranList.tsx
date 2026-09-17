@@ -150,15 +150,16 @@ function Card({
           <span className={styles.package}>out of {packageLine(veteran)}</span>
         </span>
         <span className={styles.scoreBlock}>
-          <span className={styles.scoreLabel}>SCORE</span>
-          <span className={styles.score}>{veteran.score.toLocaleString()}</span>
-          {/* The rank the game shows, beside the number it is banded from. */}
-          <span className={styles.rankRow}>
-            <RankBadge score={veteran.score} />
+          {/* The badge sits LEFT of the number it is banded from: the rank is
+              read first and the score qualifies it, not the other way round. */}
+          <RankBadge score={veteran.score} />
+          <span className={styles.scoreFigures}>
+            <span className={styles.scoreLabel}>SCORE</span>
+            <span className={styles.score}>{veteran.score.toLocaleString()}</span>
+            {pickedAt >= 0 && (
+              <span className={styles.pickMark}>{pickedAt === 0 ? 'A' : 'B'}</span>
+            )}
           </span>
-          {pickedAt >= 0 && (
-            <span className={styles.pickMark}>{pickedAt === 0 ? 'A' : 'B'}</span>
-          )}
         </span>
       </span>
 

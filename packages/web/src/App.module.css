@@ -41,11 +41,26 @@
      above it at scroll top, reading as part of the header rather than as the
      top of the pane. */
   padding-top: var(--space-snug);
-  /* Never taller than the viewport, or the bottom of the pane would be
-     unreachable once it pins. The odds list scrolls inside itself. */
-  max-height: calc(100vh - var(--space-xl));
-  overflow-y: auto;
-  scrollbar-width: thin;
+  /*
+   * A DEFINITE height, and the pane itself never scrolls.
+   *
+   * Everything from "THE PAIR" down to the button stays on screen at once: the
+   * pane is a flex column whose one flexible child is the odds list, so when
+   * space runs short that list shrinks and the button holds its place. Giving
+   * the column `max-height` plus `overflow-y: auto` instead -- which is what
+   * this was -- let the whole pane scroll, and the button went below the fold
+   * exactly when there were most sparks to read.
+   *
+   * `height`, not `max-height`: a percentage-height flex child needs a definite
+   * containing height to resolve against, and `max-height` is not one.
+   *
+   * `--pane-top` is the column's own flow offset, published by App.tsx. Sizing
+   * against the sticky offset instead left the pane 32px too tall at scroll 0,
+   * because that is where it actually begins before it sticks. The fallback
+   * matches a first paint with the header and file summary above it.
+   */
+  height: calc(100dvh - var(--pane-top, 80px) - var(--space-lg));
+  overflow: hidden;
 }
 
 /* Below 900px there is no two-pane layout: 380px of pane against a 390px
@@ -57,10 +72,12 @@
   }
   /* One column: the pane sits above the list and scrolls away with it. Pinning
      it here would park a 400px block over the cards on a 844px phone. */
+  /* One column: the pane sits above the list and scrolls away with it, so it
+     takes its natural height and nothing inside it is constrained. */
   .paneColumn {
     order: -1;
     position: static;
-    max-height: none;
+    height: auto;
     overflow: visible;
     padding-top: var(--space-snug);
   }
