@@ -45,3 +45,36 @@ Both differences are documented in `docs/designs/planner-that-shows-its-work.md`
 - **The G1 saddle set.** hakuraku derives it as "exactly one race instance, and
   that race has grade 100". This project uses `win_saddle_type = 3`. Verified
   2026-09-10 that the two derivations select the identical 47 saddles.
+
+## daftuyda.moe (UmaTools)
+
+`packages/web/src/roster/rank-ladder.ts` is a transcription of the career rank
+ladder published at [daftuyda.moe/rank-breakdown](https://daftuyda.moe/rank-breakdown):
+298 tiers from G to LS24, each with its score threshold and the sprite rectangle
+of its badge. The ladder is not in `master.mdb` -- `single_mode_rank` carries the
+score bands and no names for them -- so this is the one piece of game vocabulary
+in the project that is transcribed rather than extracted.
+
+Cross-checked against the builder's own `master.mdb`: 92 of its 98 band minimums
+appear in the ladder exactly. The six that do not are all at or above 66,000,
+where the extract predates the game growing its ladder from 98 tiers to 298.
+`packages/web/src/roster/rank-ladder.test.ts` pins that agreement.
+
+The badge artwork itself (`Rank_tex.webp`) is fetched by
+`packages/api/scripts/fetch-rank-icons.mjs` into a **gitignored** cache and is
+never committed. It is Cygames' artwork; daftuyda.moe rehosts it and cannot grant
+redistribution rights it does not hold.
+
+## gametora
+
+`packages/api/scripts/fetch-portraits.mjs` fills a **gitignored** cache of
+character portraits from [gametora](https://gametora.com). Same reasoning as
+above: Cygames' character art, rehosted, never committed to this repository and
+never served from it except off a local cache the operator chose to fill.
+
+## Umamusume: Pretty Derby
+
+`master.mdb` and `data.json` are the game's own data files, supplied by the
+person running this tool from their own installation. Neither is committed.
+Umamusume: Pretty Derby is Cygames' work; this project is an unofficial,
+non-commercial companion tool and is not affiliated with or endorsed by Cygames.

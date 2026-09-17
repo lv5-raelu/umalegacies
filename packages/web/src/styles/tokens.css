@@ -28,6 +28,18 @@
   /* "Added", and nothing else. Always prefixed `+`. Never on a control. */
   --bonus: #e8a33d;
 
+  /* Interaction is achromatic: primary is ink on paper. DESIGN.md `components`
+     specifies button-primary as primary/on-primary with a #FFFFFF hover. */
+  --primary: #e9eaee;
+  --on-primary: #121317;
+  --primary-hover: #ffffff;
+
+  /* Same hex as --bonus, deliberately a DIFFERENT token. Amber means "added"
+     inside the data surface and nothing else; this one is the semantic warning
+     DESIGN.md permits in system chrome. Using --bonus for a warning gave the
+     accent a second meaning, which is the thing the rule forbids. */
+  --warning: #e8a33d;
+
   /* Spark category identity. NOT in master.mdb: the game names the categories
    * and this project picks the hues, held to contrast on the dark ground. */
   --spark-blue: #7fb0f5;
