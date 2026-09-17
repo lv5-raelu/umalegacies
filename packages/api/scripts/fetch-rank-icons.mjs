@@ -49,6 +49,22 @@ if (bytes.slice(0, 4).toString() !== 'RIFF' || bytes.slice(8, 12).toString() !==
   console.error(`${SOURCE} did not return a WebP (got ${bytes.length} bytes).`);
   process.exit(1);
 }
+
+// The dimension read below is VP8X-specific: bytes 24-29 are canvas width and
+// height, each a 24-bit little-endian value minus one. A plain VP8 or lossless
+// VP8L file stores its size somewhere else entirely, so reading those offsets
+// without checking the chunk type first would interpret unrelated bytes as a
+// size -- and could pass the 4096x2048 assertion by accident, letting a
+// wrongly-shaped atlas through to mis-crop every badge on screen.
+const chunk = bytes.slice(12, 16).toString();
+if (chunk !== 'VP8X') {
+  console.error(
+    `${SOURCE} returned a '${chunk}' WebP, not the extended VP8X format this ` +
+      'script knows how to measure. The atlas size could not be verified, so it ' +
+      'was not written.',
+  );
+  process.exit(1);
+}
 const width = 1 + (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16));
 const height = 1 + (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16));
 if (width !== 4096 || height !== 2048) {

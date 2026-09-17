@@ -4,7 +4,7 @@ import type {
   SparkKind,
   SparkSummaryRow,
 } from '@umalegacies/types';
-import { sumByRulePrefix } from '../lineage/explain-node';
+import { pairTotalOf, rankGlyph } from '../lineage/pair-total';
 import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER, isWhite, percent } from '../lineage/sparks';
 import { resolutionText } from '../lineage/resolution';
 import styles from './ComparePane.module.css';
@@ -66,36 +66,29 @@ function Result({
   criterion: SparkCriterion | null;
   onOpenTree: () => void;
 }) {
-  // Both halves are SUMMED, never one subtracted from the total: subtraction
-  // absorbs any discrepancy into bonus and shows two numbers for one quantity.
-  const base = sumByRulePrefix(lineage.pairTotal, 'base.');
-  const bonus = sumByRulePrefix(lineage.pairTotal, 'bonus.');
-  const agree = base + bonus === lineage.pairTotal.value;
-  // An unresolvable trainee collapses every base term that touches it, so the
-  // total is not merely uncertain, it is wrong by a large margin and silently so.
-  const unresolved = lineage.trainee.resolution.ok === false;
+  const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
   const wanted = criterion
     ? lineage.sparks.find((row) => row.groupId === criterion.groupId)
     : undefined;
 
   return (
     <>
-      <div className={styles.total}>{unresolved ? '—' : lineage.pairTotal.value}</div>
+      <div className={styles.total}>{traineeUnresolved ? '—' : total}</div>
       <div className={styles.addends}>
-        {unresolved ? (
+        {traineeUnresolved ? (
           <span className={styles.disagree}>{resolutionText(lineage.trainee.resolution)}</span>
-        ) : agree ? (
+        ) : addendsAgree ? (
           `${base} base + ${bonus} bonus`
         ) : (
           <span className={styles.disagree}>
-            addends disagree: {base} base + {bonus} bonus ≠ {lineage.pairTotal.value}
+            addends disagree: {base} base + {bonus} bonus ≠ {total}
           </span>
         )}
       </div>
 
-      {!unresolved && (
+      {!traineeUnresolved && (
         <div className={styles.rank}>
-          {'◎〇△'[3 - lineage.relationRank.value] ?? '·'} rank {lineage.relationRank.value}
+          {rankGlyph(lineage.relationRank.value)} rank {lineage.relationRank.value}
         </div>
       )}
 

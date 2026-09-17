@@ -22,7 +22,7 @@ import { TraineePicker } from './roster/TraineePicker';
 import { catalogueOf } from './roster/catalogue';
 import { VeteranList } from './roster/VeteranList';
 import { filterVeterans, pickBlock } from './roster/filter';
-import { SaveError, slimSave } from './roster/save';
+import { SaveError, slimSave, type SkippedEntry } from './roster/save';
 import styles from './App.module.css';
 
 /**
@@ -33,7 +33,7 @@ import styles from './App.module.css';
  * public fields per uma before anything is sent; see roster/save.ts, which is
  * where the privacy promise actually lives.
  */
-type Save = { fileName: string; veterans: RosterVeteranInput[] };
+type Save = { fileName: string; veterans: RosterVeteranInput[]; skipped: SkippedEntry[] };
 
 export function App() {
   const [save, setSave] = useState<Save | null>(null);
@@ -108,7 +108,7 @@ export function App() {
     setParsing(true);
     setSaveError(null);
     try {
-      const veterans = slimSave(await file.text());
+      const { veterans, skipped } = slimSave(await file.text());
       // Everything appears together after parsing: the picker and the list are
       // absent until there is something for them to show.
       const [resolved, traineeList] = await Promise.all([
@@ -116,7 +116,7 @@ export function App() {
         fetchTrainees(),
       ]);
       seenMasterHash.current = resolved.masterHash;
-      setSave({ fileName: file.name, veterans });
+      setSave({ fileName: file.name, veterans, skipped });
       setRoster(resolved);
       setTrainees(traineeList.trainees);
       setPicks([]);
@@ -289,6 +289,14 @@ export function App() {
 
       {roster && (
         <>
+          {save && save.skipped.length > 0 && (
+            <p className={styles.noticeUnresolved}>
+              {save.skipped.length} entr{save.skipped.length === 1 ? 'y' : 'ies'} in that file
+              could not be read and {save.skipped.length === 1 ? 'was' : 'were'} left out.{' '}
+              {save.skipped[0]?.reason} The other {roster.veterans.length} loaded normally.
+            </p>
+          )}
+
           {roster.unresolvedCount > 0 && (
             <p className={styles.noticeUnresolved}>
               {roster.unresolvedCount} veteran{roster.unresolvedCount === 1 ? '' : 's'} could not

@@ -49,7 +49,7 @@ const entry = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('slimSave: what is allowed to leave the machine', () => {
-  const slimmed = slimSave(JSON.stringify([entry()]));
+  const { veterans: slimmed } = slimSave(JSON.stringify([entry()]));
 
   it('carries exactly three fields per uma and nothing else', () => {
     const veteran = slimmed[0]!;
@@ -103,7 +103,7 @@ describe('slimSave: what is allowed to leave the machine', () => {
 
 describe('slimSave: absent and malformed data', () => {
   it('composes a missing parent slot as null rather than refusing the veteran', () => {
-    const veterans = slimSave(
+    const { veterans } = slimSave(
       JSON.stringify([entry({ succession_chara_array: [] })]),
     );
     expect(veterans[0]!.parents).toEqual([null, null]);
@@ -113,7 +113,7 @@ describe('slimSave: absent and malformed data', () => {
     // A repeat would be counted as a second independent carrier and inflate both
     // the star total and the odds. Rejected at the API boundary, so catching it
     // here turns a 400 into a roster that just loads.
-    const veterans = slimSave(
+    const { veterans } = slimSave(
       JSON.stringify([
         entry({
           win_saddle_id_array: [10, 10, 14],
@@ -129,10 +129,42 @@ describe('slimSave: absent and malformed data', () => {
     ['not JSON at all', 'not json', /not valid JSON/],
     ['a JSON object rather than a list', '{"a":1}', /not a roster/],
     ['an empty roster', '[]', /empty/],
-    ['an entry that is not an object', '[1]', /not a trained character/],
-    ['an entry with no card_id', '[{"rank_score":1}]', /no card_id/],
-  ])('names the problem when given %s', (_label, text, pattern) => {
+  ])('fails the whole file when given %s', (_label, text, pattern) => {
     expect(() => slimSave(text)).toThrow(SaveError);
     expect(() => slimSave(text)).toThrow(pattern);
+  });
+
+  /**
+   * ONE BAD ENTRY COSTS ONE ENTRY. The API already refuses to fail a whole
+   * upload over a single unresolvable card; parsing happens earlier, on the
+   * client, and used to throw -- so a single odd row killed the other 258. The
+   * likeliest trigger is a save-format change, which is exactly when losing the
+   * whole roster is least acceptable.
+   */
+  describe('a malformed entry is skipped, not fatal', () => {
+    it.each([
+      ['is not an object', 1, /not a trained character/],
+      ['has no card_id', { rank_score: 1 }, /no card_id/],
+      ['has no rank_score', { card_id: 100201 }, /no usable rank_score/],
+      ['has a NaN rank_score', { card_id: 100201, rank_score: Number.NaN }, /no usable rank_score/],
+    ])('drops the entry that %s and keeps the good one', (_label, bad, pattern) => {
+      const { veterans, skipped } = slimSave(JSON.stringify([bad, entry()]));
+      expect(veterans).toHaveLength(1);
+      expect(veterans[0]!.self.cardId).toBe(102701);
+      expect(skipped).toHaveLength(1);
+      expect(skipped[0]!.entry).toBe(1);
+      expect(skipped[0]!.reason).toMatch(pattern);
+    });
+
+    it('still fails the file when NOTHING in it can be read', () => {
+      // Skipping every row silently would present an empty roster as a
+      // successful load.
+      expect(() => slimSave('[1,2,3]')).toThrow(/None of the 3 entries/);
+    });
+
+    it('names the entry by its position in the file', () => {
+      const { skipped } = slimSave(JSON.stringify([entry(), 'nonsense', entry()]));
+      expect(skipped[0]!.entry).toBe(2);
+    });
   });
 });

@@ -28,23 +28,21 @@ async function bootstrap(): Promise<void> {
     bufferLogs: false,
   });
 
-  // The roster upload is exempt from the body limit. Builder's explicit call.
+  // The roster upload gets its own, much larger body limit.
   //
   // Registered BEFORE the global parser so it wins: body-parser marks the
   // request once parsed and the later parser skips it.
   //
-  // MEASURED 2026-09-16, and the measurement argues for revisiting this: the
-  // browser now slims the save to three public fields per uma before sending,
-  // which takes the builder's own roster from 5,283,444 bytes to 160,495 -- 157
-  // KB, comfortably INSIDE the 256 KB global limit. The exemption is kept
-  // because a roster around 1.6x the builder's would still cross that line and
-  // the instruction was to let it through, but the case for it is now much
-  // weaker than when the upload was 5 MB.
+  // 20 MB, not unbounded. Builder's figure, taken during review after two
+  // specialists flagged the unbounded body as a memory-exhaustion vector on an
+  // unauthenticated route.
   //
-  // BEFORE ANY DEPLOY: an unbounded body on an unauthenticated route is a
-  // memory-exhaustion vector. A bounded-but-larger limit scoped to this route
-  // (say 8 MB) would honour the same intent.
-  app.use('/roster/resolve', json({ limit: Infinity }));
+  // The original "no limit" call was made when the upload WAS the 5,283,444-byte
+  // save. The browser now slims it to three public fields per uma before
+  // sending, which takes the builder's roster to 160,495 bytes -- so 20 MB is
+  // roughly 130x the real payload and around 33,000 veterans, a bound nobody
+  // legitimately reaches rather than a constraint.
+  app.use('/roster/resolve', json({ limit: '20mb' }));
 
   // Explicit, not Express's undocumented 100 KB default. A lineage is six
   // ancestors carrying a card id, a win list and a spark list: the largest
