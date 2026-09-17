@@ -49,10 +49,48 @@ export function App() {
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
   const [onTreePage, setOnTreePage] = useState(() => location.hash === '#tree');
+  const paneColumn = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
   // The extract every number on screen was computed from. Echoed on the next
   // request so a rebuilt extract is caught rather than silently mixed in.
   const seenMasterHash = useRef<string | undefined>(undefined);
+
+  /**
+   * Publishes the pane column's own distance from the top of the document as
+   * `--pane-top`, so its height can be "everything from here down".
+   *
+   * The pane is sticky at 24px but does not START there: at scroll 0 it sits
+   * below the header and the file summary. Sizing it to `100vh - stickyTop`
+   * therefore overflowed the viewport by exactly that difference -- measured at
+   * 32px -- and put the button below the fold until the user scrolled, which is
+   * the one thing a pane that must be fully visible cannot do.
+   *
+   * Its flow offset is a layout constant, unaffected by scrolling, so this
+   * measures once per layout change rather than on every scroll event.
+   */
+  useEffect(() => {
+    const el = paneColumn.current;
+    if (!el) return;
+    let last = -1;
+    const measure = (): void => {
+      const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+      // Guarded: writing an unchanged value would feed the ResizeObserver its
+      // own output on every layout pass.
+      if (top === last) return;
+      last = top;
+      el.style.setProperty('--pane-top', `${top}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      removeEventListener('resize', measure);
+    };
+  // The ResizeObserver catches every other layout change; the dep is only for
+  // the first measure after the roster replaces the drop zone.
+  }, [roster]);
 
   useEffect(() => {
     const sync = (): void => setOnTreePage(location.hash === '#tree');
@@ -299,7 +337,7 @@ export function App() {
               )}
             </div>
 
-            <div className={styles.paneColumn}>
+            <div className={styles.paneColumn} ref={paneColumn}>
               <ComparePane
                 state={paneState(traineeCardId, picks, pairLoading, pairError, lineage)}
                 criterion={criterion}

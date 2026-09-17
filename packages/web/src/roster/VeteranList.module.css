@@ -95,8 +95,14 @@
 }
 
 .scoreBlock {
-  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   flex: none;
+}
+
+.scoreFigures {
+  text-align: right;
 }
 
 .score {
@@ -111,13 +117,6 @@
   letter-spacing: var(--tracking-label);
   color: var(--ink-faint);
   display: block;
-}
-
-/* The rank sits under the score because it IS the score, banded. */
-.rankRow {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-hair);
 }
 
 .pickMark {
