@@ -212,7 +212,6 @@ export function App() {
       setLineage(null);
       return;
     }
-    if (!trainee) return;
 
     const request: ExplainPairRequest = {
       traineeCharaId: trainee.charaId,
@@ -291,7 +290,7 @@ export function App() {
       {roster && (
         <>
           {roster.unresolvedCount > 0 && (
-            <p className={styles.notice}>
+            <p className={styles.noticeUnresolved}>
               {roster.unresolvedCount} veteran{roster.unresolvedCount === 1 ? '' : 's'} could not
               be identified, most likely because a game patch added an uma since the master
               extract was built. They are greyed below; everything else is usable. Rebuild the

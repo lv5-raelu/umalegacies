@@ -433,9 +433,15 @@ export interface VeteranPackage {
 /**
  * The server composes; the client never builds an ExplainRequest.
  *
- * Measured at 772 bytes against 5,745 for the composed ExplainRequest it turns
- * into, and it keeps slot mapping -- which grandparent sits under which parent
- * -- in one tested place instead of in the UI.
+ * It keeps slot mapping -- which grandparent sits under which parent -- in one
+ * tested place instead of in the UI. A mis-composed request is still a
+ * well-formed request and still returns a confident, plausible, wrong total,
+ * which nothing downstream can detect.
+ *
+ * NOT for wire size. The plan claimed "772 bytes against 5,745"; measured
+ * 2026-09-16 on both pair fixtures, the pair form is 35 bytes LARGER, because
+ * both shapes carry exactly six AncestorRefs -- a veteran's two parents ARE two
+ * of the four grandparents.
  */
 export interface ExplainPairRequest {
   traineeCharaId: number;

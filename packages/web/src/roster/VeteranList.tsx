@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import type {
   PackageSpark,
   ResolvedMember,
@@ -61,7 +62,7 @@ export function VeteranList({
             catalogue={catalogue}
             pickedAt={picked.indexOf(veteran.index)}
             block={pickBlock(veteran, pickedVeterans, traineeCharaId)}
-            onPick={() => onPick(veteran.index)}
+            onPick={onPick}
           />
         </li>
       ))}
@@ -82,7 +83,20 @@ const BLOCK_NOTE: Readonly<Partial<Record<PickBlock, string>>> = {
   'same-uma': 'already picked as the other parent — the two parents must be different umas',
 };
 
-function Card({
+/**
+ * MEMOISED, and the derivation inside it is too.
+ *
+ * 259 of these render at once. Each one filters and sorts its own spark list,
+ * and without memo every App-level state change redid that work for all of
+ * them: one pick flips `pairLoading` twice and then sets the lineage, so a
+ * single click cost three full passes over the roster. Measured with a
+ * PerformanceObserver before the fix: long tasks of 131, 58, 131, 58, 63 and
+ * 63ms for one pick, all well past the 50ms jank threshold.
+ *
+ * `onPick` takes the index rather than being a per-card closure, because an
+ * arrow function rebuilt each render would make React.memo a no-op.
+ */
+const Card = memo(function Card({
   veteran,
   catalogue,
   pickedAt,
@@ -93,28 +107,32 @@ function Card({
   catalogue: Catalogue;
   pickedAt: number;
   block: PickBlock | null;
-  onPick: () => void;
+  onPick: (index: number) => void;
 }) {
   const locked = block !== null;
   // The veteran's OWN sparks are the entries whose first star count is non-zero:
   // stars is [the veteran, its slot 10, its slot 20]. Reading the card off the
   // same list the filter reads means the two cannot disagree.
-  const own = veteran.sparks.filter((s) => (s.stars[0] ?? 0) > 0);
-  const kindOf = (spark: PackageSpark): SparkKind | undefined =>
-    catalogue.get(spark.groupId)?.kind;
-  const named = (kind: SparkKind) => own.find((s) => kindOf(s) === kind);
-  const whites = own
-    .filter((s) => {
-      const kind = kindOf(s);
-      return kind !== undefined && isWhite(kind);
-    })
-    .sort(
-      (a, b) =>
-        (b.stars[0] ?? 0) - (a.stars[0] ?? 0) ||
-        (catalogue.get(a.groupId)?.name ?? '').localeCompare(
-          catalogue.get(b.groupId)?.name ?? '',
+  const { named, whites } = useMemo(() => {
+    const own = veteran.sparks.filter((s) => (s.stars[0] ?? 0) > 0);
+    const kindOf = (spark: PackageSpark): SparkKind | undefined =>
+      catalogue.get(spark.groupId)?.kind;
+    return {
+      named: (kind: SparkKind) => own.find((s) => kindOf(s) === kind),
+      whites: own
+        .filter((s) => {
+          const kind = kindOf(s);
+          return kind !== undefined && isWhite(kind);
+        })
+        .sort(
+          (a, b) =>
+            (b.stars[0] ?? 0) - (a.stars[0] ?? 0) ||
+            (catalogue.get(a.groupId)?.name ?? '').localeCompare(
+              catalogue.get(b.groupId)?.name ?? '',
+            ),
         ),
-    );
+    };
+  }, [veteran, catalogue]);
 
   return (
     <button
@@ -128,7 +146,7 @@ function Card({
         .filter(Boolean)
         .join(' ')}
       onClick={() => {
-        if (!locked) onPick();
+        if (!locked) onPick(veteran.index);
       }}
       title={block ? BLOCK_REASON[block] : undefined}
       aria-pressed={pickedAt >= 0}
@@ -204,7 +222,7 @@ function Card({
       )}
     </button>
   );
-}
+});
 
 function Spark({
   spark,

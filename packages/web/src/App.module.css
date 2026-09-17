@@ -192,13 +192,25 @@
   color: var(--error);
 }
 
+/* The master data moved under the reader: a state change, not a failure. */
 .notice {
   font-size: var(--text-xs);
-  color: var(--bonus);
+  color: var(--warning);
   border-top: 1px solid var(--rule);
   padding-top: var(--space-sm);
   margin: var(--space-md) 0 0;
   max-width: 72ch;
+}
+
+/*
+ * Veterans that could not be identified. RED, not amber: DESIGN.md says red
+ * means unresolved and amber means added, and VeteranList's per-card
+ * `.unresolvedNote` already colours the same condition with --error. The
+ * aggregate banner was contradicting its own detail rows.
+ */
+.noticeUnresolved {
+  composes: notice;
+  color: var(--error);
 }
 
 .quiet {

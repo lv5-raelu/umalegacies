@@ -25,6 +25,9 @@ const REQUIRED_TABLES = [
   'succession_factor',
   'chara_data',
   'text_data',
+  // The 98 career rank bands. Queried by MasterData.careerRankTier, which is
+  // what binds the web app's rank ladder to data with a committed source.
+  'single_mode_rank',
 ] as const;
 
 export interface MasterMeta {
