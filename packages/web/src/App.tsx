@@ -48,7 +48,7 @@ export function App() {
   const [lineage, setLineage] = useState<LineageResponse | null>(null);
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
-  const [onTreePage, setOnTreePage] = useState(false);
+  const [onTreePage, setOnTreePage] = useState(() => location.hash === '#tree');
   const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
   // The extract every number on screen was computed from. Echoed on the next
@@ -99,22 +99,36 @@ export function App() {
   }, [roster]);
 
   useEffect(() => {
-    // A FRESH LOAD CAN NEVER BE ON THE TREE PAGE. The roster lives only in
-    // memory, so there is no lineage to draw one from -- and landing on /#tree
-    // from a reload, a bookmark or a pasted link used to leave the flag armed
-    // and invisible: the drop zone and the roster looked normal, and then the
-    // moment a second parent was picked the app jumped straight to the tree,
-    // skipping the compare pane the whole screen exists for.
-    //
-    // replaceState rather than assigning location.hash: no extra history entry
-    // to go "back" into, and no leftover bare '#' in the address bar.
-    if (location.hash === '#tree') {
-      history.replaceState(null, '', location.pathname + location.search);
-    }
     const sync = (): void => setOnTreePage(location.hash === '#tree');
     addEventListener('hashchange', sync);
     return () => removeEventListener('hashchange', sync);
   }, []);
+
+  /**
+   * #tree IS ONLY MEANINGFUL WITH A LINEAGE BEHIND IT, and this is the one rule
+   * that says so -- for every way of arriving, not just the one that was
+   * reported.
+   *
+   * The roster lives only in memory, so a reload, a bookmark, a pasted link or a
+   * hand-typed `#tree` all reach a hash with nothing to draw. Left alone the
+   * flag sat armed and INVISIBLE: the drop zone and the roster looked completely
+   * normal, and then the moment a second parent was picked the app jumped
+   * straight to the tree, skipping the compare pane the whole screen exists for.
+   *
+   * Guarding at mount only fixed the reload; typing the hash afterwards fires a
+   * hashchange and armed it again. Reacting to the STATE rather than to any one
+   * route in covers all of them, including a pick being invalidated while the
+   * tree is open -- switching the trainee to one of the picked umas nulls the
+   * lineage, and the tree has nothing left to show.
+   *
+   * replaceState rather than assigning location.hash: no extra history entry to
+   * go "back" into, and no leftover bare '#' in the address bar.
+   */
+  useEffect(() => {
+    if (!onTreePage || lineage !== null) return;
+    history.replaceState(null, '', location.pathname + location.search);
+    setOnTreePage(false);
+  }, [onTreePage, lineage]);
 
   const loadFile = useCallback(async (file: File) => {
     setParsing(true);
