@@ -25,7 +25,31 @@ export class SaveError extends Error {
 /** The veteran's own slots 10 and 20, which become the grandparents beneath it. */
 const PARENT_SLOTS = [10, 20] as const;
 
-export function slimSave(text: string): RosterVeteranInput[] {
+/** One entry the file described but this parser could not use, and why. */
+export interface SkippedEntry {
+  /** 1-based, matching how the entry is counted in the reason text. */
+  entry: number;
+  reason: string;
+}
+
+export interface SlimmedSave {
+  veterans: RosterVeteranInput[];
+  /**
+   * Entries dropped for being malformed. NOT an error: one unusable row must
+   * not cost the user the other 258.
+   *
+   * The API already refuses to fail a whole upload over a single unresolvable
+   * card -- "a patch that adds one uma must not brick the roster" -- but that
+   * protection only covered identity RESOLUTION on the server. Parsing happens
+   * here, before any of it, and used to throw, so a single odd entry anywhere in
+   * the file killed the upload with one generic message. The likelier real
+   * trigger is a save-format change, which is exactly when losing the whole
+   * roster is least acceptable.
+   */
+  skipped: SkippedEntry[];
+}
+
+export function slimSave(text: string): SlimmedSave {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -46,8 +70,27 @@ export function slimSave(text: string): RosterVeteranInput[] {
     throw new SaveError('That roster is empty. There are no trained characters in it to compare.');
   }
 
-  const veterans = parsed.map((entry, i) => slimVeteran(entry, i));
-  return veterans;
+  const veterans: RosterVeteranInput[] = [];
+  const skipped: SkippedEntry[] = [];
+  parsed.forEach((entry, i) => {
+    try {
+      veterans.push(slimVeteran(entry, i));
+    } catch (error) {
+      // Only THIS entry is lost, and it says why. A malformed file that yields
+      // no usable veteran at all is still a file-level failure, below.
+      if (!(error instanceof SaveError)) throw error;
+      skipped.push({ entry: i + 1, reason: error.message });
+    }
+  });
+
+  if (veterans.length === 0) {
+    throw new SaveError(
+      `None of the ${parsed.length} entries in that file could be read. ` +
+        `The first problem was: ${skipped[0]?.reason ?? 'unknown'}`,
+    );
+  }
+
+  return { veterans, skipped };
 }
 
 function slimVeteran(entry: unknown, index: number): RosterVeteranInput {
@@ -62,10 +105,20 @@ function slimVeteran(entry: unknown, index: number): RosterVeteranInput {
       (s) => typeof s === 'object' && s !== null && (s as Record<string, unknown>).position_id === position,
     );
 
+  // rank_score is the only figure here that is not an id into master.mdb. It is
+  // the game's own strength number, it leads every card, and the rank badge is
+  // derived from it. Coercing a missing one to 0 produced a veteran that
+  // claimed a real score of 0 and a confident "G" rank -- a fabricated fact
+  // sitting in a tool whose whole claim is that its numbers are traceable.
+  if (typeof raw.rank_score !== 'number' || !Number.isFinite(raw.rank_score)) {
+    throw new SaveError(
+      `Entry ${index + 1} has no usable rank_score, so its rank and its place ` +
+        'in the list cannot be worked out.',
+    );
+  }
+
   return {
-    // rank_score is the only figure here that is not an id into master.mdb. It
-    // is the game's own strength number for the veteran and it leads every row.
-    score: typeof raw.rank_score === 'number' ? raw.rank_score : 0,
+    score: raw.rank_score,
     self: slimMember(raw, `entry ${index + 1}`),
     // A missing slot is null rather than an error: the engine models an absent
     // ancestor deliberately, so a veteran with an empty parent slot is usable.

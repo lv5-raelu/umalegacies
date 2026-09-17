@@ -7,7 +7,7 @@ import {
   SparkProvenance,
   TotalProvenance,
 } from './Provenance';
-import { sumByRulePrefix } from './explain-node';
+import { pairTotalOf, rankGlyph } from './pair-total';
 import { resolutionText } from './resolution';
 import { Tree, type Selection } from './Tree';
 import styles from '../App.module.css';
@@ -31,16 +31,7 @@ export function TreePage({
   const [selection, setSelection] = useState<Selection>({ kind: 'total' });
   const [spark, setSpark] = useState<SparkSummaryRow | null>(null);
 
-  // Both halves are SUMMED, never one subtracted from the total. Subtraction
-  // absorbs any discrepancy into bonus, which is two numbers for one quantity on
-  // one screen. If they ever disagree, say so instead of picking one.
-  const base = sumByRulePrefix(lineage.pairTotal, 'base.');
-  const bonus = sumByRulePrefix(lineage.pairTotal, 'bonus.');
-  const addendsAgree = base + bonus === lineage.pairTotal.value;
-  // An unresolvable trainee collapses every base term that touches it -- both
-  // trainee-parent links AND all four three-way grandparent terms -- so the
-  // total is not merely uncertain, it is wrong by a large margin and silently so.
-  const traineeUnresolved = lineage.trainee.resolution.ok === false;
+  const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
 
   return (
     <main className={styles.shell}>
@@ -56,7 +47,7 @@ export function TreePage({
       <div className={styles.headline}>
         <div>
           <div className={styles.total}>
-            {traineeUnresolved ? '—' : lineage.pairTotal.value}
+            {traineeUnresolved ? '—' : total}
           </div>
           {/* An aggregate prints its addends beneath it, permanently. */}
           <div className={styles.addends}>
@@ -66,7 +57,7 @@ export function TreePage({
               `${base} base + ${bonus} bonus`
             ) : (
               <span className={styles.disagree}>
-                addends disagree: {base} base + {bonus} bonus ≠ {lineage.pairTotal.value}
+                addends disagree: {base} base + {bonus} bonus ≠ {total}
               </span>
             )}
           </div>
@@ -76,7 +67,7 @@ export function TreePage({
         {!traineeUnresolved && (
           <div className={styles.rank}>
             <div className={styles.rankGlyph}>
-              {'◎〇△'[3 - lineage.relationRank.value] ?? '·'} rank {lineage.relationRank.value}
+              {rankGlyph(lineage.relationRank.value)} rank {lineage.relationRank.value}
             </div>
             <div className={styles.rankBounds}>
               {lineage.rankBounds.min}

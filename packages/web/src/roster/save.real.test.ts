@@ -21,12 +21,15 @@ const present = existsSync(SAVE);
 
 describe.skipIf(!present)("slimSave against a real data.json", () => {
   const text = readFileSync(SAVE, 'utf8');
-  const veterans = slimSave(text);
+  const { veterans, skipped } = slimSave(text);
   const wire = JSON.stringify({ veterans });
 
-  it('reads every veteran in the file', () => {
+  it('reads every veteran in the file, skipping none', () => {
     expect(veterans.length).toBe((JSON.parse(text) as unknown[]).length);
     expect(veterans.length).toBeGreaterThan(0);
+    // A real export should have nothing unreadable in it. If this ever fails,
+    // the save format moved and the parser needs to follow.
+    expect(skipped).toEqual([]);
   });
 
   it('sends no personal field from a real save, under any key', () => {
