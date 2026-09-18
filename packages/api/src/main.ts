@@ -5,7 +5,6 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { json } from 'express';
 import { AppModule } from './app.module.js';
 import { ErrorFilter } from './common/error.filter.js';
-import { MasterBootError } from './master/master.errors.js';
 
 /**
  * Every route lives under /api, and nothing here configures CORS.
@@ -71,11 +70,16 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error: unknown) => {
-  // Refuse to start dirty. A master.mdb problem is a startup failure with a
-  // named cause, not a 500 on every subsequent request.
-  if (error instanceof MasterBootError) {
-    new Logger('bootstrap').error(`${error.code}: ${error.message}`);
-    process.exit(1);
-  }
+  // A master data problem no longer arrives here. MasterService catches it in
+  // onModuleInit and answers every request with its named code, because a throw
+  // during NestFactory.create leaves no application and no request to answer --
+  // on Vercel that is FUNCTION_INVOCATION_FAILED with an empty body, and the
+  // cause visible only in the platform log.
+  //
+  // So this is now what it says it is: the last resort for a bootstrap failure
+  // nobody anticipated. Log it whole, then let the process die on it rather
+  // than listening in an unknown state.
+  new Logger('bootstrap').error('failed to start', error instanceof Error ? error.stack : String(error));
+  process.exitCode = 1;
   throw error;
 });
