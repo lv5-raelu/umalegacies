@@ -127,11 +127,11 @@ export function DropZone({
             has no way to guess that one can exist, so the box says where it
             comes from rather than assuming they already know. */}
         <p className={styles.source}>
-          data.json comes from{' '}
+          data.json is generated using{' '}
           <a href={EXTRACTOR_URL} target="_blank" rel="noreferrer">
             UmaExtractor
           </a>
-          . Generate yours there first.
+          .
         </p>
         {/* Named in place, and the zone stays usable: the next thing the user
             does after an error is pick a different file. */}
