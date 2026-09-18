@@ -29,6 +29,7 @@ const read = (p: string): string => readFileSync(resolve(root, p), 'utf8');
 
 const mainTs = read('packages/api/src/main.ts');
 const clientTs = read('packages/web/src/api/client.ts');
+const viteConfig = read('packages/web/vite.config.ts');
 
 /** `app.setGlobalPrefix(API_PREFIX)` with `const API_PREFIX = 'api'`. */
 function apiPrefix(): string {
@@ -102,6 +103,28 @@ describe('the web client and the API agree on where the API lives', () => {
         'at the edge. Anything at or above that hands the user a platform ' +
         'error page instead of PAYLOAD_TOO_LARGE.',
     ).toBeLessThan(4.5);
+  });
+
+  /**
+   * Locally, Vite's proxy plays the part vercel.json's rewrite plays in
+   * production: it is what makes `API_BASE = '/api'` reachable from the one
+   * port the browser talks to. Renaming the prefix without moving the proxy
+   * leaves the deployed app working and the local one 404ing on every request,
+   * which is the worse way round -- you would not find it until someone else
+   * pulled the branch.
+   */
+  it('proxies the same path locally that the client asks for', () => {
+    const proxied = /proxy:\s*\{\s*'([^']+)'/.exec(viteConfig)?.[1];
+    expect(
+      proxied,
+      'packages/web/vite.config.ts has no server.proxy entry. Without it the ' +
+        'browser cannot reach the API from the Vite port, and local ' +
+        'development stops being same-origin.',
+    ).toBeTruthy();
+    expect(
+      proxied,
+      `vite proxies "${proxied}" but the client requests "${clientBase()}"`,
+    ).toBe(clientBase());
   });
 
   /** One origin means the allowlist has nothing to do. */
