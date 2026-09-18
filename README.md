@@ -141,7 +141,7 @@ selector at the top right; `data.json` upload is M3 and does not exist yet.
 
 ### Portraits are cached, not committed
 
-`packages/api/data/portraits/<card_id>.png` is **gitignored on purpose.** These
+`packages/web/public/portraits/<card_id>.png` is **gitignored on purpose.** These
 are Cygames' character illustrations; gametora, which the script fetches from,
 rehosts them rather than owning them, so nobody in that chain can grant
 redistribution rights. Caching them on the machine that runs the app is a
@@ -262,11 +262,13 @@ that twice.
 - **`win_saddle_type`** is `0` for epithets requiring a set of G1 wins (Triple Crown and
   friends), `3` for a single G1, `2` for G2, `1` for G3. Race grade `100/200/300` maps to
   G1/G2/G3.
-- **A portrait miss must never be cached.** `/portraits/:id.png` sets
-  `Cache-Control` only on the success path. A `@Header()` decorator applies
-  before the handler throws, so a 404 would inherit the 24-hour lifetime: you
-  would open the app, see initials, run `fetch:portraits`, reload, and still see
-  initials for a day with nothing to explain it. Misses are `no-store`.
+- **Artwork is static, not an API route.** Portraits and the rank atlas are files in
+  `packages/web/public/`, served by the CDN. The API used to serve them from a
+  possibly-absent directory, which needed a path-traversal guard on a user-supplied
+  card id, a descriptor opened before any header was written, and a `no-store` on
+  misses so a 404 could not outlive the next `fetch:portraits`. Static files need
+  none of that: a missing file is a CDN 404, and `Portrait.tsx` already renders
+  initials for it.
 
 ## Design docs
 

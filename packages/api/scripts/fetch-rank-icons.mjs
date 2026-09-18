@@ -3,7 +3,7 @@
  *
  *   node scripts/fetch-rank-icons.mjs [--force]
  *
- * Writes packages/api/data/rank-icons/Rank_tex.webp, which is GITIGNORED for the
+ * Writes packages/web/public/rank-icons/Rank_tex.webp, which is GITIGNORED for the
  * same reason the portraits are: it is Cygames' artwork, rehosted by a community
  * site that cannot grant redistribution rights it does not hold. Caching it on
  * the machine that runs the app is a different act from committing it.
@@ -21,7 +21,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(here, '../data/rank-icons');
+const outDir = resolve(here, '../../web/public/rank-icons');
 const outFile = resolve(outDir, 'Rank_tex.webp');
 const SOURCE = 'https://daftuyda.moe/assets/Rank_tex.webp?v=20260901';
 

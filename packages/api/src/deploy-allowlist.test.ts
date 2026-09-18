@@ -37,8 +37,6 @@ const MUST_DENY: ReadonlyArray<readonly [string, string]> = [
   ['data.json', "the player's save: 183 other players' trainer ids"],
   ['master.mdb', "the game's own 16 MB database"],
   ['master.mdb.old', 'the previous patch of the same'],
-  ['packages/api/data/portraits/100101.png', "Cygames' art, per NOTICE.md"],
-  ['packages/api/data/rank-icons/Rank_tex.webp', "Cygames' art, per NOTICE.md"],
   ['packages/web/dist/index.html', 'build output, produced on Vercel'],
   ['packages/api/node_modules/rxjs/index.js', 'installed on Vercel, never uploaded'],
   ['packages/api/tsconfig.tsbuildinfo', 'incremental build state'],
@@ -56,8 +54,13 @@ const MUST_ALLOW: ReadonlyArray<readonly [string, string]> = [
   ['packages/api/scripts/fetch-portraits.mjs', 'referenced by npm scripts'],
   ['packages/web/src/api/client.ts', 'web source'],
   ['packages/types/src/index.ts', 'the shared wire types, read as source'],
-  ['packages/web/public/portraits/100101.png', 'the deploy-time artwork copy'],
-  ['packages/web/public/rank-icons/Rank_tex.webp', 'the deploy-time artwork copy'],
+  // The artwork IS uploaded, and deliberately. It is gitignored, so it exists
+  // only on a machine whose operator ran the fetch scripts and is never in git
+  // history -- NOTICE.md's position is about redistribution through this
+  // repository, and uploading what is already on the operator's disk is the
+  // same act as serving it from there. See .vercelignore for the long version.
+  ['packages/web/public/portraits/100101.png', 'artwork, served from the CDN'],
+  ['packages/web/public/rank-icons/Rank_tex.webp', 'artwork, served from the CDN'],
   // Measured 2026-09-17: Vercel validates the service `entrypoint` against the
   // UPLOADED SOURCE, before buildCommand runs. Denying this fails the deploy
   // with `Service "api" has entrypoint "dist/main.js" but that path does not

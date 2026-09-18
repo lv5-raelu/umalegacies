@@ -95,8 +95,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  * one, and a costume carries its own unique skill -- the green spark printed
  * directly under this image.
  */
-export const portraitUrl = (cardId: number): string =>
-  `${API_BASE}/portraits/${cardId}.png`;
+export const portraitUrl = (cardId: number): string => `/portraits/${cardId}.png`;
 
 /**
  * `masterHash` pins the request to a specific extract. If the server is serving
@@ -129,7 +128,7 @@ export const resolveRoster = (
  * The rank badge atlas, served from the same optional cache as the portraits.
  * A miss is a 404 and the rank renders as text.
  */
-export const rankAtlasUrl = (): string => `${API_BASE}/assets/rank-atlas.webp`;
+export const rankAtlasUrl = (): string => '/rank-icons/Rank_tex.webp';
 
 /** Every trainable card. Master data, so it does not depend on the save. */
 
