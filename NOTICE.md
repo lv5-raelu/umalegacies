@@ -62,23 +62,26 @@ where the extract predates the game growing its ladder from 98 tiers to 298.
 
 The badge artwork itself (`Rank_tex.webp`) is fetched by
 `packages/api/scripts/fetch-rank-icons.mjs` into
-`packages/web/public/rank-icons/`, which is **gitignored** and never committed.
-It is Cygames' artwork; daftuyda.moe rehosts it and cannot grant redistribution
-rights it does not hold.
+`packages/web/public/rank-icons/` and **is committed**. It is Cygames' artwork;
+daftuyda.moe rehosts it and cannot grant redistribution rights it does not hold.
 
-A deployment uploads whatever is in that folder, so a hosted instance serves the
-artwork from the operator's own cache. That is the same act as serving it from
-the machine the app runs on, which is the line this project has always drawn.
-What it still does not do is put the artwork in git history, where it would be
-redistributed by the repository itself to everyone who clones it.
+Earlier versions of this file said the cache was gitignored so the repository
+would not redistribute it. That position was reversed deliberately on
+2026-09-18, by the builder, so that a deployment built from a clone is complete:
+a gitignored cache means every automated build ships a site with no artwork and
+no signal that anything is missing. This project remains an unofficial,
+non-commercial companion tool with no claim to the artwork it displays, and the
+MIT licence in `package.json` covers this project's own code, not Cygames'
+assets.
 
 ## gametora
 
-`packages/api/scripts/fetch-portraits.mjs` fills a **gitignored** cache of
-character portraits from [gametora](https://gametora.com) into
-`packages/web/public/portraits/`. Same reasoning as above: Cygames' character
-art, rehosted, never committed to this repository, and served only off a cache
-the operator chose to fill -- including when that operator deploys it.
+`packages/api/scripts/fetch-portraits.mjs` fills
+`packages/web/public/portraits/` from [gametora](https://gametora.com), and
+those files are committed. Same reasoning as above, and the same reversal:
+Cygames' character art, rehosted by a site that cannot grant redistribution
+rights, displayed here by an unofficial non-commercial tool that claims no
+rights to it.
 
 ## Umamusume: Pretty Derby
 
