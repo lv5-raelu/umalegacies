@@ -97,9 +97,31 @@ and that is the higher floor.)
 
 ```bash
 npm install
-npm run dev:api     # http://localhost:3000
-npm run dev:web     # http://localhost:5173
+npm run dev:api     # the API, on :3000
+npm run dev:web     # the app, on :5173  <- open this one
 ```
+
+**Open `http://localhost:5173` and nothing else.** Vite forwards `/api` to the
+API on :3000, so the browser only ever talks to one origin -- which is exactly
+what a deployment does, where a rewrite sends `/api/*` to the function and
+everything else to the static build. That is why `API_BASE` in
+`packages/web/src/api/client.ts` is the relative path `/api` and why there is no
+CORS configuration anywhere: there is no cross-origin request to allow, in
+either place.
+
+Hitting `http://localhost:3000` directly still works and is useful for curling
+the API, but it is not how the app runs.
+
+`npm run dev:api` compiles and watches, because the API is ESM and NestJS needs
+`emitDecoratorMetadata`: `ts-node/register` is CommonJS-only, `ts-node`'s ESM
+loader will not map `.js` specifiers back to `.ts` on Node 24, and Node's own
+type stripping cannot emit decorator metadata. So it runs `tsc --watch`
+alongside `node --watch dist/main.js`.
+
+`vercel dev` is NOT the local story, despite the deployment being a Vercel
+project. It compiles the API's TypeScript itself with a compiler that drops
+decorator metadata, so every injected dependency arrives `undefined`; setting
+`devCommand` does not override it.
 
 Optionally, fill the portrait cache. It is not required and nothing depends on
 it; without it every tree node shows initials, which is the designed
@@ -201,9 +223,17 @@ that twice.
 
 ## Gotchas
 
-- **The API's CORS allowlist is explicit.** If Vite falls back to a port that is not on it,
-  every request fails with a bare `Failed to fetch` that looks like the API is down. Check
-  the port before debugging anything else.
+- **Open :5173, not :3000.** The app is served by Vite, which proxies `/api` to the API.
+  Opening the API's port directly gives you an app-less API, and opening a Vite that
+  fell back to another port gives you a tab that is not the one being hot-reloaded --
+  which is why `vite.config.ts` sets `strictPort` and fails instead of drifting.
+- **`setGlobalPrefix` does not move `app.use()` mounts.** It moves Nest ROUTES. Express
+  middleware mounted on a path keeps that path, so the oversized-body parser for
+  `/api/roster/resolve` has to be mounted at the prefixed path by hand. Get this wrong
+  and the 256 KB global parser silently takes over; `route-contract.test.ts` guards it.
+- **The roster body limit must stay under 4.5 MB.** Vercel rejects larger bodies at the
+  platform edge, before any code runs, so `error.filter.ts` never sees them and the
+  client gets an HTML error page instead of an `ErrorResponse`.
 - **`succession_factor.rarity` is the star count**, 1–3. It is not a rarity tier.
 - **Spark names are `text_data` category 147, keyed by `factor_id`** — not by
   `factor_group_id`. The 1/2/3-star variants of one spark are three `factor_id`s sharing a
