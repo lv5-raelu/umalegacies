@@ -219,7 +219,20 @@ export interface SparkSummaryRow {
   /** Lineage TOTAL of stars, not a maximum across carriers. */
   stars: number;
   carriers: SparkCarrier[];
-  /** P(at least one activation) across the two inspirations a career gives. */
+  /**
+   * P(at least one activation) in a SINGLE inspiration.
+   *
+   * The narrowest of the three, and the one that answers "will this show up
+   * when the next inspiration fires" rather than "will it show up at all".
+   */
+  withinOneInspiration: number;
+  /**
+   * P(at least one activation) across the two inspirations a career gives.
+   *
+   * The headline: will this spark land at all. Also the natural ranking key --
+   * "likeliest first" -- and a blue on a parent is certain at 1.0, which is how
+   * the audit trail knows not to bother listing it.
+   */
   onceInCareer: number;
   /** P(at least two). A doubled spark stacks, so it is worth its own column. */
   twiceInCareer: number;
@@ -399,21 +412,25 @@ export interface RosterResolveResponse {
   masterHash: string;
 }
 
-/** Which members of a package a criterion looks at. Mirrors uma.moe's scope selector. */
-export type FilterScope = 'package' | 'parent' | 'grandparents';
-
 /**
- * Whether the threshold must be met by ONE uma or by the scoped members summing.
- * uma.moe calls this Split Sparks. Its exact in-game semantics are inferred from
- * the toggle label and have not been confirmed against behaviour.
+ * Which members of a package a criterion looks at.
+ *
+ * TWO SCOPES, not three. A grandparents-only scope existed and was removed:
+ * with several criteria available, "3 on the parent AND 5 across the lineage"
+ * already pins two stars onto the grandparents, so the third scope only
+ * duplicated what a pair of rows says more precisely.
+ *
+ * Why the direct parent is worth its own scope: a parent's spark is far likelier
+ * to be inherited than a grandparent's. Measured across the builder's roster,
+ * parent Individual Affinity has median 138 against a grandparent median of 36,
+ * and the activation rate is base x (1 + IA/100).
  */
-export type FilterSplit = 'sum' | 'single';
+export type FilterScope = 'package' | 'parent';
 
 export interface SparkCriterion {
   groupId: number;
   minStars: number;
   scope: FilterScope;
-  split: FilterSplit;
 }
 
 // ---------------------------------------------------------------- pair (M3)

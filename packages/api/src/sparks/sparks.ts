@@ -52,7 +52,7 @@ export function allSparks(set: AncestorSparkSet): AncestorSpark[] {
 }
 
 /**
- * P(at least 1) and P(at least 2) activations across a career.
+ * The three windows a carrier set can be asked about.
  *
  * Inspiration fires ONCE per event and TWICE per career, and within one event
  * every carrier of the spark rolls independently. So the count within one
@@ -64,7 +64,14 @@ export function allSparks(set: AncestorSparkSet): AncestorSpark[] {
  * divides by `1 - p` and a blue spark on a parent is capped at exactly 1.0,
  * which makes that division 0/0. The DP has no such hole.
  */
-export function careerOdds(perInspiration: number[]): { once: number; twice: number } {
+export function careerOdds(perInspiration: number[]): {
+  /** P(>=1) within a SINGLE inspiration. */
+  withinOne: number;
+  /** P(>=1) across the career's two inspirations. The ranking key. */
+  once: number;
+  /** P(>=2) across the career. */
+  twice: number;
+} {
   // Distribution of how many carriers fire within ONE inspiration.
   let dist = [1];
   for (const raw of perInspiration) {
@@ -80,14 +87,19 @@ export function careerOdds(perInspiration: number[]): { once: number; twice: num
     }
     dist = next;
   }
+  // Within ONE inspiration: anything but the empty bucket.
+  const withinOne = 1 - (dist[0] ?? 0);
+
   // Two inspirations. Only the first two buckets of the convolution are needed.
   const none = (dist[0] ?? 0) * (dist[0] ?? 0);
+  // Exactly one is not published -- it is only the term that turns "at least
+  // one" into "at least two".
   const exactlyOne = 2 * (dist[0] ?? 0) * (dist[1] ?? 0);
   const once = 1 - none;
   const twice = 1 - none - exactlyOne;
   // Floating point can leave a -1e-17 here, and a negative probability printed
   // as "-0%" is worse than the rounding it came from.
-  return { once: clamp01(once), twice: clamp01(twice) };
+  return { withinOne: clamp01(withinOne), once: clamp01(once), twice: clamp01(twice) };
 }
 
 function clamp01(n: number): number {
@@ -140,6 +152,7 @@ export function summariseSparks(
           name: spark.name,
           stars: spark.stars,
           carriers: [carrier],
+          withinOneInspiration: 0,
           onceInCareer: 0,
           twiceInCareer: 0,
         });
@@ -150,6 +163,7 @@ export function summariseSparks(
   const out = [...rows.values()];
   for (const row of out) {
     const odds = careerOdds(row.carriers.map((c) => c.perInspiration));
+    row.withinOneInspiration = odds.withinOne;
     row.onceInCareer = odds.once;
     row.twiceInCareer = odds.twice;
     row.carriers.sort((a, b) => b.perInspiration - a.perInspiration || a.position - b.position);

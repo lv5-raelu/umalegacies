@@ -41,7 +41,46 @@ describe('careerOdds', () => {
   });
 
   it('is 0 for a spark nobody carries', () => {
-    expect(careerOdds([])).toEqual({ once: 0, twice: 0 });
+    expect(careerOdds([])).toEqual({ withinOne: 0, once: 0, twice: 0 });
+  });
+
+  /**
+   * The three figures the pane offers, and they NEST: one inspiration is
+   * contained in the career, and the doubled case is contained in "at least
+   * once". Each ordering below is an invariant the UI relies on -- the switch
+   * changes one column in place, so a view that could print a bigger number
+   * than the view above it would read as the pair having improved.
+   */
+  describe('the three windows', () => {
+    it('cannot make one inspiration likelier than two', () => {
+      for (const rates of [[0.3], [0.3, 0.4], [0.05, 0.05, 0.05, 0.9]]) {
+        const o = careerOdds(rates);
+        expect(o.withinOne).toBeLessThanOrEqual(o.once);
+      }
+    });
+
+    it('cannot make at-least-twice likelier than at-least-once', () => {
+      for (const rates of [[0.3], [0.3, 0.4], [0.1, 0.25, 0.6]]) {
+        const o = careerOdds(rates);
+        expect(o.twice).toBeLessThanOrEqual(o.once);
+      }
+    });
+
+    it('gives a certain carrier 1 in every window', () => {
+      // A blue on a parent is capped at 1.0 and fires in BOTH inspirations, so
+      // there is no window in which it can fail to arrive.
+      expect(careerOdds([1])).toEqual({ withinOne: 1, once: 1, twice: 1 });
+    });
+
+    it('measures one inspiration, not two', () => {
+      // One carrier at 0.5: within a single inspiration it is exactly 0.5,
+      // while the career gets two rolls and reaches 0.75, of which the doubled
+      // quarter is the part that stacks.
+      const o = careerOdds([0.5]);
+      expect(o.withinOne).toBeCloseTo(0.5, 12);
+      expect(o.once).toBeCloseTo(0.75, 12);
+      expect(o.twice).toBeCloseTo(0.25, 12);
+    });
   });
 
   it('never returns a negative probability', () => {

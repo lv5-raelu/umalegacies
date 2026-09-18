@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PackageSpark, ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
-import { filterVeterans, matchesCriterion, pickBlock, starsInScope } from './filter';
+import { filterVeterans, matchesCriterion, maxStarsFor, pickBlock, starsInScope } from './filter';
 
 const STAMINA = 2;
 
@@ -27,7 +27,6 @@ const criterion = (over: Partial<SparkCriterion> = {}): SparkCriterion => ({
   groupId: STAMINA,
   minStars: 4,
   scope: 'package',
-  split: 'sum',
   ...over,
 });
 
@@ -37,41 +36,45 @@ describe('scope decides which members of the package count', () => {
   it.each([
     ['package', [3, 2, 1]],
     ['parent', [3]],
-    ['grandparents', [2, 1]],
   ] as const)('%s reads %j', (scope, expected) => {
     expect(starsInScope(spark, scope)).toEqual(expected);
   });
 });
 
-describe('split decides whether the scoped members add up or stand alone', () => {
-  // The dimension that would have been destroyed by summing the index at build
-  // time, and the one M7's borrow search needs.
-  const spread = veteran([2, 2, 0]); // 4 across the package, never more than 2 on one uma
-
-  it('sum counts the package together', () => {
-    expect(matchesCriterion(spread, criterion({ split: 'sum', minStars: 4 }))).toBe(true);
+describe('a scope sums its members', () => {
+  it('adds the whole lineage up', () => {
+    // 4 across the package, never more than 2 on one uma. The lineage scope
+    // does not care which uma carries what.
+    expect(matchesCriterion(veteran([2, 2, 0]), criterion({ minStars: 4 }))).toBe(true);
   });
 
-  it('single requires one uma to reach the threshold alone', () => {
-    expect(matchesCriterion(spread, criterion({ split: 'single', minStars: 4 }))).toBe(false);
-    expect(matchesCriterion(spread, criterion({ split: 'single', minStars: 2 }))).toBe(true);
-  });
-
-  it('distinguishes two packages that a summed index would call identical', () => {
-    const concentrated = veteran([3, 1, 0]); // also 4 across the package
-    const single3 = criterion({ split: 'single', minStars: 3 });
-    expect(matchesCriterion(concentrated, single3)).toBe(true);
-    expect(matchesCriterion(spread, single3)).toBe(false);
-  });
-});
-
-describe('scope and split together', () => {
   it('pins a requirement to the direct parent', () => {
     // A 2-star spark on a parent is worth materially more than the same spark on
     // a grandparent: parent individual affinity has median 138 against 36.
     const onGrandparents = veteran([0, 3, 3]);
     expect(matchesCriterion(onGrandparents, criterion({ scope: 'package', minStars: 6 }))).toBe(true);
     expect(matchesCriterion(onGrandparents, criterion({ scope: 'parent', minStars: 1 }))).toBe(false);
+  });
+
+  it('is what "on one uma alone" used to say, now said by the parent scope', () => {
+    // The removed `split` dimension could ask for 3 stars concentrated on one
+    // uma. A parent-scoped row asks the same thing and names WHICH uma.
+    const spread = veteran([2, 2, 0]);
+    const concentrated = veteran([3, 1, 0]);
+    const onParent3 = criterion({ scope: 'parent', minStars: 3 });
+    expect(matchesCriterion(concentrated, onParent3)).toBe(true);
+    expect(matchesCriterion(spread, onParent3)).toBe(false);
+  });
+});
+
+describe('the ceiling a scope can hold', () => {
+  // The star selector offers exactly this range, which is how a requirement
+  // nobody can satisfy stops being expressible instead of being warned about.
+  it.each([
+    ['parent', 3],
+    ['package', 9],
+  ] as const)('%s caps at %i stars', (scope, expected) => {
+    expect(maxStarsFor(scope)).toBe(expected);
   });
 });
 
@@ -148,11 +151,11 @@ describe('several criteria at once', () => {
     expect(filterVeterans(roster, [wantStamina, impossible])).toEqual([]);
   });
 
-  it('applies each row its own scope and split', () => {
+  it('applies each row its own scope', () => {
     // Stamina pinned to the direct parent (3 there), speed summed across the
     // package (9). Only `both` clears both readings.
-    const parentStamina = criterion({ groupId: STAMINA, minStars: 3, scope: 'parent', split: 'single' });
-    const packageSpeed = criterion({ groupId: SPEED, minStars: 6, scope: 'package', split: 'sum' });
+    const parentStamina = criterion({ groupId: STAMINA, minStars: 3, scope: 'parent' });
+    const packageSpeed = criterion({ groupId: SPEED, minStars: 6, scope: 'package' });
     expect(filterVeterans(roster, [parentStamina, packageSpeed]).map((v) => v.index)).toEqual([0]);
   });
 

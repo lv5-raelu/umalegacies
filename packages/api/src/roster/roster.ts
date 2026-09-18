@@ -70,11 +70,22 @@ export function resolveRoster(
 
   return {
     veterans: resolved,
+    // Kind first, then THE GAME'S OWN ORDER within a kind.
+    //
+    // `factor_group_id` is monotonic with `factor_id` across all 392 groups
+    // (checked, not assumed), and factor_id order is the order the game itself
+    // uses: Speed, Stamina, Power, Guts, Wit for the blues; Turf, Dirt, Front
+    // Runner, Pace Chaser, Late Surger, End Closer, Sprint, Mile, Medium, Long
+    // for the pinks; and for the whites, skills before races before scenarios,
+    // with the skills in the order a veteran's own skill list shows them.
+    //
+    // It replaces a sort by carrier count then name, which put a spark wherever
+    // this particular roster happened to put it -- so the same list reordered
+    // itself between two saves, and matched nothing the player had memorised.
     sparkOptions: [...catalogue.values()].sort(
       (a, b) =>
         SPARK_KIND_ORDER.indexOf(a.kind) - SPARK_KIND_ORDER.indexOf(b.kind) ||
-        b.veterans - a.veterans ||
-        a.name.localeCompare(b.name),
+        a.groupId - b.groupId,
     ),
     unresolvedCount: resolved.filter((v) => !v.ok).length,
   };

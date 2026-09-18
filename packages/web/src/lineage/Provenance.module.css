@@ -246,3 +246,33 @@
   display: block;
   height: 100%;
 }
+
+/* The other two windows, beside the headline. Read together they say how much
+   of "at least once" comes from a single firing and how much of it doubles. */
+.windows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: var(--space-tight) 0 0;
+}
+
+.windows div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.windows dt {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.windows dd {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  margin: 0;
+}
