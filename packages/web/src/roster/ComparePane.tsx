@@ -1,5 +1,6 @@
 import type {
   LineageResponse,
+  RosterSparkOption,
   SparkCriterion,
   SparkKind,
   SparkSummaryRow,
@@ -23,7 +24,8 @@ import styles from './ComparePane.module.css';
  */
 export function ComparePane({
   state,
-  criterion,
+  criteria,
+  sparkOptions,
   pickedCount,
   onClearPicks,
   onOpenTree,
@@ -34,7 +36,9 @@ export function ComparePane({
     | { kind: 'loading' }
     | { kind: 'error'; message: string }
     | { kind: 'ok'; lineage: LineageResponse };
-  criterion: SparkCriterion | null;
+  criteria: readonly SparkCriterion[];
+  /** Only for naming a requirement this pair misses. */
+  sparkOptions: readonly RosterSparkOption[];
   /** How many veterans are picked, whether or not the filter shows them. */
   pickedCount: number;
   onClearPicks: () => void;
@@ -70,7 +74,12 @@ export function ComparePane({
       {state.kind === 'loading' && <p className={styles.quiet}>Explaining…</p>}
       {state.kind === 'error' && <p className={styles.error}>{state.message}</p>}
       {state.kind === 'ok' && (
-        <Result lineage={state.lineage} criterion={criterion} onOpenTree={onOpenTree} />
+        <Result
+          lineage={state.lineage}
+          criteria={criteria}
+          sparkOptions={sparkOptions}
+          onOpenTree={onOpenTree}
+        />
       )}
     </aside>
   );
@@ -78,17 +87,25 @@ export function ComparePane({
 
 function Result({
   lineage,
-  criterion,
+  criteria,
+  sparkOptions,
   onOpenTree,
 }: {
   lineage: LineageResponse;
-  criterion: SparkCriterion | null;
+  criteria: readonly SparkCriterion[];
+  sparkOptions: readonly RosterSparkOption[];
   onOpenTree: () => void;
 }) {
   const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
-  const wanted = criterion
-    ? lineage.sparks.find((row) => row.groupId === criterion.groupId)
-    : undefined;
+  // One entry per required spark, in the order they were asked for, each
+  // paired with what this lineage actually carries of it -- or null when it
+  // carries none. Kept as a list rather than filtered down, so a requirement
+  // the pair misses is SHOWN as missed instead of silently disappearing from a
+  // panel headed "your filtered sparks".
+  const wanted = criteria.map((c) => ({
+    groupId: c.groupId,
+    row: lineage.sparks.find((s) => s.groupId === c.groupId) ?? null,
+  }));
 
   return (
     <>
@@ -124,18 +141,30 @@ function Result({
       </p>
 
       <div className={styles.odds}>
-        {/* The filtered spark first and in full, because it is the one the user
-            asked about and a doubled spark stacks. */}
-        {criterion !== null && (
+        {/* The filtered sparks first and in full, because they are the ones
+            the user asked about and a doubled spark stacks.
+
+            EVERY requirement gets a line, including the ones this pair misses.
+            The filter matched each veteran's own package; the composed lineage
+            is a different set of six ancestors, so a spark can pass the filter
+            and still be absent here. Dropping those rows would answer a
+            narrower question than the one on screen. */}
+        {wanted.length > 0 && (
           <div className={styles.filtered}>
-            <p className={styles.oddsRubric}>Your filtered spark</p>
-            {wanted ? (
-              <Odds row={wanted} twice />
-            ) : (
-              // The filter matched the veteran's package, but the composed
-              // lineage carries no such spark: say so rather than printing 0%
-              // and letting it read as a computed answer.
-              <p className={styles.quiet}>This pair carries none of that spark.</p>
+            <p className={styles.oddsRubric}>
+              {wanted.length === 1 ? 'Your filtered spark' : `Your ${wanted.length} filtered sparks`}
+            </p>
+            {wanted.map(({ groupId, row }) =>
+              row ? (
+                <Odds key={groupId} row={row} twice />
+              ) : (
+                // Say so rather than printing 0% and letting it read as a
+                // computed answer.
+                <p key={groupId} className={styles.quiet}>
+                  This pair carries none of{' '}
+                  {sparkOptions.find((o) => o.groupId === groupId)?.name ?? 'that spark'}.
+                </p>
+              ),
             )}
           </div>
         )}

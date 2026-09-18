@@ -79,11 +79,11 @@ describe('filterVeterans', () => {
   const roster = [veteran([3, 3, 3]), veteran([1, 0, 0]), veteran([0, 0, 0])];
 
   it('returns everything when no criterion is set', () => {
-    expect(filterVeterans(roster, null)).toHaveLength(3);
+    expect(filterVeterans(roster, [])).toHaveLength(3);
   });
 
   it('keeps only the packages that satisfy the criterion', () => {
-    expect(filterVeterans(roster, criterion({ minStars: 9 }))).toHaveLength(1);
+    expect(filterVeterans(roster, [criterion({ minStars: 9 })])).toHaveLength(1);
   });
 
   it('treats a spark the package does not carry at all as a miss, not a zero', () => {
@@ -93,8 +93,81 @@ describe('filterVeterans', () => {
 
   it('does not mutate the roster it was given', () => {
     const copy = [...roster];
-    filterVeterans(roster, criterion());
+    filterVeterans(roster, [criterion()]);
     expect(roster).toEqual(copy);
+  });
+});
+
+/**
+ * More than one criterion at a time.
+ *
+ * AND is the whole point: "who can give me the blue I need AND a decent pink"
+ * is the question a pair is chosen to answer. An OR over the same rows is the
+ * weaker query, already available by filtering one spark at a time.
+ */
+describe('several criteria at once', () => {
+  const SPEED = 1;
+
+  /** Stars per spark, so a package can satisfy one requirement and miss another. */
+  const pkg = (stamina: [number, number, number], speed: [number, number, number], index: number) => ({
+    ...veteran(stamina, { index }),
+    sparks: [
+      { groupId: STAMINA, stars: stamina },
+      { groupId: SPEED, stars: speed },
+    ] satisfies PackageSpark[],
+  });
+
+  const both = pkg([3, 3, 3], [3, 3, 3], 0); // 9 stamina, 9 speed
+  const staminaOnly = pkg([3, 3, 3], [1, 0, 0], 1); // 9 stamina, 1 speed
+  const speedOnly = pkg([1, 0, 0], [3, 3, 3], 2); // 1 stamina, 9 speed
+  const roster = [both, staminaOnly, speedOnly];
+
+  const wantStamina = criterion({ groupId: STAMINA, minStars: 6 });
+  const wantSpeed = criterion({ groupId: SPEED, minStars: 6 });
+
+  it('keeps only the packages that satisfy EVERY criterion', () => {
+    const kept = filterVeterans(roster, [wantStamina, wantSpeed]);
+    expect(kept.map((v) => v.index)).toEqual([0]);
+  });
+
+  it('is narrower than either criterion alone, which is the point', () => {
+    expect(filterVeterans(roster, [wantStamina])).toHaveLength(2);
+    expect(filterVeterans(roster, [wantSpeed])).toHaveLength(2);
+    expect(filterVeterans(roster, [wantStamina, wantSpeed])).toHaveLength(1);
+  });
+
+  it('does not OR them, which would keep everything here', () => {
+    // Every package in this roster satisfies at least one of the two. If the
+    // combination were OR, all three would survive and the filter would be
+    // answering a question nobody asked.
+    expect(filterVeterans(roster, [wantStamina, wantSpeed])).not.toHaveLength(3);
+  });
+
+  it('returns nothing when the requirements cannot all be met together', () => {
+    const impossible = criterion({ groupId: SPEED, minStars: 99 });
+    expect(filterVeterans(roster, [wantStamina, impossible])).toEqual([]);
+  });
+
+  it('applies each row its own scope and split', () => {
+    // Stamina pinned to the direct parent (3 there), speed summed across the
+    // package (9). Only `both` clears both readings.
+    const parentStamina = criterion({ groupId: STAMINA, minStars: 3, scope: 'parent', split: 'single' });
+    const packageSpeed = criterion({ groupId: SPEED, minStars: 6, scope: 'package', split: 'sum' });
+    expect(filterVeterans(roster, [parentStamina, packageSpeed]).map((v) => v.index)).toEqual([0]);
+  });
+
+  it('is order-independent', () => {
+    const a = filterVeterans(roster, [wantStamina, wantSpeed]).map((v) => v.index);
+    const b = filterVeterans(roster, [wantSpeed, wantStamina]).map((v) => v.index);
+    expect(a).toEqual(b);
+  });
+
+  it('treats the same spark twice as two requirements, the stricter one deciding', () => {
+    // Not prevented at this layer: the UI keeps a spark from being added twice,
+    // but the predicate must still be coherent if it ever happens.
+    const loose = criterion({ groupId: STAMINA, minStars: 1 });
+    const strict = criterion({ groupId: STAMINA, minStars: 9 });
+    expect(filterVeterans(roster, [loose, strict]).map((v) => v.index)).toEqual([0, 1]);
   });
 });
 

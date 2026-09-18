@@ -13,6 +13,16 @@
   margin-bottom: var(--space-tight);
 }
 
+/* The qualifier on the region label once more than one spark is required.
+   Same faint treatment as .echo: it is a reading of the controls beside it,
+   not a control, and DESIGN.md keeps interaction achromatic. */
+.every {
+  font-family: var(--font-ui);
+  color: var(--ink-faint);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .row {
   display: flex;
   align-items: center;
