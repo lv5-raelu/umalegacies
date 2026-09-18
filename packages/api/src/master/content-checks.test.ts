@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { contentChecks } from './content-checks';
-import { extractDatabase } from './master-extract';
-import { MasterContentError } from './master.errors';
+import { contentChecks } from './content-checks.js';
+import { extractDatabase } from './master-extract.js';
+import { MasterContentError } from './master.errors.js';
 
 const byName = (name: string) => {
   const check = contentChecks.find((c) => c.name === name);

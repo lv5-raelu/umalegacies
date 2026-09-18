@@ -1,11 +1,11 @@
-import { DomainError } from '../common/error-response';
+import { DomainError } from '../common/error-response.js';
 import type {
   AncestorRef,
   ExplainPairRequest,
   ExplainRequest,
   GrandparentTuple,
   VeteranPackage,
-} from './types';
+} from './types.js';
 
 /**
  * Generous against the observed maximum of 26. A cap at all exists because the

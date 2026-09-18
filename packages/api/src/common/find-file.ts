@@ -4,13 +4,14 @@ import { resolve } from 'node:path';
 /**
  * Finds a file that ships inside this package, by probing candidate paths.
  *
- * Probing rather than resolving from a single anchor because these modules are
- * compiled to CommonJS for NestJS and read as ESM by Vitest: `__dirname` and
- * `import.meta` each exist in only one of those. The process may also be
- * started from the repository root or from the package directory.
+ * Probing rather than resolving from a single anchor because the anchor is not
+ * reliable: the process may start from the repository root or the package
+ * directory, and a Vercel function bundle flattens the compiled JavaScript to
+ * its root while assets keep their repository paths. The last candidate --
+ * `cwd/packages/api/<relative>` -- is the one that lands inside a lambda.
  *
  * @param override  an explicit path from the environment, tried first
- * @param fromModule  `__filename` of the calling module
+ * @param fromModule  `fileURLToPath(import.meta.url)` of the calling module
  * @param upToRoot  relative hops from that module to the package root
  * @param relative  the wanted file, relative to the package root
  */

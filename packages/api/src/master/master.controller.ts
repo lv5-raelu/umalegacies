@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { MasterService, type MasterMeta } from './master.service';
+import { MasterService, type MasterMeta } from './master.service.js';
 
 @Controller('master')
 export class MasterController {

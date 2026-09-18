@@ -1,12 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // NestJS is decorator-driven and its DI reads design-time type metadata,
-    // which only tsc's CommonJS + emitDecoratorMetadata path emits reliably.
-    // Vitest reads the TypeScript sources directly through esbuild, so tests
-    // never touch this output and the ESM/CJS split costs nothing.
-    "module": "commonjs",
-    "moduleResolution": "node",
+    // ESM, because NestJS 12 IS ESM: @nestjs/common and @nestjs/core both
+    // declare "type": "module". A CommonJS build of this package runs locally
+    // only because Node 24 permits require() of ESM; Vercel's function runtime
+    // uses its own loader, which does not, and the deployment died with
+    // ERR_REQUIRE_ESM before reaching a single route. Measured 2026-09-17.
+    //
+    // emitDecoratorMetadata still applies -- it is orthogonal to module format,
+    // and Nest's DI needs it either way. Vitest reads the TypeScript sources
+    // directly through esbuild and never touches this output.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "outDir": "dist",
@@ -16,5 +21,8 @@
     "types": ["node"]
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "**/*.test.ts"]
+  // *.test-utils.ts holds helpers shared BETWEEN test files. Excluded for the
+  // same reason as the tests themselves: nothing in the shipped API imports
+  // them, and they would otherwise be dead code in dist/.
+  "exclude": ["dist", "**/*.test.ts", "**/*.test-utils.ts"]
 }

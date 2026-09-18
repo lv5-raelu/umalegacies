@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DomainError } from '../common/error-response';
-import { loadFixture } from './fixtures';
-import { assertMasterHashCurrent, parseExplainRequest } from './validate';
+import { DomainError } from '../common/error-response.js';
+import { loadFixture } from './fixtures.js';
+import { assertMasterHashCurrent, parseExplainRequest } from './validate.js';
 
 const valid = () => JSON.parse(JSON.stringify(loadFixture('5531').request));
 

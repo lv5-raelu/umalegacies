@@ -1,5 +1,5 @@
-import type { MasterData } from '../master/master-data';
-import type { AncestorRef, Position } from '../affinity/types';
+import type { MasterData } from '../master/master-data.js';
+import type { AncestorRef, Position } from '../affinity/types.js';
 import {
   BASE_RATES,
   SPARK_KIND_ORDER,
@@ -7,7 +7,7 @@ import {
   type AncestorSparkSet,
   type SparkCarrier,
   type SparkSummaryRow,
-} from './spark-types';
+} from './spark-types.js';
 
 /** An empty set, so an absent or unresolved slot still renders six uniform nodes. */
 export function emptySparkSet(): AncestorSparkSet {

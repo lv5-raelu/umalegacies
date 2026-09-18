@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { lookupPortrait } from './portrait-lookup';
+import { lookupPortrait } from './portrait-lookup.js';
 
 const dir = mkdtempSync(resolve(tmpdir(), 'portraits-'));
 writeFileSync(resolve(dir, '1006.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));

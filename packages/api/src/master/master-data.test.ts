@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MasterData } from './master-data';
-import { extractDatabase, extractMaster } from './master-extract';
+import { MasterData } from './master-data.js';
+import { extractDatabase, extractMaster } from './master-extract.js';
 
 describe('charaIdFor', () => {
   it('joins card_data rather than dividing by 100', () => {

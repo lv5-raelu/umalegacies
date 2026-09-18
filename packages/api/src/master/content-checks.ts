@@ -1,8 +1,8 @@
 import type { Database } from 'better-sqlite3';
-import { explain } from '../affinity/engine';
-import { loadFixture } from '../affinity/fixtures';
-import { MasterData } from './master-data';
-import { MasterContentError } from './master.errors';
+import { explain } from '../affinity/engine.js';
+import { loadFixture } from '../affinity/fixtures.js';
+import { MasterData } from './master-data.js';
+import { MasterContentError } from './master.errors.js';
 
 /**
  * A boot-time assertion that the opened database says what we believe it says.

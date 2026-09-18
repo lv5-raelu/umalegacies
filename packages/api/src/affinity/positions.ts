@@ -1,4 +1,4 @@
-import type { Position } from './types';
+import type { Position } from './types.js';
 
 /** The trainee is not a position; it is the root the lineage hangs off. */
 export type Member = Position | 'T';

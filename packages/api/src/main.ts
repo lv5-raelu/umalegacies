@@ -3,9 +3,9 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { json } from 'express';
-import { AppModule } from './app.module';
-import { ErrorFilter } from './common/error.filter';
-import { MasterBootError } from './master/master.errors';
+import { AppModule } from './app.module.js';
+import { ErrorFilter } from './common/error.filter.js';
+import { MasterBootError } from './master/master.errors.js';
 
 /**
  * The CORS allowlist README warns about. It is explicit, so a Vite dev server

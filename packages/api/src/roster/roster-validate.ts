@@ -1,6 +1,6 @@
 import type { RosterMemberInput, RosterResolveRequest, RosterVeteranInput } from '@umalegacies/types';
-import { DomainError } from '../common/error-response';
-import { parseAncestor, parseMasterHash } from '../affinity/validate';
+import { DomainError } from '../common/error-response.js';
+import { parseAncestor, parseMasterHash } from '../affinity/validate.js';
 
 /**
  * Shape-check the slimmed roster.

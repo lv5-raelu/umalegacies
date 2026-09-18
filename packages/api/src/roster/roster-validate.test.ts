@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DomainError } from '../common/error-response';
-import { parseRosterResolveRequest } from './roster-validate';
+import { DomainError } from '../common/error-response.js';
+import { parseRosterResolveRequest } from './roster-validate.js';
 
 const member = (over: Record<string, unknown> = {}) => ({
   cardId: 100201,

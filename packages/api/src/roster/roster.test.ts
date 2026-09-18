@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RosterMemberInput, RosterVeteranInput } from '@umalegacies/types';
-import { extractMaster } from '../master/master-extract';
-import { resolveRoster, traineeOptions } from './roster';
+import { extractMaster } from '../master/master-extract.js';
+import { resolveRoster, traineeOptions } from './roster.js';
 
 const master = extractMaster();
 

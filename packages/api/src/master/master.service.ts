@@ -3,10 +3,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import Database from 'better-sqlite3';
-import { contentChecks } from './content-checks';
-import { MasterData } from './master-data';
-import { extractHeader, findExtract } from './master-extract';
-import { MasterDbMissing, MasterSchemaError } from './master.errors';
+import { contentChecks } from './content-checks.js';
+import { MasterData } from './master-data.js';
+import { extractHeader, findExtract } from './master-extract.js';
+import { MasterDbMissing, MasterSchemaError } from './master.errors.js';
 
 /**
  * Tables the affinity rules read. Presence is asserted at boot so a drifted

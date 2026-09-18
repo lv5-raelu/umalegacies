@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import type { RosterResolveResponse, TraineeOption } from '@umalegacies/types';
-import { assertMasterHashCurrent } from '../affinity/validate';
-import { MasterService } from '../master/master.service';
-import { resolveRoster, traineeOptions } from './roster';
-import { parseRosterResolveRequest } from './roster-validate';
+import { assertMasterHashCurrent } from '../affinity/validate.js';
+import { MasterService } from '../master/master.service.js';
+import { resolveRoster, traineeOptions } from './roster.js';
+import { parseRosterResolveRequest } from './roster-validate.js';
 
 @Controller('roster')
 export class RosterController {

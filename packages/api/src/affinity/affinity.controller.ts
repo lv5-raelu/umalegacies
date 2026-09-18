@@ -1,15 +1,15 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { DomainError } from '../common/error-response';
-import { MasterService } from '../master/master.service';
-import { FIXTURE_NAMES, loadFixture } from './fixtures';
-import { explainLineage, type LineageResponse } from './lineage';
-import type { ExplainRequest } from './types';
-import { lineageFromPair } from './pair';
+import { DomainError } from '../common/error-response.js';
+import { MasterService } from '../master/master.service.js';
+import { FIXTURE_NAMES, loadFixture } from './fixtures.js';
+import { explainLineage, type LineageResponse } from './lineage.js';
+import type { ExplainRequest } from './types.js';
+import { lineageFromPair } from './pair.js';
 import {
   assertMasterHashCurrent,
   parseExplainPairRequest,
   parseExplainRequest,
-} from './validate';
+} from './validate.js';
 
 @Controller('affinity')
 export class AffinityController {
