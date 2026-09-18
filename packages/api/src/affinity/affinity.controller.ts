@@ -1,7 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { DomainError } from '../common/error-response.js';
+import { Body, Controller, Post } from '@nestjs/common';
 import { MasterService } from '../master/master.service.js';
-import { FIXTURE_NAMES, loadFixture } from './fixtures.js';
 import { explainLineage, type LineageResponse } from './lineage.js';
 import type { ExplainRequest } from './types.js';
 import { lineageFromPair } from './pair.js';
@@ -56,41 +54,5 @@ export class AffinityController {
     const masterHash = this.master.getMeta().masterHash;
     assertMasterHashCurrent(pair.masterHash, masterHash);
     return explainLineage(lineageFromPair(pair), this.master.data, masterHash);
-  }
-
-  /**
-   * The committed fixtures, as ExplainRequests.
-   *
-   * M3 is what puts a real roster on screen. Until it exists the web app has
-   * nothing to render, and a screen built against hand-typed data drifts from
-   * the engine within one edit. So the fixtures the golden tests assert on are
-   * also the lineages the UI develops against: one source, and a UI bug and a
-   * test failure cannot disagree about what the data is.
-   */
-  @Get('fixtures')
-  fixtures(): { names: string[] } {
-    return { names: [...FIXTURE_NAMES] };
-  }
-
-  @Get('fixtures/:name')
-  fixture(@Param('name') name: string): {
-    name: string;
-    description: string;
-    request: ExplainRequest;
-  } {
-    if (!(FIXTURE_NAMES as readonly string[]).includes(name)) {
-      throw new DomainError(
-        'UNKNOWN_FIXTURE',
-        `No fixture named "${name}". Known fixtures: ${FIXTURE_NAMES.join(', ')}.`,
-        404,
-        'name',
-      );
-    }
-    const fixture = loadFixture(name);
-    return {
-      name: fixture.name,
-      description: fixture.description,
-      request: fixture.request,
-    };
   }
 }
