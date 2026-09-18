@@ -3,7 +3,7 @@
  *
  *   node scripts/fetch-portraits.mjs [--force] [--concurrency N]
  *
- * Writes packages/api/data/portraits/<card_id>.png, which is GITIGNORED and
+ * Writes packages/web/public/portraits/<card_id>.png, which is GITIGNORED and
  * deliberately so. The images are Cygames' character art; gametora rehosts them
  * and cannot grant redistribution rights it does not hold. Committing them would
  * put third-party artwork in git history permanently and serve it publicly the
@@ -25,7 +25,10 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');
 const extractPath = resolve(packageRoot, 'data/master-extract.sql');
-const outDir = resolve(packageRoot, 'data/portraits');
+// The web app's static folder, not a folder this package serves. The API no
+// longer has a portraits route: these are files on a CDN, and a CDN 404 is
+// the same designed initials state the old 404 produced.
+const outDir = resolve(packageRoot, '../web/public/portraits');
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');

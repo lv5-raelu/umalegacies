@@ -61,16 +61,24 @@ where the extract predates the game growing its ladder from 98 tiers to 298.
 `packages/web/src/roster/rank-ladder.test.ts` pins that agreement.
 
 The badge artwork itself (`Rank_tex.webp`) is fetched by
-`packages/api/scripts/fetch-rank-icons.mjs` into a **gitignored** cache and is
-never committed. It is Cygames' artwork; daftuyda.moe rehosts it and cannot grant
-redistribution rights it does not hold.
+`packages/api/scripts/fetch-rank-icons.mjs` into
+`packages/web/public/rank-icons/`, which is **gitignored** and never committed.
+It is Cygames' artwork; daftuyda.moe rehosts it and cannot grant redistribution
+rights it does not hold.
+
+A deployment uploads whatever is in that folder, so a hosted instance serves the
+artwork from the operator's own cache. That is the same act as serving it from
+the machine the app runs on, which is the line this project has always drawn.
+What it still does not do is put the artwork in git history, where it would be
+redistributed by the repository itself to everyone who clones it.
 
 ## gametora
 
 `packages/api/scripts/fetch-portraits.mjs` fills a **gitignored** cache of
-character portraits from [gametora](https://gametora.com). Same reasoning as
-above: Cygames' character art, rehosted, never committed to this repository and
-never served from it except off a local cache the operator chose to fill.
+character portraits from [gametora](https://gametora.com) into
+`packages/web/public/portraits/`. Same reasoning as above: Cygames' character
+art, rehosted, never committed to this repository, and served only off a cache
+the operator chose to fill -- including when that operator deploys it.
 
 ## Umamusume: Pretty Derby
 
