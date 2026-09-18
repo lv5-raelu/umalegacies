@@ -24,6 +24,7 @@ interface ServiceConfig {
   runtime?: string;
   framework?: string;
   buildCommand?: string;
+  installCommand?: string;
   outputDirectory?: string;
   entrypoint?: string;
   functions?: Record<string, { includeFiles?: string; excludeFiles?: string }>;
@@ -69,6 +70,40 @@ describe('vercel.json pins what the platform actually accepts', () => {
   /** Hobby is single-region, and sin1 is ap-southeast-1. */
   it('pins the function region to Singapore', () => {
     expect(config.regions).toEqual(['sin1']);
+  });
+
+  /**
+   * The api service must install from the REPOSITORY ROOT.
+   *
+   * Measured 2026-09-18. Services install one after another, and this is an npm
+   * workspace, so the first install writes a root node_modules holding only its
+   * own service's dependencies. The second install then looks at the same
+   * lockfile, decides nothing is missing, and does nothing:
+   *
+   *   [web] Installing dependencies... added 100 packages in 3s
+   *   [api] Installing dependencies... up to date in 262ms
+   *   src/main.ts(2,24): error TS2307: Cannot find module '@nestjs/common'
+   *
+   * Every one of the api's dependencies was absent. Installing from the root
+   * resolves the whole workspace instead of trusting that verdict:
+   *
+   *   [api] added 158 packages, and audited 262 packages in 2s
+   *
+   * It is not a build-cache artifact -- it reproduces under `vercel deploy
+   * --force`.
+   */
+  it('installs the api service from the repository root', () => {
+    expect(
+      api.installCommand,
+      'the api service has no installCommand, so its install runs inside ' +
+        'packages/api and npm reports "up to date" without installing ' +
+        'anything. The build then fails on every dependency.',
+    ).toBeTruthy();
+    expect(
+      /(^|\s)cd\s+\.\.\/\.\.\s*&&/.test(api.installCommand as string),
+      `installCommand is "${api.installCommand}" but it must install from the ` +
+        'repository root for the workspace to resolve.',
+    ).toBe(true);
   });
 });
 
