@@ -48,11 +48,29 @@ export function matchesCriterion(veteran: ResolvedVeteran, criterion: SparkCrite
   return measured >= criterion.minStars;
 }
 
+/**
+ * Every criterion must hold. AND, not OR, and that is the question people
+ * actually ask: "who can give me the blue I need AND a decent pink". An OR over
+ * the same rows is the weaker query you can already run by filtering one spark
+ * at a time.
+ *
+ * It is also what the design doc specifies for M7's hard constraints --
+ * "Stamina >= 12 AND Medium >= 4", satisfied by 25 of 33,411 own-pairs on the
+ * builder's roster. Filtering the 259-veteran list is the same predicate
+ * applied to one package instead of a pair, so the two agree by construction
+ * rather than by coincidence.
+ *
+ * An empty list is not a filter. It returns everything rather than nothing,
+ * because "no requirements" and "impossible requirements" are different
+ * questions and only one of them is what an empty row set means.
+ */
 export const filterVeterans = (
   veterans: readonly ResolvedVeteran[],
-  criterion: SparkCriterion | null,
+  criteria: readonly SparkCriterion[],
 ): ResolvedVeteran[] =>
-  criterion === null ? [...veterans] : veterans.filter((v) => matchesCriterion(v, criterion));
+  criteria.length === 0
+    ? [...veterans]
+    : veterans.filter((v) => criteria.every((c) => matchesCriterion(v, c)));
 
 const sum = (ns: readonly number[]): number => ns.reduce((total, n) => total + n, 0);
 

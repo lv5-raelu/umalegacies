@@ -45,7 +45,7 @@ export function App() {
   const [roster, setRoster] = useState<RosterResolveResponse | null>(null);
   const [trainees, setTrainees] = useState<TraineeOption[]>([]);
   const [traineeCardId, setTraineeCardId] = useState<number | null>(null);
-  const [criterion, setCriterion] = useState<SparkCriterion | null>(null);
+  const [criteria, setCriteria] = useState<SparkCriterion[]>([]);
   /** Request-array indices, oldest first, at most two. */
   const [picks, setPicks] = useState<number[]>([]);
   const [lineage, setLineage] = useState<LineageResponse | null>(null);
@@ -211,7 +211,7 @@ export function App() {
     setRoster(null);
     setTrainees([]);
     setTraineeCardId(null);
-    setCriterion(null);
+    setCriteria([]);
     setPicks([]);
     setLineage(null);
     setSaveError(null);
@@ -272,10 +272,10 @@ export function App() {
     // still so the card you just clicked stays under the cursor and the one you
     // were about to compare it against stays where you last saw it. An earlier
     // cut pinned picks to the top and it made the list jump under the pointer.
-    return filterVeterans(roster.veterans, criterion).sort(
+    return filterVeterans(roster.veterans, criteria).sort(
       (a, b) => b.score - a.score || a.self.name.localeCompare(b.self.name),
     );
-  }, [roster, criterion]);
+  }, [roster, criteria]);
 
   const trainee = useMemo(
     () => trainees.find((t) => t.cardId === traineeCardId) ?? null,
@@ -462,10 +462,10 @@ export function App() {
                 <>
                   <SparkFilter
                     options={roster.sparkOptions}
-                    criterion={criterion}
+                    criteria={criteria}
                     matching={shown.length}
                     total={roster.veterans.length}
-                    onChange={setCriterion}
+                    onChange={setCriteria}
                   />
                   <div className={styles.listHead}>
                     <h2 className={styles.rubric}>Parents for {trainee.name}</h2>
@@ -486,7 +486,7 @@ export function App() {
                     picked={picks}
                     traineeCharaId={trainee.charaId}
                     onPick={pick}
-                    onClearFilter={() => setCriterion(null)}
+                    onClearFilter={() => setCriteria([])}
                   />
                 </>
               )}
@@ -495,7 +495,8 @@ export function App() {
             <div className={styles.paneColumn}>
               <ComparePane
                 state={paneState(traineeCardId, picks, pairLoading, pairError, lineage)}
-                criterion={criterion}
+                criteria={criteria}
+                sparkOptions={roster.sparkOptions}
                 pickedCount={picks.length}
                 onClearPicks={() => setPicks([])}
                 onOpenTree={() => {
