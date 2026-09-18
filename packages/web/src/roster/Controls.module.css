@@ -30,6 +30,23 @@
   flex-wrap: wrap;
 }
 
+/*
+ * Between one requirement and the next, and DOUBLE the gap inside a row.
+ *
+ * Not decoration: `.row` wraps, so a row too long for its width puts its
+ * continuation --space-sm below. At the same 8px a wrapped line and a separate
+ * requirement are indistinguishable, and with three sparks required the region
+ * reads as one crowded block of controls rather than three things. 16px is the
+ * next step on the scale and twice the intra-row gap, which is what makes the
+ * grouping legible rather than merely roomier.
+ *
+ * Adjacent-sibling, so the first row keeps sitting under the label at the
+ * label's own margin.
+ */
+.row + .row {
+  margin-top: var(--space-md);
+}
+
 /* Achromatic, always. DESIGN.md: nothing clickable is ever a spark colour,
    because a coloured control would read as a datum. */
 .select,
