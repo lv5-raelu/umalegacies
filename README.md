@@ -44,7 +44,8 @@ build is impossible. A slim extract of `master.mdb` would fit in a browser — o
 this space ship one at around 80 KB — so this is a preference, and it is recorded as one in
 `docs/designs/`. The API owns the database and the web app asks questions of it.
 
-**Data flow:** you export your trained characters as `data.json` and open it. The browser
+**Data flow:** you export your trained characters as `data.json` with
+[UmaExtractor](https://github.com/xancia/UmaExtractor) and open it here. The browser
 parses it and **slims it to three public fields per uma** (card id, win-saddle ids, spark
 factor ids) before anything is sent; the API resolves those raw ids into names, costumes and
 sparks, and retains nothing. Personal fields -- `owner_viewer_id`, which is other players'
@@ -60,9 +61,10 @@ Two inputs, both user-provided and both gitignored:
 
 - **`master.mdb`** — the game's master database. Character names, cards, skills,
   succession factors, succession relations, race definitions, win saddles.
-- **`data.json`** — your trained-character export. Each entry carries its own sparks
-  plus its two parents' sparks and race wins, so one veteran describes a three-generation
-  subtree.
+- **`data.json`** — your trained-character export, produced by
+  [UmaExtractor](https://github.com/xancia/UmaExtractor). The game exports nothing itself,
+  so that tool is the only way to get one. Each entry carries its own sparks plus its two
+  parents' sparks and race wins, so one veteran describes a three-generation subtree.
 
 ### How affinity works
 
@@ -309,6 +311,9 @@ Read `planner-that-shows-its-work.md` before implementing anything.
 Affinity mechanics adapted from community research, in particular Crazyfellow's parenting
 and gene guide. Base inspiration rates from
 [@BourBon_Polaris](https://x.com/BourBon_Polaris/status/1952727338547814695).
+
+**[xancia/UmaExtractor](https://github.com/xancia/UmaExtractor)** produces the `data.json`
+this tool reads. Without it there is no input and no product.
 
 **[ayaliz/hakuraku](https://github.com/ayaliz/hakuraku)** (MIT), and its ancestor
 [SSHZ-ORG/hakuraku](https://github.com/SSHZ-ORG/hakuraku), are the reference implementation
