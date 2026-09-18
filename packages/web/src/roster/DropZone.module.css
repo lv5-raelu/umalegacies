@@ -30,9 +30,34 @@
     background-color var(--duration-micro) var(--ease-enter);
 }
 
-.zone:focus-visible {
+/*
+ * The picker's own control, styled as a link rather than a button.
+ *
+ * It reads as part of the sentence because it IS part of the sentence -- the
+ * whole box is the click target and this exists so that keyboards and screen
+ * readers get one short, focusable name instead of the box's entire paragraph.
+ */
+.choose {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule-strong);
+}
+
+.choose:hover {
+  text-decoration-color: var(--ink);
+}
+
+.choose:focus-visible,
+.source a:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .over {
@@ -55,6 +80,15 @@
   font-size: var(--text-xs);
   color: var(--ink-muted);
   margin: var(--space-sm) auto 0;
+  max-width: 64ch;
+}
+
+/* Where the file comes from. Fainter than the privacy line above it: that one
+   is a promise being relied on, this one is a signpost for the first visit. */
+.source {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin: var(--space-snug) 0 0;
   max-width: 64ch;
 }
 

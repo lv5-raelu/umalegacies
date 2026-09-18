@@ -482,10 +482,10 @@ export function App() {
       ) : (
         <div className={styles.welcome}>
           <p className={styles.lede}>
-            Load your save to read your trained umas. Filter by the sparks you want, pick two
-            parents, and see the pair&rsquo;s affinity, relation rank, and each spark&rsquo;s
-            chance of being inherited. Or search the roster for the pair that fits your
-            requirements best.
+            Load your veteran data to read your trained umas. Filter by the sparks you want,
+            pick two parents, and see the pair&rsquo;s affinity, relation rank, and each
+            spark&rsquo;s chance of being inherited. Or search the roster for the pair that
+            fits your requirements best.
           </p>
           {dropZone}
         </div>
