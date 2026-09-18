@@ -102,10 +102,6 @@ export function TreePage({
         selectedGroupId={spark?.groupId ?? null}
         onSelect={(row) => setSpark(row.groupId === spark?.groupId ? null : row)}
       />
-
-      <footer className={styles.footer}>
-        master extract <code>{lineage.masterHash.slice(0, 12)}</code>
-      </footer>
     </main>
   );
 }
