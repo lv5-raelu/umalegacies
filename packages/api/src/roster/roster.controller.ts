@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Header, Post } from '@nestjs/common';
 import type { RosterResolveResponse, TraineeOption } from '@umalegacies/types';
 import { assertMasterHashCurrent } from '../affinity/validate.js';
 import { MasterService } from '../master/master.service.js';
@@ -33,6 +33,15 @@ export class RosterController {
    * From master.mdb, not from the save: you can train a character you have never
    * trained before, so sourcing this from the roster would hide most of the game.
    */
+  // Immutable for the life of a deployment: it is computed from the committed
+  // extract and nothing else, so every visitor gets identical bytes until the
+  // next deploy, which serves them from a new URL anyway. 10,443 bytes (2,314
+  // gzipped) that fired on every first paint and woke the function in Singapore
+  // to recompute an answer that was already correct.
+  //
+  // stale-while-revalidate so the deploy after a game patch does not make one
+  // unlucky visitor wait for the recompute.
+  @Header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800')
   @Get('trainees')
   trainees(): { trainees: TraineeOption[]; masterHash: string } {
     return {
