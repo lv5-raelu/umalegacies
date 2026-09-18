@@ -87,6 +87,11 @@ A spark activates at `base rate × (1 + Individual Affinity / 100)`, capped at 1
 Inspiration fires twice per career run, so the odds of at least one activation are
 `1 - (1 - p)²`.
 
+Nothing couples one spark's roll to another's, not even when the same ancestor carries
+both, so the chance that EVERY spark in a filter arrives is the product of their
+individual chances. That is usually the question being asked: a filter naming four whites
+is one build rather than four separate wishes, and four sparks at 40% each is 2.6%.
+
 Base rates by star level (1★/2★/3★): blue 70/80/90%, pink 1/3/5%, green 5/10/15%,
 race 1/2/3%, other whites 3/6/9%.
 
