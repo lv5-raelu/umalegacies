@@ -14,7 +14,7 @@
       "root": "packages/api",
       "runtime": "node",
       "buildCommand": "npm run build",
-      "entrypoint": "dist/main.js",
+      "entrypoint": "src/main.ts",
       "installCommand": "cd ../.. && npm install"
     }
   },

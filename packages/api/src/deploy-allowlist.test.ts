@@ -38,6 +38,7 @@ const MUST_DENY: ReadonlyArray<readonly [string, string]> = [
   ['master.mdb', "the game's own 16 MB database"],
   ['master.mdb.old', 'the previous patch of the same'],
   ['packages/web/dist/index.html', 'build output, produced on Vercel'],
+  ['packages/api/dist/main.js', 'build output; the entrypoint is src/main.ts now'],
   ['packages/api/node_modules/rxjs/index.js', 'installed on Vercel, never uploaded'],
   ['packages/api/tsconfig.tsbuildinfo', 'incremental build state'],
 ];
@@ -61,11 +62,6 @@ const MUST_ALLOW: ReadonlyArray<readonly [string, string]> = [
   // same act as serving it from there. See .vercelignore for the long version.
   ['packages/web/public/portraits/100101.png', 'artwork, served from the CDN'],
   ['packages/web/public/rank-icons/Rank_tex.webp', 'artwork, served from the CDN'],
-  // Measured 2026-09-17: Vercel validates the service `entrypoint` against the
-  // UPLOADED SOURCE, before buildCommand runs. Denying this fails the deploy
-  // with `Service "api" has entrypoint "dist/main.js" but that path does not
-  // exist`. The remote build overwrites it, so Vercel ships its own output.
-  ['packages/api/dist/main.js', 'the entrypoint, validated before the build runs'],
 ];
 
 let scratch: string;

@@ -140,24 +140,34 @@ describe('vercel.json agrees with the repository it describes', () => {
   });
 
   /**
-   * The entrypoint is produced by the build, so it cannot be checked on disk in
-   * a clean clone. Check it against the two sources that DETERMINE it instead:
-   * the compiler's outDir and the file tsc is pointed at.
+   * The entrypoint must exist in COMMITTED SOURCE, not in build output.
+   *
+   * Measured 2026-09-18: Vercel validates `entrypoint` against the uploaded
+   * files BEFORE running buildCommand, and a Git-integration deployment clones
+   * only what is committed. Pointing it at `dist/main.js` passed from this
+   * machine, where a build already existed, and failed every push:
+   *
+   *   Error: Service "api" has entrypoint "dist/main.js" but that path does
+   *   not exist.
+   *
+   * Pointing it at src/main.ts means Vercel compiles the API itself. Decision 3
+   * avoided that on the suspicion that its compiler would drop
+   * emitDecoratorMetadata and break Nest's DI -- true of `vercel dev`, and
+   * verified FALSE of the build: a Git-built deployment returns real data from
+   * /api/master/meta and /api/roster/trainees, both of which need an injected
+   * MasterService.
    */
-  it('names an entrypoint the API build actually produces', () => {
-    const tsconfig = readFileSync(resolve(root, 'packages/api/tsconfig.json'), 'utf8');
-    const outDir = /"outDir"\s*:\s*"([^"]+)"/.exec(tsconfig)?.[1];
-    expect(outDir, 'packages/api/tsconfig.json has no outDir').toBeTruthy();
-
+  it('names an entrypoint that exists in committed source', () => {
+    expect(api.entrypoint).toBe('src/main.ts');
     expect(
-      api.entrypoint,
-      `entrypoint ${api.entrypoint} does not match tsconfig outDir ${outDir}/`,
-    ).toBe(`${outDir}/main.js`);
-
-    expect(
-      existsSync(resolve(root, 'packages/api/src/main.ts')),
-      'src/main.ts is gone, so dist/main.js will not be produced',
+      existsSync(resolve(root, 'packages/api', api.entrypoint as string)),
+      `entrypoint ${api.entrypoint} is not a file in the repository, so a ` +
+        'Git-integration deployment will fail before it builds anything',
     ).toBe(true);
+    expect(
+      (api.entrypoint as string).startsWith('dist/'),
+      'an entrypoint in build output cannot exist in a fresh clone',
+    ).toBe(false);
   });
 
   /**

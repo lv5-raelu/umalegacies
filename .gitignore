@@ -28,22 +28,7 @@ master.mdb*
 # including the trainer IDs of everyone they have borrowed from.
 data.json*
 
-# Character portraits, cached from gametora by packages/api/scripts/fetch-portraits.mjs
-# into the web app's static folder, so a deploy uploads them and a CDN serves
-# them. Still never committed: see NOTICE.md.
-# Not committed, deliberately: these are Cygames' character illustrations, and
-# gametora rehosts them rather than owning them, so nobody in that chain can
-# grant redistribution rights. A local cache on the machine running the app is
-# a different act from shipping them in git history and serving them publicly.
-# Nothing depends on this directory -- a clean clone renders initials, which is
-# the designed missing-image state.
-packages/web/public/portraits/
 
-# The rank badge atlas, cached from daftuyda.moe by scripts/fetch-rank-icons.mjs.
-# Same reasoning as the portraits: Cygames' artwork, rehosted by a community site
-# that cannot grant redistribution rights it does not hold. The COORDINATES that
-# crop it are committed (packages/web/src/roster/rank-ladder.ts); the image is not.
-packages/web/public/rank-icons/
 
 # Logs
 *.log

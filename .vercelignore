@@ -39,23 +39,8 @@
 packages/*/node_modules
 packages/*/*.tsbuildinfo
 
-# packages/api/dist is NOT denied, and that is deliberate. Vercel validates the
-# service `entrypoint` against the UPLOADED SOURCE, before it runs buildCommand:
-# a deploy without dist/main.js present fails with `Service "api" has entrypoint
-# "dist/main.js" but that path does not exist`. The remote build then rebuilds
-# it, so what ships is Vercel's output and not this machine's -- which also
-# means better_sqlite3's native binary is built for Linux rather than macOS.
-packages/web/dist
+# Build output, both packages. The api service's entrypoint is src/main.ts, so
+# nothing uploaded needs a compiled dist -- Vercel builds its own.
+packages/*/dist
 
-# Cygames' artwork is NOT denied here, and that is the one deliberate exception.
-#
-# NOTICE.md's position is that this repository does not redistribute it, and it
-# still does not: packages/web/public/portraits and .../rank-icons are
-# GITIGNORED, so they exist only on a machine whose operator ran the fetch
-# scripts, and they are never in git history. A deploy uploads what is on that
-# machine, which is the same act as serving them from it.
-#
-# The consequence to know: a deploy from a machine with a cold cache ships a
-# site with no artwork. That is the designed initials/text state, not a broken
-# one, but it is silent -- check packages/web/public before a release you care
-# about.
+# The artwork under packages/web/public is committed and uploaded. See NOTICE.md.
