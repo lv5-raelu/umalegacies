@@ -143,6 +143,39 @@
   flex-direction: column;
 }
 
+/*
+ * The whole filter's odds, above the sparks that make them up.
+ *
+ * Reads as an aggregate rather than as another row: it sits on the rule that
+ * the per-spark lines hang under, and its number is a step larger. It is the
+ * figure being chosen against when a filter names more than one spark, and the
+ * lines below it are the working -- the same shape as the pair total and its
+ * addends at the top of the pane.
+ */
+.joint {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-tight);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: var(--space-tight);
+}
+
+.jointLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.jointValue {
+  font-family: var(--font-data);
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
 /* The filtered spark is set apart: it is the question, the rest is the answer. */
 .filtered {
   border-bottom: 1px solid var(--rule);

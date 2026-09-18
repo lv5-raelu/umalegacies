@@ -6,6 +6,7 @@ import type {
   SparkKind,
   SparkSummaryRow,
 } from '@umalegacies/types';
+import { jointOdds } from '../lineage/joint';
 import { pairTotalOf, rankGlyph } from '../lineage/pair-total';
 import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER, isWhite, percent } from '../lineage/sparks';
 import { resolutionText } from '../lineage/resolution';
@@ -154,6 +155,11 @@ function Result({
     row: lineage.sparks.find((s) => s.groupId === c.groupId) ?? null,
   }));
 
+  // The chance the whole filter lands, in whichever window is selected. A
+  // requirement the pair misses is a null rather than a gap, so it takes the
+  // joint to zero instead of being quietly left out of the product.
+  const joint = jointOdds(wanted.map(({ row }) => (row ? valueFor(row, view) : null)));
+
   return (
     <>
       <div className={styles.total}>{traineeUnresolved ? '—' : total}</div>
@@ -221,6 +227,21 @@ function Result({
             <p className={styles.oddsRubric}>
               {wanted.length === 1 ? 'Your filtered spark' : `Your ${wanted.length} filtered sparks`}
             </p>
+            {/*
+              THE AGGREGATE FIRST, ITS ADDENDS BENEATH, like the pair total.
+              A filter naming four sparks is one build rather than four separate
+              wishes, so "all four" is the number being chosen against and the
+              per-spark rows are the working. Four sparks at 40% each is 2.6%,
+              and until this line existed nothing on the screen said so.
+            */}
+            {joint !== null && (
+              <div className={styles.joint}>
+                <span className={styles.jointLabel}>
+                  {wanted.length === 2 ? 'both together' : `all ${wanted.length} together`}
+                </span>
+                <span className={styles.jointValue}>{percent(joint)}</span>
+              </div>
+            )}
             {wanted.map(({ groupId, row }) =>
               row ? (
                 <Odds key={groupId} row={row} view={view} />
