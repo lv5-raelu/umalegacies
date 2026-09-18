@@ -10,10 +10,19 @@ import type {
 } from '@umalegacies/types';
 
 /**
- * The API base URL. The API's CORS allowlist is explicit and must contain the
- * origin this app is served from; see the README gotcha.
+ * Where the API lives, relative to wherever this app is served from.
+ *
+ * A PATH, not an origin. The app and the API are one Vercel project on one
+ * domain: a rewrite sends /api/* to the function and everything else here. Same
+ * origin means no CORS, no allowlist, and no preview-URL problem -- and it means
+ * a deployed app can never talk to an API built from a different commit.
+ *
+ * This must agree with `setGlobalPrefix` in packages/api/src/main.ts. Nothing at
+ * runtime checks that, and a disagreement 404s every route while both sides look
+ * correct in isolation, so `route-contract.test.ts` reads the two and fails
+ * naming the drift.
  */
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
 export type { ErrorResponse };
 
