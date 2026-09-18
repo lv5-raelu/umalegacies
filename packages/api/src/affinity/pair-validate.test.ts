@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DomainError } from '../common/error-response';
-import { extractHash, extractMaster } from '../master/master-extract';
-import { explainLineage } from './lineage';
-import { parseExplainPairRequest, parseExplainRequest } from './validate';
+import { DomainError } from '../common/error-response.js';
+import { extractHash, extractMaster } from '../master/master-extract.js';
+import { explainLineage } from './lineage.js';
+import { parseExplainPairRequest, parseExplainRequest } from './validate.js';
 
 const master = extractMaster();
 const hash = extractHash();

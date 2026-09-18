@@ -1,8 +1,8 @@
-import { DomainError } from '../common/error-response';
-import type { MasterData } from '../master/master-data';
-import { ancestorSparks, emptySparkSet, summariseSparks } from '../sparks/sparks';
-import type { AncestorSparkSet, SparkSummaryRow } from '../sparks/spark-types';
-import { explain } from './engine';
+import { DomainError } from '../common/error-response.js';
+import type { MasterData } from '../master/master-data.js';
+import { ancestorSparks, emptySparkSet, summariseSparks } from '../sparks/sparks.js';
+import type { AncestorSparkSet, SparkSummaryRow } from '../sparks/spark-types.js';
+import { explain } from './engine.js';
 import type { AncestorIdentity, LineageResponse } from '@umalegacies/types';
 import {
   GRANDPARENT_POSITIONS,
@@ -12,7 +12,7 @@ import {
   type ExplainResponse,
   type Position,
   type Resolution,
-} from './types';
+} from './types.js';
 
 export type { AncestorIdentity, LineageResponse } from '@umalegacies/types';
 

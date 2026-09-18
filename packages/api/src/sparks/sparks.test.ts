@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { loadFixture } from '../affinity/fixtures';
-import { explainLineage } from '../affinity/lineage';
-import { extractHash, extractMaster } from '../master/master-extract';
-import { careerOdds } from './sparks';
-import { SPARK_KIND_ORDER } from './spark-types';
+import { loadFixture } from '../affinity/fixtures.js';
+import { explainLineage } from '../affinity/lineage.js';
+import { extractHash, extractMaster } from '../master/master-extract.js';
+import { careerOdds } from './sparks.js';
+import { SPARK_KIND_ORDER } from './spark-types.js';
 
 const master = extractMaster();
 const lineage = (name: string) =>

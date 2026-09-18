@@ -1,6 +1,7 @@
 import { existsSync, lstatSync } from 'node:fs';
 import { relative, resolve, isAbsolute } from 'node:path';
-import { findPackageFile } from '../common/find-file';
+import { fileURLToPath } from 'node:url';
+import { findPackageFile } from '../common/find-file.js';
 
 /**
  * Where the portrait cache lives. Probed the same way the master extract is,
@@ -21,8 +22,9 @@ export function findPortraitDir(): string {
   const configured = process.env.PORTRAIT_DIR;
   if (configured) return resolve(configured);
 
-  const { path } = findPackageFile(undefined, __filename, '../../..', 'data/portraits');
-  return path || resolve(__dirname, '../../..', 'data/portraits');
+  const here = fileURLToPath(import.meta.url);
+  const { path } = findPackageFile(undefined, here, '../../..', 'data/portraits');
+  return path || resolve(here, '../../../..', 'data/portraits');
 }
 
 export type PortraitLookup =

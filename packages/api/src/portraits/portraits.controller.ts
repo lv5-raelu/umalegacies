@@ -1,8 +1,8 @@
 import { createReadStream, openSync } from 'node:fs';
 import { Controller, Get, Param, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
-import { DomainError } from '../common/error-response';
-import { findPortraitDir, lookupPortrait } from './portrait-lookup';
+import { DomainError } from '../common/error-response.js';
+import { findPortraitDir, lookupPortrait } from './portrait-lookup.js';
 
 /**
  * Serves the portrait cache.

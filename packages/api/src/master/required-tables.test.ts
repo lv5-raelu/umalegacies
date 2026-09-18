@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { extractDatabase } from './master-extract';
+import { extractDatabase } from './master-extract.js';
 
 /**
  * Every table MasterData reads must be one the boot check asserts.
@@ -18,7 +18,7 @@ import { extractDatabase } from './master-extract';
  * updating a list that nothing reads.
  */
 describe('the boot schema check covers every table MasterData queries', () => {
-  const here = (name: string) => resolve(__dirname, name);
+  const here = (name: string) => fileURLToPath(new URL(name, import.meta.url));
   const required = new Set(
     [...readFileSync(here('master.service.ts'), 'utf8').matchAll(/^\s*'([a-z_]+)',$/gm)].map(
       (m) => m[1] as string,

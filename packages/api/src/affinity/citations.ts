@@ -1,4 +1,4 @@
-import type { Citation, RuleId } from './types';
+import type { Citation, RuleId } from './types.js';
 
 /**
  * Why each rule is the rule. These are shown next to the number, so they

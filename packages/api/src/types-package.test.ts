@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const TYPES_SRC = resolve(__dirname, '../../types/src');
+const TYPES_SRC = fileURLToPath(new URL('../../types/src', import.meta.url));
 
 /**
  * @umalegacies/types is consumed straight from TypeScript source with no build

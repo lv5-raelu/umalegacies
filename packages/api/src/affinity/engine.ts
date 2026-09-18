@@ -1,6 +1,6 @@
-import type { MasterData } from '../master/master-data';
-import { RULE_CITATIONS } from './citations';
-import { positionLabel } from './positions';
+import type { MasterData } from '../master/master-data.js';
+import { RULE_CITATIONS } from './citations.js';
+import { positionLabel } from './positions.js';
 import {
   ALL_POSITIONS,
   GRANDPARENT_POSITIONS,
@@ -13,7 +13,7 @@ import {
   type MasterRef,
   type Position,
   type Resolution,
-} from './types';
+} from './types.js';
 
 /** +3 per shared G1 win, to both members. */
 const BONUS_PER_SHARED_G1 = 3;

@@ -19,8 +19,9 @@
  */
 import Database from 'better-sqlite3';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { lineageFromPair } from '../src/affinity/pair';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { lineageFromPair } from '../src/affinity/pair.js';
 import type { AncestorRef, ExplainPairRequest, VeteranPackage } from '@umalegacies/types';
 
 // TypeScript, run through ts-node, so it can import the SAME lineageFromPair the
@@ -28,7 +29,7 @@ import type { AncestorRef, ExplainPairRequest, VeteranPackage } from '@umalegaci
 // carry its own, which meant the golden fixtures and the endpoint could disagree
 // about which grandparent sits under which parent and every test would still
 // pass.
-const here = __dirname;
+const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
 const outDir = resolve(here, '../fixtures');
 

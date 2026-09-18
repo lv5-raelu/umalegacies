@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
-import { findPackageFile } from '../common/find-file';
-import { MasterData } from './master-data';
-import { MasterDbMissing } from './master.errors';
+import { findPackageFile } from '../common/find-file.js';
+import { MasterData } from './master-data.js';
+import { MasterDbMissing } from './master.errors.js';
 
 /**
  * The committed master extract: 6 of master.mdb's 416 tables as SQL text,
@@ -17,7 +18,7 @@ import { MasterDbMissing } from './master.errors';
 export function findExtract(): string {
   const { path, tried } = findPackageFile(
     process.env.MASTER_EXTRACT_PATH,
-    __filename,
+    fileURLToPath(import.meta.url),
     '../../..',
     'data/master-extract.sql',
   );
@@ -31,8 +32,62 @@ export function findExtract(): string {
   );
 }
 
+/**
+ * The extract as a deployment bundle will contain it.
+ *
+ * Written as a literal `new URL(..., import.meta.url)` and read literally below,
+ * because that exact shape is what Vercel's tracer (@vercel/nft) statically
+ * analyses to decide which NON-JavaScript files to ship. The probe in
+ * `findExtract` is invisible to it: every candidate path is computed.
+ *
+ * Measured 2026-09-17 against a real `vercel build`:
+ *
+ *   probe only .................. 1,007 files bundled, 0 of them .sql
+ *   literal resolve + read ...... the extract appears in the bundle
+ *
+ * `services.<name>.functions.includeFiles` does NOT do this job. The key is
+ * parsed and schema-validated -- a bogus sibling field is rejected by name --
+ * and then has no effect on a captured server. So this is the mechanism, and it
+ * lives in the source rather than in vercel.json.
+ *
+ * IT DOES TWO DIFFERENT JOBS, and only one of them is at runtime:
+ *
+ *   locally   dist/master/ -> ../../data/master-extract.sql   RESOLVES, read here
+ *   in-bundle the JS is flattened to the lambda root while the asset keeps its
+ *             repository path, so this misses and `findExtract` takes over:
+ *
+ *               /var/task/main.js                              (dist/main.js)
+ *               /var/task/master/master-extract.js
+ *               /var/task/packages/api/data/master-extract.sql  <- the asset
+ *
+ *             `find-file.ts`'s last candidate is
+ *             `resolve(process.cwd(), 'packages/api', relative)`, and a lambda's
+ *             cwd IS the bundle root, so that is the one that lands.
+ *
+ * So the literal below is what makes the file SHIP; the probe is what FINDS it
+ * once shipped. Deleting either one breaks the deployment in a different way,
+ * and neither failure shows up in the test suite.
+ */
+const BUNDLED_EXTRACT = fileURLToPath(new URL('../../data/master-extract.sql', import.meta.url));
+
+/**
+ * The extract's bytes, however this process can reach them.
+ *
+ * One read path for both callers. They used to call `findExtract()` and
+ * `readFileSync` separately, which meant the file was located twice and read
+ * twice per call site.
+ */
+function extractBytes(): Buffer {
+  // The override wins, always: an operator who set MASTER_EXTRACT_PATH must not
+  // be silently served a different file.
+  if (!process.env.MASTER_EXTRACT_PATH && existsSync(BUNDLED_EXTRACT)) {
+    return readFileSync(BUNDLED_EXTRACT);
+  }
+  return readFileSync(findExtract());
+}
+
 function readExtract(): string {
-  return readFileSync(findExtract(), 'utf8');
+  return extractBytes().toString('utf8');
 }
 
 /**
@@ -51,7 +106,7 @@ export function extractMaster(): MasterData {
 
 /** SHA-256 of the extract, matching what GET /master/meta reports. */
 export function extractHash(): string {
-  return createHash('sha256').update(readFileSync(findExtract())).digest('hex');
+  return createHash('sha256').update(extractBytes()).digest('hex');
 }
 
 /** Reads a `-- key: value` line out of the generated header. */

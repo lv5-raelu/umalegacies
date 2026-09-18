@@ -2,8 +2,8 @@ import { createReadStream, openSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Controller, Get, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
-import { DomainError } from '../common/error-response';
-import { findPortraitDir } from './portrait-lookup';
+import { DomainError } from '../common/error-response.js';
+import { findPortraitDir } from './portrait-lookup.js';
 
 /**
  * Serves the rank-badge atlas.

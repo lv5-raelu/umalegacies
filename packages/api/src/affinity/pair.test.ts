@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { AncestorRef, ExplainNode, ExplainPairRequest } from '@umalegacies/types';
-import { extractHash, extractMaster } from '../master/master-extract';
-import { loadFixture } from './fixtures';
-import { explainLineage } from './lineage';
-import { lineageFromPair } from './pair';
+import { extractHash, extractMaster } from '../master/master-extract.js';
+import { loadFixture } from './fixtures.js';
+import { explainLineage } from './lineage.js';
+import { lineageFromPair } from './pair.js';
 
 const master = extractMaster();
 const hash = extractHash();

@@ -1,6 +1,6 @@
 import type { Database } from 'better-sqlite3';
-import type { SparkKind } from '../sparks/spark-types';
-import { SPARK_KIND_BY_FACTOR_TYPE } from '../sparks/spark-types';
+import type { SparkKind } from '../sparks/spark-types.js';
+import { SPARK_KIND_BY_FACTOR_TYPE } from '../sparks/spark-types.js';
 
 /** One succession_factor row, joined to its name. */
 export interface Factor {
