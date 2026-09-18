@@ -17,7 +17,7 @@
  * Reads card_data from the committed extract, so it needs neither master.mdb
  * nor data.json.
  */
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,7 +59,7 @@ if (!existsSync(extractPath)) {
   process.exit(1);
 }
 
-const db = new Database(':memory:');
+const db = new DatabaseSync(':memory:');
 db.exec(readFileSync(extractPath, 'utf8'));
 
 /**

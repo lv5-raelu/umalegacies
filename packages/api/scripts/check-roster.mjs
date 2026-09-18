@@ -35,7 +35,7 @@
  *     2026-09-10 to select the identical 47 saddles.
  * ---------------------------------------------------------------------------
  */
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +55,7 @@ for (const p of [masterPath, dataPath, resolve(here, '../dist/affinity/engine.js
   }
 }
 
-const db = new Database(masterPath, { readonly: true, fileMustExist: true });
+const db = new DatabaseSync(masterPath, { readOnly: true });
 const master = new MasterData(db);
 const roster = JSON.parse(readFileSync(dataPath, 'utf8'));
 
