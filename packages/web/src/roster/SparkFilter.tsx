@@ -1,17 +1,11 @@
-import type { FilterScope, FilterSplit, RosterSparkOption, SparkCriterion } from '@umalegacies/types';
-import { MAX_STARS_PER_UMA } from './filter';
+import type { FilterScope, RosterSparkOption, SparkCriterion } from '@umalegacies/types';
+import { maxStarsFor } from './filter';
 import { SparkPicker } from './SparkPicker';
 import styles from './Controls.module.css';
 
 const SCOPE_LABEL: Readonly<Record<FilterScope, string>> = {
-  package: 'anywhere in the package',
-  parent: 'on the parent itself',
-  grandparents: 'on its own parents',
-};
-
-const SPLIT_LABEL: Readonly<Record<FilterSplit, string>> = {
-  sum: 'added together',
-  single: 'on one uma alone',
+  package: 'across the lineage',
+  parent: 'on the parent',
 };
 
 /**
@@ -25,10 +19,10 @@ const SPLIT_LABEL: Readonly<Record<FilterSplit, string>> = {
  *
  * EVERY ROW IS THE SAME CONTROL. What used to be the whole filter is now one
  * row, and the empty picker at the end adds another -- so the shape people
- * already know did not change, it repeated. Each row carries its own scope and
- * split, because "6 Stamina anywhere in the package" and "2 Medium on the parent
- * itself" is a normal pair of requirements and forcing them to share a scope
- * would make the second one unaskable.
+ * already know did not change, it repeated. Each row carries its own scope,
+ * because "6 Stamina across the lineage" and "2 Medium on the parent" is a
+ * normal pair of requirements and forcing them to share a scope would make the
+ * second one unaskable.
  *
  * It sits BELOW the trainee picker, not above it, because the working set
  * changes with the trainee: measured on the roster, any two trainees' parent sets
@@ -53,7 +47,14 @@ export function SparkFilter({
   const remove = (at: number): void => onChange(criteria.filter((_, i) => i !== at));
 
   const add = (groupId: number): void =>
-    onChange([...criteria, { groupId, minStars: 1, scope: 'package', split: 'sum' }]);
+    onChange([...criteria, { groupId, minStars: 1, scope: 'package' }]);
+
+  // Changing the scope changes the ceiling, and a threshold left above the new
+  // ceiling would be a requirement nobody can meet -- 7 stars on a single uma
+  // that caps at 3. Clamping keeps every row on screen satisfiable by
+  // construction, which is why there is no warning about impossible rows.
+  const rescope = (at: number, scope: FilterScope): void =>
+    replace(at, { scope, minStars: Math.min(criteria[at]!.minStars, maxStarsFor(scope)) });
 
   // A spark already required cannot be required again: a second row for the
   // same spark is either a duplicate or a contradiction, and neither is a thing
@@ -61,13 +62,6 @@ export function SparkFilter({
   // unreachable -- only unrepeatable.
   const taken = new Set(criteria.map((c) => c.groupId));
   const unused = options.filter((o) => !taken.has(o.groupId));
-
-  // A spark caps at 3 stars per uma, so "on one uma alone" above 3 can never be
-  // met by anybody. Saying so beats returning an empty list and letting the user
-  // wonder whether their roster is the problem.
-  const unsatisfiable = criteria.filter(
-    (c) => c.split === 'single' && c.minStars > MAX_STARS_PER_UMA,
-  );
 
   return (
     <div className={styles.region}>
@@ -86,16 +80,20 @@ export function SparkFilter({
             />
           </div>
 
-          {/* A select, not a number input. The whole range is 1-9 (three umas
-              at three stars each), and a spinner control at this size clipped
-              its own value to an unreadable sliver. */}
+          {/* A select, not a number input. A spinner control at this size
+              clipped its own value to an unreadable sliver.
+
+              THE RANGE FOLLOWS THE SCOPE. One uma caps at 3 stars of a spark and
+              the lineage is three umas, so "on the parent" offers 1-3 and
+              "across the lineage" offers 1-9. An impossible requirement is not
+              warned about; it cannot be typed. */}
           <select
             className={styles.number}
             value={criterion.minStars}
             aria-label="minimum stars"
             onChange={(e) => replace(at, { minStars: Number(e.target.value) })}
           >
-            {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
+            {Array.from({ length: maxStarsFor(criterion.scope) }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
                 {n}★
               </option>
@@ -106,23 +104,11 @@ export function SparkFilter({
             className={styles.select}
             value={criterion.scope}
             aria-label="where the stars must be"
-            onChange={(e) => replace(at, { scope: e.target.value as FilterScope })}
+            onChange={(e) => rescope(at, e.target.value as FilterScope)}
           >
             {(Object.keys(SCOPE_LABEL) as FilterScope[]).map((scope) => (
               <option key={scope} value={scope}>
                 {SCOPE_LABEL[scope]}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.select}
-            value={criterion.split}
-            aria-label="how the stars are counted"
-            onChange={(e) => replace(at, { split: e.target.value as FilterSplit })}
-          >
-            {(Object.keys(SPLIT_LABEL) as FilterSplit[]).map((split) => (
-              <option key={split} value={split}>
-                {SPLIT_LABEL[split]}
               </option>
             ))}
           </select>
@@ -162,16 +148,6 @@ export function SparkFilter({
           {criteria.length > 0 ? `${matching} of ${total}` : `${total} veterans`}
         </span>
       </div>
-
-      {unsatisfiable.length > 0 && (
-        <p className={`${styles.note} ${styles.warn}`}>
-          No uma can carry more than {MAX_STARS_PER_UMA}★ of one spark, so{' '}
-          {unsatisfiable.length === 1
-            ? 'that requirement'
-            : `${unsatisfiable.length} of these requirements`}{' '}
-          will never match. Lower the threshold, or count the package added together.
-        </p>
-      )}
     </div>
   );
 }

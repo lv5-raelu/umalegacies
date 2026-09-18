@@ -70,17 +70,18 @@ export function VeteranList({
   );
 }
 
+/**
+ * Why a card will not take a click, in a tooltip and nowhere else.
+ *
+ * NAMES THE STATE, DOES NOT EXPLAIN THE RULE. These read to a player who
+ * already knows a parent cannot be the trainee and that the two parents must
+ * differ; spelling either rule out on the card taught nothing and took a line
+ * of every locked card to do it.
+ */
 const BLOCK_REASON: Readonly<Record<PickBlock, string>> = {
-  'is-trainee': 'This is the uma you are training. A parent cannot be the trainee.',
-  'same-uma':
-    'Already picked as the other parent. The two parents cannot be the same uma, whatever costume each wears.',
-  'pair-full': 'Two are already picked. Unselect one to swap it.',
-};
-
-/** Said in place as well as in the tooltip, for the reasons a reader can act on. */
-const BLOCK_NOTE: Readonly<Partial<Record<PickBlock, string>>> = {
-  'is-trainee': 'this is the uma you are training — a parent cannot be the trainee',
-  'same-uma': 'already picked as the other parent — the two parents must be different umas',
+  'is-trainee': 'Trainee',
+  'same-uma': 'Already picked',
+  'pair-full': 'Two picked',
 };
 
 /**
@@ -208,12 +209,6 @@ const Card = memo(function Card({
           ))
         )}
       </span>
-
-      {block && BLOCK_NOTE[block] && (
-        // A card that refuses a click explains itself where the click happened,
-        // not only in a tooltip nobody hovers for.
-        <span className={styles.blockNote}>{BLOCK_NOTE[block]}</span>
-      )}
 
       {!veteran.ok && (
         <span className={styles.unresolvedNote}>

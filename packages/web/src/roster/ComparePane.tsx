@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type {
   LineageResponse,
   RosterSparkOption,
@@ -22,6 +23,41 @@ import styles from './ComparePane.module.css';
  * no filter set there are no desired sparks to quote odds for, and a headline
  * that shows nothing most of the time is not a headline.
  */
+/**
+ * Which window the odds columns report.
+ *
+ * Inspiration fires TWICE per career, which is what separates the first two:
+ *
+ *   inspiration   P(>=1) when a SINGLE inspiration fires
+ *   once          P(>=1) across the career, so across both firings
+ *   twice         P(>=2) across the career, which is the doubled spark
+ *
+ * The first answers "will this land on the next inspiration"; the second
+ * answers "will this land at all"; the third is the one worth planning a pair
+ * around, because a doubled spark stacks.
+ */
+export type OddsView = 'inspiration' | 'once' | 'twice';
+
+const VIEW_LABEL: Readonly<Record<OddsView, string>> = {
+  inspiration: '1 inspiration',
+  once: 'at least once',
+  twice: 'at least twice',
+};
+
+/** The long form, for the line that says what the column means. */
+const VIEW_RUBRIC: Readonly<Record<OddsView, string>> = {
+  inspiration: 'chance of inheriting when one inspiration fires',
+  once: 'chance of inheriting at least once across a career',
+  twice: 'chance of inheriting at least twice across a career',
+};
+
+const valueFor = (row: SparkSummaryRow, view: OddsView): number =>
+  view === 'inspiration'
+    ? row.withinOneInspiration
+    : view === 'once'
+      ? row.onceInCareer
+      : row.twiceInCareer;
+
 export function ComparePane({
   state,
   criteria,
@@ -44,6 +80,11 @@ export function ComparePane({
   onClearPicks: () => void;
   onOpenTree: () => void;
 }) {
+  // THE VIEW LIVES HERE, not in `Result`. `Result` unmounts every time a pair
+  // is re-explained -- a new pick, a changed trainee -- and state held there
+  // would silently snap back to the default mid-comparison.
+  const [view, setView] = useState<OddsView>('once');
+
   return (
     <aside className={styles.pane}>
       <h2 className={styles.rubric}>The pair</h2>
@@ -53,7 +94,7 @@ export function ComparePane({
       {state.kind === 'need-picks' && (
         <p className={styles.hint}>
           {state.picked === 0
-            ? 'Pick two veterans from the list. They become the two parents.'
+            ? 'Pick two veterans.'
             : 'Pick one more.'}
         </p>
       )}
@@ -78,6 +119,8 @@ export function ComparePane({
           lineage={state.lineage}
           criteria={criteria}
           sparkOptions={sparkOptions}
+          view={view}
+          onView={setView}
           onOpenTree={onOpenTree}
         />
       )}
@@ -89,11 +132,15 @@ function Result({
   lineage,
   criteria,
   sparkOptions,
+  view,
+  onView,
   onOpenTree,
 }: {
   lineage: LineageResponse;
   criteria: readonly SparkCriterion[];
   sparkOptions: readonly RosterSparkOption[];
+  view: OddsView;
+  onView: (view: OddsView) => void;
   onOpenTree: () => void;
 }) {
   const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
@@ -141,8 +188,28 @@ function Result({
       </p>
 
       <div className={styles.odds}>
-        {/* The filtered sparks first and in full, because they are the ones
-            the user asked about and a doubled spark stacks.
+        {/*
+          ONE SWITCH FOR EVERY NUMBER BELOW IT. The three windows are different
+          questions about the same lineage, so a per-row control would invite
+          reading a column whose rows answer different questions.
+        */}
+        <div className={styles.views} role="group" aria-label="Which window the odds report">
+          {(Object.keys(VIEW_LABEL) as OddsView[]).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={option === view ? `${styles.view} ${styles.viewOn}` : styles.view}
+              aria-pressed={option === view}
+              onClick={() => onView(option)}
+            >
+              {VIEW_LABEL[option]}
+            </button>
+          ))}
+        </div>
+        <p className={styles.viewRubric}>{VIEW_RUBRIC[view]}</p>
+
+        {/* The filtered sparks first, because they are the ones the user asked
+            about.
 
             EVERY requirement gets a line, including the ones this pair misses.
             The filter matched each veteran's own package; the composed lineage
@@ -156,7 +223,7 @@ function Result({
             </p>
             {wanted.map(({ groupId, row }) =>
               row ? (
-                <Odds key={groupId} row={row} twice />
+                <Odds key={groupId} row={row} view={view} />
               ) : (
                 // Say so rather than printing 0% and letting it read as a
                 // computed answer.
@@ -189,7 +256,7 @@ function Result({
             <div key={kind} className={styles.group}>
               <p className={styles.groupLabel}>{SPARK_GROUP_LABEL[kind]}</p>
               {rows.map((row) => (
-                <Odds key={row.groupId} row={row} />
+                <Odds key={row.groupId} row={row} view={view} />
               ))}
             </div>
           ))}
@@ -204,39 +271,31 @@ function Result({
 }
 
 /**
- * One spark's chance of firing at least once in a career.
+ * One spark's line: what it is, how many stars the lineage carries, and its
+ * chance under whichever window is selected.
  *
- * `twice` is only shown for the spark the user actually asked about: a doubled
- * spark stacks, so it is worth its own line there, but printing it for five
- * default rows would double the pane's height for a number nobody asked for.
+ * ONE NUMBER PER ROW. An earlier version printed a second "at least twice" line
+ * under each filtered spark, which doubled the pane's height and still could not
+ * show the third window. The switch above the list does that job for every row
+ * at once, so a row is a row again.
  */
-function Odds({ row, twice = false }: { row: SparkSummaryRow; twice?: boolean }) {
+function Odds({ row, view }: { row: SparkSummaryRow; view: OddsView }) {
   return (
-    <>
-      <div className={styles.oddsRow}>
-        <span
-          className={styles.tick}
-          style={
-            isWhite(row.kind)
-              ? { boxShadow: `inset 0 0 0 1px ${SPARK_COLOR[row.kind]}` }
-              : { background: SPARK_COLOR[row.kind] }
-          }
-        />
-        <span className={styles.oddsName} title={row.name}>
-          {row.name}
-        </span>
-        <span className={styles.oddsStars}>{row.stars}★</span>
-        <span className={styles.oddsValue}>{percent(row.onceInCareer)}</span>
-      </div>
-      {twice && (
-        <div className={styles.oddsRow}>
-          <span className={styles.oddsName}>
-            <span className={styles.oddsStars}>at least twice</span>
-          </span>
-          <span className={styles.oddsValue}>{percent(row.twiceInCareer)}</span>
-        </div>
-      )}
-    </>
+    <div className={styles.oddsRow}>
+      <span
+        className={styles.tick}
+        style={
+          isWhite(row.kind)
+            ? { boxShadow: `inset 0 0 0 1px ${SPARK_COLOR[row.kind]}` }
+            : { background: SPARK_COLOR[row.kind] }
+        }
+      />
+      <span className={styles.oddsName} title={row.name}>
+        {row.name}
+      </span>
+      <span className={styles.oddsStars}>{row.stars}★</span>
+      <span className={styles.oddsValue}>{percent(valueFor(row, view))}</span>
+    </div>
   );
 }
 

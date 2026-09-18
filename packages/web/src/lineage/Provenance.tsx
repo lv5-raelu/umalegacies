@@ -301,11 +301,25 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
           <span className={styles.termLabel}>at least once in a career</span>
           <span className={styles.value}>{percent(row.onceInCareer)}</span>
         </div>
+        {/* The other two windows, because the pane shows one at a time and this
+            page is where they are checked against each other. Inspiration fires
+            twice, so the headline above is the single-inspiration figure
+            compounded, and the doubled case is the part of it that stacks. */}
+        <dl className={styles.windows}>
+          <div>
+            <dt>within one inspiration</dt>
+            <dd>{percent(row.withinOneInspiration)}</dd>
+          </div>
+          <div>
+            <dt>at least twice in a career</dt>
+            <dd>{percent(row.twiceInCareer)}</dd>
+          </div>
+        </dl>
         <p className={styles.reason}>
           Each carrier activates at <code>base rate × (1 + individual affinity / 100)</code>,
           capped at 100%. Inspiration fires twice per career, and within one firing every carrier
           rolls independently, so the count is a Poisson-binomial over the carriers and the career
-          is that distribution against itself. At least twice: {percent(row.twiceInCareer)}.
+          is that distribution against itself.
         </p>
         <table className={styles.carriers}>
           <thead>

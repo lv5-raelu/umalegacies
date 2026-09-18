@@ -36,6 +36,25 @@
   font-weight: 500;
   line-height: 1;
   letter-spacing: var(--tracking-display);
+  /* See .fixed below: the headline must never be the thing that gives up space. */
+  flex: none;
+}
+
+/*
+ * Everything above the odds list keeps its natural height.
+ *
+ * `.pane` is a flex column with a definite height, and a flex item's default
+ * `flex-shrink: 1` means EVERY child compresses when the content is taller than
+ * the pane -- including a 56px number on a 56px line-height, whose glyph then
+ * overflows a box too short to hold it and paints over the control above.
+ *
+ * The pane's stated design is that the odds list is the one flexible child.
+ * These declarations are what actually make that true.
+ */
+.addends,
+.rank,
+.pair {
+  flex: none;
 }
 
 /* An aggregate prints its addends beneath it, permanently. */
@@ -91,6 +110,12 @@
   border-radius: var(--radius-md);
   padding: var(--space-hair) var(--space-snug);
   margin-top: var(--space-snug);
+  /* Real space before the headline number, which sat flush against this button
+     at a measured gap of 0. The number is 56px on a 56px line-height, so its
+     glyph overflows its own box and painted over this control; worse,
+     elementFromPoint at the button's lower edge returned the number, so part of
+     the button could not be clicked and did not take the pointer cursor. */
+  margin-bottom: var(--space-snug);
   cursor: pointer;
   flex: none;
 }
@@ -251,4 +276,62 @@
 .open:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
+}
+
+/*
+ * The window switch: three questions, one selected.
+ *
+ * Achromatic on purpose. It sits directly above the odds and the odds are the
+ * thing to read; a coloured control here would compete with the spark ticks,
+ * which are the only place colour carries meaning on this pane.
+ */
+.views {
+  display: flex;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-tight);
+}
+
+.view {
+  flex: 1 1 0;
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  padding: var(--space-tight) var(--space-hair);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.view + .view {
+  border-left: 1px solid var(--rule);
+}
+
+.view:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.viewOn {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.view:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+/* Says what the selected column MEANS, in words, because "exactly once" is the
+   one that reads like a weaker "at least once" and is not. */
+.viewRubric {
+  flex: none;
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin: 0 0 var(--space-snug);
 }

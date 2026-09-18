@@ -298,8 +298,8 @@ export function App() {
 
   /**
    * Picks the filter is currently hiding. Narrow on a spark neither pick
-   * carries and both vanish, which makes "unselect one to swap it" advice the
-   * reader cannot act on.
+   * carries and both vanish, leaving a full pair with nothing on screen that
+   * looks picked -- the one state the counter has to spell out.
    */
   const hiddenPicks = useMemo(
     () => picks.filter((index) => !shown.some((v) => v.index === index)).length,
@@ -394,8 +394,25 @@ export function App() {
     );
   }
 
+  // The same control in both states, so it is built once and placed twice. On
+  // the first run it is the ONLY thing to do and gets the middle of the screen;
+  // once a roster is loaded it collapses to a one-line summary naming the file
+  // and belongs at the top, above the list.
+  const dropZone = (
+    <DropZone
+      state={parsing || restoring ? 'parsing' : roster ? 'loaded' : 'empty'}
+      fileName={save?.fileName ?? null}
+      veteranCount={roster?.veterans.length ?? 0}
+      error={saveError}
+      onFile={(file) => {
+        void loadFile(file);
+      }}
+      onForget={forget}
+    />
+  );
+
   return (
-    <main className={`${styles.shell} ${roster ? styles.wide : ''}`}>
+    <main className={`${styles.shell} ${roster ? styles.wide : styles.landing}`}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
       </header>
@@ -407,23 +424,19 @@ export function App() {
         </p>
       )}
 
-      {!roster && (
-        <p className={styles.lede}>
-          Your trained characters, with the exact affinity the game will not show you and the
-          odds each spark has of being passed down.
-        </p>
+      {roster ? (
+        dropZone
+      ) : (
+        <div className={styles.welcome}>
+          <p className={styles.lede}>
+            Load your save to read your trained umas. Filter by the sparks you want, pick two
+            parents, and see the pair&rsquo;s affinity, relation rank, and each spark&rsquo;s
+            chance of being inherited. Or search the roster for the pair that fits your
+            requirements best.
+          </p>
+          {dropZone}
+        </div>
       )}
-
-      <DropZone
-        state={parsing || restoring ? 'parsing' : roster ? 'loaded' : 'empty'}
-        fileName={save?.fileName ?? null}
-        veteranCount={roster?.veterans.length ?? 0}
-        error={saveError}
-        onFile={(file) => {
-          void loadFile(file);
-        }}
-        onForget={forget}
-      />
 
       {roster && (
         <>
@@ -470,12 +483,13 @@ export function App() {
                   <div className={styles.listHead}>
                     <h2 className={styles.rubric}>Parents for {trainee.name}</h2>
                     <span className={styles.pickNote}>
-                      {picks.length === 2
-                        ? hiddenPicks > 0
-                          ? `2 of 2 picked — ${
-                              hiddenPicks === 2 ? 'both are' : 'one is'
-                            } hidden by the filter`
-                          : '2 of 2 picked — unselect one to swap it'
+                      {/* The hidden-by-filter case is the only one worth more
+                          than a count: it is the one thing on this screen the
+                          reader cannot see for themselves. */}
+                      {picks.length === 2 && hiddenPicks > 0
+                        ? `2 of 2 picked — ${
+                            hiddenPicks === 2 ? 'both are' : 'one is'
+                          } hidden by the filter`
                         : `${picks.length} of 2 picked`}
                     </span>
                   </div>

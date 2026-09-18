@@ -112,10 +112,6 @@
   margin: var(--space-tight) 0 0;
 }
 
-.warn {
-  color: var(--warning);
-}
-
 .echo {
   font-size: var(--text-xs);
   color: var(--ink-muted);
