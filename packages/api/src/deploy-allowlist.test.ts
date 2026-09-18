@@ -40,7 +40,7 @@ const MUST_DENY: ReadonlyArray<readonly [string, string]> = [
   ['packages/api/data/portraits/100101.png', "Cygames' art, per NOTICE.md"],
   ['packages/api/data/rank-icons/Rank_tex.webp', "Cygames' art, per NOTICE.md"],
   ['packages/web/dist/index.html', 'build output, produced on Vercel'],
-  ['packages/api/node_modules/better-sqlite3/index.js', 'installed on Vercel'],
+  ['packages/api/node_modules/rxjs/index.js', 'installed on Vercel, never uploaded'],
   ['packages/api/tsconfig.tsbuildinfo', 'incremental build state'],
 ];
 

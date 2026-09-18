@@ -20,7 +20,7 @@
  * tests. If an affinity rule's inputs moved, the golden boot check fails loudly
  * rather than quietly serving different numbers.
  */
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -84,7 +84,7 @@ const TABLES = [
   { name: 'text_data', where: 'WHERE category IN (5, 6, 111, 147)' },
 ];
 
-const db = new Database(masterPath, { readonly: true, fileMustExist: true });
+const db = new DatabaseSync(masterPath, { readOnly: true });
 const sourceHash = createHash('sha256').update(readFileSync(masterPath)).digest('hex');
 
 const literal = (v) => {

@@ -1,4 +1,4 @@
-import type { Database } from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import type { SparkKind } from '../sparks/spark-types.js';
 import { SPARK_KIND_BY_FACTOR_TYPE } from '../sparks/spark-types.js';
 
@@ -52,7 +52,7 @@ export class MasterData {
   /** factor_id -> the succession_factor row, joined to its category 147 name. */
   private readonly factors = new Map<number, Factor>();
 
-  constructor(db: Database) {
+  constructor(db: DatabaseSync) {
     for (const r of db
       .prepare('SELECT relation_type, relation_point FROM succession_relation')
       .iterate() as Iterable<{ relation_type: number; relation_point: number }>) {

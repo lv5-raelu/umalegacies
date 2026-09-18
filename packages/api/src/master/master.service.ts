@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { DomainError } from '../common/error-response.js';
 import { contentChecks } from './content-checks.js';
 import { MasterData } from './master-data.js';
@@ -48,7 +48,7 @@ export interface MasterMeta {
 export class MasterService implements OnModuleInit {
   private readonly logger = new Logger(MasterService.name);
 
-  private db!: Database.Database;
+  private db!: DatabaseSync;
   private meta!: MasterMeta;
   private masterData!: MasterData;
 
@@ -131,7 +131,7 @@ export class MasterService implements OnModuleInit {
     if (override) {
       const path = resolve(override);
       try {
-        this.db = new Database(path, { readonly: true, fileMustExist: true });
+        this.db = new DatabaseSync(path, { readOnly: true });
       } catch (cause) {
         throw new MasterDbMissing(path, cause);
       }
@@ -145,7 +145,7 @@ export class MasterService implements OnModuleInit {
 
     const path = findExtract();
     const sql = readFileSync(path, 'utf8');
-    this.db = new Database(':memory:');
+    this.db = new DatabaseSync(':memory:');
     this.db.exec(sql);
     return {
       masterHash: sha256(Buffer.from(sql)),

@@ -17,7 +17,7 @@
  * engine. They were read off hakuraku and breeding-optimizer and confirmed
  * against the game's own rank icon. Regenerating must never overwrite them.
  */
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,7 +42,7 @@ for (const p of [masterPath, dataPath]) {
   }
 }
 
-const db = new Database(masterPath, { readonly: true, fileMustExist: true });
+const db = new DatabaseSync(masterPath, { readOnly: true });
 const roster: any[] = JSON.parse(readFileSync(dataPath, 'utf8'));
 const byTrainedId = new Map<number, any>(roster.map((e: any) => [e.trained_chara_id, e]));
 const charaIdByCard = new Map<number, number>(

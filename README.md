@@ -91,9 +91,13 @@ race 1/2/3%, other whites 3/6/9%.
 
 ## Getting started
 
-Requires Node 20.19+. Nothing else: the master data the API needs is committed.
-(`better-sqlite3` allows 20.x, but Vite 7 requires `^20.19.0 || >=22.12.0`,
-and that is the higher floor.)
+Requires Node 24+. Nothing else: the master data the API needs is committed,
+and there is no native module to compile.
+
+The floor is 24 because the API reads SQLite through Node's built-in
+`node:sqlite` rather than a compiled addon, and the `iterate()` it uses is only
+available unflagged from 23.4. Vercel's function runtime is `nodejs24.x`, so
+local and deployed agree.
 
 ```bash
 npm install
@@ -234,6 +238,9 @@ that twice.
 - **The roster body limit must stay under 4.5 MB.** Vercel rejects larger bodies at the
   platform edge, before any code runs, so `error.filter.ts` never sees them and the
   client gets an HTML error page instead of an `ErrorResponse`.
+- **`node:sqlite` prints an ExperimentalWarning on boot.** It is expected and the API is
+  not experimental about it: every query this app makes (`prepare`, `all`, `get`,
+  `iterate`) is covered by the 228-test suite running against the real extract.
 - **`succession_factor.rarity` is the star count**, 1–3. It is not a rarity tier.
 - **Spark names are `text_data` category 147, keyed by `factor_id`** — not by
   `factor_group_id`. The 1/2/3-star variants of one spark are three `factor_id`s sharing a

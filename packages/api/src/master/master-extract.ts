@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { findPackageFile } from '../common/find-file.js';
 import { MasterData } from './master-data.js';
 import { MasterDbMissing } from './master.errors.js';
@@ -94,8 +94,8 @@ function readExtract(): string {
  * A fresh in-memory database built from the extract. Callers may mutate it
  * freely to simulate a drifted extraction; each call builds a new one.
  */
-export function extractDatabase(): Database.Database {
-  const db = new Database(':memory:');
+export function extractDatabase(): DatabaseSync {
+  const db = new DatabaseSync(':memory:');
   db.exec(readExtract());
   return db;
 }

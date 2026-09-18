@@ -1,4 +1,4 @@
-import type { Database } from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { explain } from '../affinity/engine.js';
 import { loadFixture } from '../affinity/fixtures.js';
 import { MasterData } from './master-data.js';
@@ -11,7 +11,7 @@ import { MasterContentError } from './master.errors.js';
  */
 interface ContentCheck {
   readonly name: string;
-  run(db: Database): void;
+  run(db: DatabaseSync): void;
 }
 
 /**
