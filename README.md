@@ -50,8 +50,9 @@ factor ids) before anything is sent; the API resolves those raw ids into names, 
 sparks, and retains nothing. Personal fields -- `owner_viewer_id`, which is other players'
 12-digit trainer ids, plus nicknames, timestamps, stats, skills and race history -- have no
 wire representation at all, so the promise that the save stays on your machine is enforced
-by the request shape rather than by server policy. Caching the resolved roster across page
-loads is M3.1; today a reload re-reads the file.
+by the request shape rather than by server policy. The resolved roster is then kept in
+this browser's IndexedDB, so a reload restores it instead of sending you back to the file
+picker.
 
 ### Domain model
 
@@ -138,6 +139,28 @@ npm run fetch:rank-icons --workspace @umalegacies/api
 
 Open the web app. It renders one committed fixture lineage, picked from the
 selector at the top right; `data.json` upload is M3 and does not exist yet.
+
+### The roster is remembered, in your browser only
+
+After a file is read, the slimmed roster and the resolved names, sparks and odds are stored
+in IndexedDB under `umalegacies`. A reload brings them back without another trip to the file
+picker. **Forget this roster** beside the file name deletes the record; loading a different
+file replaces it.
+
+What is stored is what was already sent: card ids, win-saddle ids and spark ids, plus the
+names and odds the API resolved from them. `owner_viewer_id` -- the 12-digit trainer ids of
+everyone you have borrowed from -- along with nicknames, timestamps, stats, skills and race
+history, are stripped by `slimSave` in the browser *before* anything is sent or stored, so
+the raw save never reaches the cache. The server still retains nothing; this is a client-side
+convenience and changes no promise the API makes.
+
+The record is keyed to the master extract it was computed from. If the extract is rebuilt --
+a game patch -- the stored roster is discarded on the next visit and says so, rather than
+showing numbers derived from game data that has since moved. It is also discarded when the
+app's own cache format changes, or when the record does not read back intact.
+
+Storage failures are not errors: a private window, blocked site data or a full quota all fall
+back to the behaviour above, which is reading the file each time.
 
 ### Portraits are cached, not committed
 

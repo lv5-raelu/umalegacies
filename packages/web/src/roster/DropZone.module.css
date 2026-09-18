@@ -105,6 +105,15 @@
   outline-offset: 2px;
 }
 
+/* The same achromatic action as .replace, and composed from it rather than
+   copied. DESIGN.md: "Interaction is achromatic" -- there is no destructive
+   treatment in the system to reach for, and inventing a red one here would be
+   the only colour on the page that is not a datum. It is a sibling of "Load a
+   different file", which is what it is. */
+.forget {
+  composes: replace;
+}
+
 .hidden {
   display: none;
 }
