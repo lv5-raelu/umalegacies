@@ -505,10 +505,6 @@ export function App() {
               />
             </div>
           </div>
-
-          <footer className={styles.footer}>
-            master extract <code>{roster.masterHash.slice(0, 12)}</code>
-          </footer>
         </>
       )}
     </main>

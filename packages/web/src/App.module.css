@@ -230,15 +230,6 @@
   opacity: 0.8;
 }
 
-.footer {
-  margin-top: var(--space-2xl);
-  padding-top: var(--space-snug);
-  border-top: 1px solid var(--rule);
-  font-family: var(--font-data);
-  font-size: var(--text-3xs);
-  color: var(--ink-faint);
-}
-
 .listHead {
   display: flex;
   align-items: baseline;
