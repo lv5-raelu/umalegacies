@@ -32,59 +32,68 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string): Promise<T> {
+/**
+ * Why a request failed, when it failed before there was a response.
+ *
+ * A bare `TypeError` from fetch is all the browser gives us. It used to name
+ * two causes -- the API being down, and this origin missing from a CORS
+ * allowlist -- and the second one no longer exists: the app and the API share
+ * one origin, so there is no cross-origin request to refuse. Naming it now
+ * would send someone hunting for a file that was deleted.
+ *
+ * What is left is worth saying precisely, because on a serverless deployment
+ * the most likely cause is not a broken server at all.
+ */
+function networkError(path: string): ApiError {
+  return new ApiError(
+    'NETWORK_ERROR',
+    `Could not reach ${API_BASE}${path}. The deployment may be starting up, ` +
+      'or the connection may have dropped. Try again in a moment.',
+  );
+}
+
+/** A response the server did answer, but not with success. */
+async function failure(path: string, response: Response): Promise<ApiError> {
+  // The body is the API's ErrorResponse on every route it owns. It may not be
+  // one for a path no route matched, which the platform answers itself, so the
+  // status is the fallback rather than an assumption.
+  const body = (await response.json().catch(() => null)) as ErrorResponse | null;
+  return new ApiError(
+    body?.code ?? 'UNKNOWN_ERROR',
+    body?.message ?? `Request to ${path} failed with ${response.status}.`,
+    body?.field,
+  );
+}
+
+/**
+ * One request path for both verbs.
+ *
+ * `get` and `post` differed only in the fetch init and were otherwise the same
+ * fourteen lines twice -- including the error message, byte for byte, which is
+ * how it came to describe a CORS allowlist in two places after CORS was gone.
+ */
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`);
+    response = await fetch(`${API_BASE}${path}`, init);
   } catch {
-    // A CORS rejection and a dead server both land here as a bare TypeError,
-    // so say both out loud rather than guessing.
-    throw new ApiError(
-      'NETWORK_ERROR',
-      `Could not reach the API at ${API_BASE}. It may be down, or this origin ` +
-        `(${window.location.origin}) may not be on its CORS allowlist.`,
-    );
+    throw networkError(path);
   }
 
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as ErrorResponse | null;
-    throw new ApiError(
-      body?.code ?? 'UNKNOWN_ERROR',
-      body?.message ?? `Request to ${path} failed with ${response.status}.`,
-      body?.field,
-    );
-  }
+  if (!response.ok) throw await failure(path, response);
 
   return (await response.json()) as T;
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiError(
-      'NETWORK_ERROR',
-      `Could not reach the API at ${API_BASE}. It may be down, or this origin ` +
-        `(${window.location.origin}) may not be on its CORS allowlist.`,
-    );
-  }
+const get = <T>(path: string): Promise<T> => request<T>(path);
 
-  if (!response.ok) {
-    const error = (await response.json().catch(() => null)) as ErrorResponse | null;
-    throw new ApiError(
-      error?.code ?? 'UNKNOWN_ERROR',
-      error?.message ?? `Request to ${path} failed with ${response.status}.`,
-      error?.field,
-    );
-  }
+const post = <T>(path: string, body: unknown): Promise<T> =>
+  request<T>(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
-  return (await response.json()) as T;
-}
 
 /**
  * Portraits are served by the API, not from the web app's own public/ folder,
