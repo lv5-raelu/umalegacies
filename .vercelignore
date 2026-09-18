@@ -1,0 +1,55 @@
+# What may be uploaded to Vercel. Deny-by-default, and deliberately so.
+#
+# Vercel CLI does NOT read .gitignore. Its documented default-exclusion list
+# contains ".gitignore" as A FILENAME TO SKIP UPLOADING, never as a source of
+# rules, and its docs say plainly: "Aside from the default exclusions, all files
+# within your project are uploaded to Vercel if no source path is specified to
+# be excluded in a .vercelignore configuration file."
+#
+# Without this file, `vercel deploy` from the repository root uploads:
+#   data.json        5,283,444 bytes -- this player's save, carrying 183 other
+#                    players' 12-digit owner_viewer_id values. Those people
+#                    never used this tool and cannot consent, which is the whole
+#                    reason for the parse-and-discard decision (2026-09-15).
+#   master.mdb       16,773,120 bytes of the game's own database.
+#   master.mdb.old   16,580,608 bytes of the previous patch's copy.
+#
+# A Git-connected deployment is safe without this, because the integration only
+# clones committed files. The CLI is the dangerous path, and the CLI is this
+# project's release path: the artwork is copied in at deploy time, so releases
+# run through `vercel build` rather than a git push.
+#
+# ALLOWLIST, not a denylist. A denylist protects the files somebody remembered;
+# the next sensitive file added to this repo would upload silently. Here the
+# failure direction is a build error, which is loud and cheap. Add new
+# top-level paths deliberately.
+
+# Ignore everything at the repository root...
+/*
+
+# ...then re-admit exactly what a deployment needs.
+!package.json
+!package-lock.json
+!tsconfig.base.json
+!vercel.json
+!packages
+
+# `!packages` re-admits the WHOLE subtree, so re-deny inside it. Build output
+# and installs are produced on Vercel, never shipped to it.
+packages/*/node_modules
+packages/*/*.tsbuildinfo
+
+# packages/api/dist is NOT denied, and that is deliberate. Vercel validates the
+# service `entrypoint` against the UPLOADED SOURCE, before it runs buildCommand:
+# a deploy without dist/main.js present fails with `Service "api" has entrypoint
+# "dist/main.js" but that path does not exist`. The remote build then rebuilds
+# it, so what ships is Vercel's output and not this machine's -- which also
+# means better_sqlite3's native binary is built for Linux rather than macOS.
+packages/web/dist
+
+# Cygames' artwork. NOTICE.md's position stands: these caches are gitignored and
+# are not redistributed through this repository. They reach the CDN by being
+# copied into packages/web/public/ at deploy time, which is what gets uploaded
+# -- the source caches below never are.
+packages/api/data/portraits
+packages/api/data/rank-icons
