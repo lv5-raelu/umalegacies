@@ -25,7 +25,15 @@ import { VeteranList } from './roster/VeteranList';
 import { filterVeterans, pickBlock } from './roster/filter';
 import { SaveError, slimSave, type SkippedEntry } from './roster/save';
 import { CACHE_VERSION, explainDiscard, inspectCache } from './roster/cache-policy';
-import { clearRoster, readRoster, writeRoster } from './roster/cache';
+import {
+  clearRoster,
+  clearSelection,
+  readRoster,
+  readSelection,
+  writeRoster,
+  writeSelection,
+} from './roster/cache';
+import { picksToCache, restoreSelection } from './roster/selection';
 import styles from './App.module.css';
 
 /**
@@ -157,14 +165,18 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const stored = await readRoster();
+      const [stored, storedSelection] = await Promise.all([readRoster(), readSelection()]);
       const optimistic = inspectCache(stored, null);
       if (cancelled) return;
 
       if (!optimistic.use) {
         // A version bump or a half-written record leaves rubbish behind; take
         // the chance to remove it rather than re-reading it on every visit.
-        if (optimistic.reason !== 'absent') void clearRoster();
+        // The selection goes with it: it is indices into a list that is gone.
+        if (optimistic.reason !== 'absent') {
+          void clearRoster();
+          void clearSelection();
+        }
         setRestoring(false);
         return;
       }
@@ -174,6 +186,14 @@ export function App() {
       setRoster(record.resolved);
       setTrainees(record.trainees);
       seenMasterHash.current = record.masterHash;
+
+      // Whatever of the last session's choices still holds. Setting all three
+      // before `restoring` drops means the pair is explained on the first pass,
+      // rather than the screen showing an empty pane and then filling in.
+      const selection = restoreSelection(storedSelection, record.resolved, record.trainees);
+      setTraineeCardId(selection.traineeCardId);
+      setCriteria(selection.criteria);
+      setPicks(selection.picks);
       setRestoring(false);
 
       // Now confirm the game data has not moved. A failure here is not worth
@@ -191,9 +211,12 @@ export function App() {
       if (checked.use) return;
 
       void clearRoster();
+      void clearSelection();
       setSave(null);
       setRoster(null);
       setTrainees([]);
+      setTraineeCardId(null);
+      setCriteria([]);
       setPicks([]);
       setLineage(null);
       seenMasterHash.current = undefined;
@@ -207,6 +230,7 @@ export function App() {
   /** Forget the stored roster and return to the drop zone. */
   const forget = useCallback(() => {
     void clearRoster();
+    void clearSelection();
     setSave(null);
     setRoster(null);
     setTrainees([]);
@@ -338,10 +362,39 @@ export function App() {
   // the rules forbid and the pick handler would refuse to recreate.
   useEffect(() => {
     if (!roster || trainee === null) return;
-    setPicks((current) =>
-      current.filter((index) => roster.veterans[index]?.self.charaId !== trainee.charaId),
-    );
+    setPicks((current) => {
+      const kept = current.filter(
+        (index) => roster.veterans[index]?.self.charaId !== trainee.charaId,
+      );
+      // Same array when nothing was dropped. `filter` always returns a new one,
+      // and a new identity here re-fires the pair request and the selection
+      // write on every trainee change that invalidated nothing.
+      return kept.length === current.length ? current : kept;
+    });
   }, [roster, trainee]);
+
+  /**
+   * Remember the three choices, so a reload does not cost them.
+   *
+   * NOT WHILE RESTORING. This effect runs on the first render too, when all
+   * three are still at their defaults -- writing then would overwrite the very
+   * record the restore is about to read, and the bug would look like "it
+   * forgets sometimes" rather than like a race. `restoring` stays true until
+   * the lookup has finished either way, so there is no window where an empty
+   * selection can be written over a real one.
+   *
+   * `roster` is the second guard: with nothing loaded there is nothing for an
+   * index to point into, and the drop zone is the whole screen anyway.
+   */
+  useEffect(() => {
+    if (restoring || !roster) return;
+    void writeSelection({
+      version: CACHE_VERSION,
+      traineeCardId,
+      criteria: [...criteria],
+      picks: picksToCache(picks, roster),
+    });
+  }, [restoring, roster, traineeCardId, criteria, picks]);
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
