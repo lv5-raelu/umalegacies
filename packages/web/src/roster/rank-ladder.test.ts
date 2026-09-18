@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { extractDatabase, extractMaster } from '../../../api/src/master/master-extract';
 import { RANK_LADDER, RANK_SPRITE } from './rank-ladder';
 import { rankFor, rankLabel } from './rank-labels';
 
 /**
  * The ladder is transcribed from daftuyda.moe, not extracted from master.mdb,
  * which makes it the one piece of game vocabulary here with no committed source
- * of its own. These bind it to the data that DOES have one.
+ * of its own.
+ *
+ * The cross-check against master.mdb's own bands lives in
+ * packages/api/src/master/rank-ladder-crosscheck.test.ts, because it needs the
+ * extract and reaching for it from here pulled better-sqlite3 into this
+ * package's typecheck graph -- which resolved locally through npm hoisting and
+ * failed on Vercel, where each service installs in isolation.
+ *
+ * What stays here is everything that describes the ladder on its own terms.
  */
 describe('the rank ladder', () => {
   it('is ascending, unique and complete', () => {
@@ -43,48 +50,5 @@ describe('the rank ladder', () => {
   it('refuses a score it cannot place rather than guessing', () => {
     expect(rankFor(-1)).toBeNull();
     expect(rankFor(Number.NaN)).toBeNull();
-  });
-
-  /**
-   * THE CROSS-CHECK. master.mdb carries the same bands with no names, so where
-   * the two overlap they must agree exactly -- and where they do not, this
-   * records precisely how far the agreement runs.
-   *
-   * The extract is OLDER than the live ladder: the game grew from 98 tiers to
-   * 298 and rebalanced the top. Measured 2026-09-16: 92 of the extract's 98 band
-   * minimums are also ladder minimums, and the six that are not are all at or
-   * above 66,000. Everything a real roster reaches is far below that.
-   *
-   * This is why labels are matched by SCORE and never by tier index: pairing
-   * master id N with ladder row N would be wrong for every tier above the
-   * divergence, and wrong silently.
-   */
-  it('agrees with master.mdb on every band below 66,000', () => {
-    const master = extractMaster();
-    const db = extractDatabase();
-    const tiers = db
-      .prepare('SELECT id, min_value FROM single_mode_rank ORDER BY min_value')
-      .all() as Array<{ id: number; min_value: number }>;
-    expect(tiers.length).toBe(98);
-
-    const ladderMins = new Set(RANK_LADDER.map((r) => r[0]));
-    const unmatched = tiers.filter((t) => !ladderMins.has(t.min_value));
-
-    expect(tiers.length - unmatched.length).toBe(92);
-    // Named individually rather than counted: if a future extract moves one of
-    // these, the failure should say which.
-    expect(unmatched.map((t) => t.min_value)).toEqual([66000, 66800, 68600, 69500, 70400, 71400]);
-    for (const t of unmatched) expect(t.min_value).toBeGreaterThanOrEqual(66_000);
-
-    // And every band the two DO share must resolve to a label there.
-    for (const t of tiers) {
-      if (!ladderMins.has(t.min_value)) continue;
-      expect(rankLabel(t.min_value), `no label at ${t.min_value}`).not.toBeNull();
-    }
-
-    // The extract still bands a real score, which is what makes it a usable
-    // cross-check even though nothing on the wire carries the tier: the label
-    // comes from the score and the ladder, and this is what pins the two.
-    expect(master.careerRankTier(24_575)).toBe(30);
   });
 });
