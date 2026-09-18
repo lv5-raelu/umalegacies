@@ -21,6 +21,16 @@ export class ErrorFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
 
+    // NO ERROR IS EVER CACHEABLE, whatever the route said before it threw.
+    //
+    // A @Header() decorator applies BEFORE the handler runs, so a route
+    // carrying `s-maxage=86400` hands that lifetime to its own failures too --
+    // and a 503 from a master-data boot failure would then be served from the
+    // CDN for a day after the deployment was fixed. The portraits route learned
+    // this and solved it for itself; putting it here means every route gets it,
+    // including the ones written next year.
+    response.setHeader('Cache-Control', 'no-store');
+
     if (exception instanceof DomainError) {
       const body: ErrorResponse = {
         code: exception.code,
