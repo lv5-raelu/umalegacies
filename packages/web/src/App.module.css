@@ -58,8 +58,14 @@
    * against the sticky offset instead left the pane 32px too tall at scroll 0,
    * because that is where it actually begins before it sticks. The fallback
    * matches a first paint with the header and file summary above it.
+   *
+   * The subtracted gap is `--space-2xl` because that is `.shell`'s
+   * padding-bottom, and the pane is the last thing above it. These two must
+   * name the SAME token: this used to subtract --space-lg, and the 24px
+   * difference became 24px of page taller than the viewport, so the window
+   * scrolled before the roster list even existed to scroll.
    */
-  height: calc(100dvh - var(--pane-top, 80px) - var(--space-lg));
+  height: calc(100dvh - var(--pane-top, 80px) - var(--space-2xl));
   overflow: hidden;
 }
 
