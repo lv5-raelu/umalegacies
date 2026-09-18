@@ -11,6 +11,7 @@ import type {
 import {
   ApiError,
   explainPair,
+  fetchMasterMeta,
   fetchTrainees,
   resolveRoster,
 } from './api/client';
@@ -23,6 +24,8 @@ import { catalogueOf } from './roster/catalogue';
 import { VeteranList } from './roster/VeteranList';
 import { filterVeterans, pickBlock } from './roster/filter';
 import { SaveError, slimSave, type SkippedEntry } from './roster/save';
+import { CACHE_VERSION, explainDiscard, inspectCache } from './roster/cache-policy';
+import { clearRoster, readRoster, writeRoster } from './roster/cache';
 import styles from './App.module.css';
 
 /**
@@ -51,6 +54,13 @@ export function App() {
   const [onTreePage, setOnTreePage] = useState(() => location.hash === '#tree');
   const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
+  /**
+   * True until the stored roster has been looked for.
+   *
+   * Without it the drop zone renders for one frame before a restore replaces
+   * it, which reads as the app forgetting and then remembering.
+   */
+  const [restoring, setRestoring] = useState(true);
   // The extract every number on screen was computed from. Echoed on the next
   // request so a rebuilt extract is caught rather than silently mixed in.
   const seenMasterHash = useRef<string | undefined>(undefined);
@@ -130,6 +140,84 @@ export function App() {
     setOnTreePage(false);
   }, [onTreePage, lineage]);
 
+  /**
+   * Bring back the roster this browser already has, if it is still true.
+   *
+   * Two steps, and the order is the point. The record is restored FIRST, on the
+   * strength of its own shape, so a reload costs no request before the list is
+   * back. Only then is the extract it was computed from compared with the one
+   * the server is serving now -- because that answer needs the network, and
+   * blocking the restore on it would trade the whole benefit for a check that
+   * almost always passes.
+   *
+   * When it does not pass, the roster is dropped rather than shown. A restore
+   * against a rebuilt extract would put stale numbers on screen with nothing to
+   * indicate it, and the numbers are the entire product.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const stored = await readRoster();
+      const optimistic = inspectCache(stored, null);
+      if (cancelled) return;
+
+      if (!optimistic.use) {
+        // A version bump or a half-written record leaves rubbish behind; take
+        // the chance to remove it rather than re-reading it on every visit.
+        if (optimistic.reason !== 'absent') void clearRoster();
+        setRestoring(false);
+        return;
+      }
+
+      const { record } = optimistic;
+      setSave({ fileName: record.fileName, veterans: record.veterans, skipped: record.skipped });
+      setRoster(record.resolved);
+      setTrainees(record.trainees);
+      seenMasterHash.current = record.masterHash;
+      setRestoring(false);
+
+      // Now confirm the game data has not moved. A failure here is not worth
+      // reporting: the roster on screen is the one that was stored, and the
+      // next request will catch a stale extract through STALE_MASTER_HASH.
+      let current: string;
+      try {
+        current = (await fetchMasterMeta()).masterHash;
+      } catch {
+        return;
+      }
+      if (cancelled) return;
+
+      const checked = inspectCache(record, current);
+      if (checked.use) return;
+
+      void clearRoster();
+      setSave(null);
+      setRoster(null);
+      setTrainees([]);
+      setPicks([]);
+      setLineage(null);
+      seenMasterHash.current = undefined;
+      setSaveError(explainDiscard(checked));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Forget the stored roster and return to the drop zone. */
+  const forget = useCallback(() => {
+    void clearRoster();
+    setSave(null);
+    setRoster(null);
+    setTrainees([]);
+    setTraineeCardId(null);
+    setCriterion(null);
+    setPicks([]);
+    setLineage(null);
+    setSaveError(null);
+    seenMasterHash.current = undefined;
+  }, []);
+
   const loadFile = useCallback(async (file: File) => {
     setParsing(true);
     setSaveError(null);
@@ -147,6 +235,19 @@ export function App() {
       setTrainees(traineeList.trainees);
       setPicks([]);
       setLineage(null);
+
+      // After the state, never before: a write that fails must not stop the
+      // roster reaching the screen. writeRoster swallows its own errors.
+      void writeRoster({
+        version: CACHE_VERSION,
+        masterHash: resolved.masterHash,
+        fileName: file.name,
+        savedAt: Date.now(),
+        veterans,
+        skipped,
+        resolved,
+        trainees: traineeList.trainees,
+      });
     } catch (error) {
       if (error instanceof SaveError) setSaveError(error.message);
       else if (error instanceof ApiError && error.code === 'STALE_MASTER_HASH') {
@@ -314,13 +415,14 @@ export function App() {
       )}
 
       <DropZone
-        state={parsing ? 'parsing' : roster ? 'loaded' : 'empty'}
+        state={parsing || restoring ? 'parsing' : roster ? 'loaded' : 'empty'}
         fileName={save?.fileName ?? null}
         veteranCount={roster?.veterans.length ?? 0}
         error={saveError}
         onFile={(file) => {
           void loadFile(file);
         }}
+        onForget={forget}
       />
 
       {roster && (

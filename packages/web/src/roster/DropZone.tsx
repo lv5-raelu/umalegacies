@@ -18,12 +18,15 @@ export function DropZone({
   veteranCount,
   error,
   onFile,
+  onForget,
 }: {
   state: 'empty' | 'parsing' | 'loaded';
   fileName: string | null;
   veteranCount: number;
   error: string | null;
   onFile: (file: File) => void;
+  /** Drop the roster this browser kept, and go back to the drop zone. */
+  onForget: () => void;
 }) {
   const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -57,6 +60,12 @@ export function DropZone({
         </span>
         <button type="button" className={styles.replace} onClick={() => input.current?.click()}>
           Load a different file
+        </button>
+        {/* The roster is kept in this browser so a reload does not cost a trip
+            to the file picker. Whoever is given that has to be able to take it
+            back, in the same place and without hunting through settings. */}
+        <button type="button" className={styles.forget} onClick={onForget}>
+          Forget this roster
         </button>
         {picker}
       </div>

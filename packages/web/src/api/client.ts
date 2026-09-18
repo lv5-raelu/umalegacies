@@ -139,6 +139,16 @@ export const resolveRoster = (
  */
 export const rankAtlasUrl = (): string => '/rank-icons/Rank_tex.webp';
 
+/**
+ * Which extract the server is serving right now.
+ *
+ * 440 bytes and CDN-cached for a minute, which is why the restored-roster check
+ * uses this rather than /roster/trainees: it needs one field, not 10 KB of
+ * trainee list it already has in hand.
+ */
+export const fetchMasterMeta = (): Promise<{ masterHash: string }> =>
+  get<{ masterHash: string }>('/master/meta');
+
 /** Every trainable card. Master data, so it does not depend on the save. */
 
 export const fetchTrainees = (): Promise<{ trainees: TraineeOption[]; masterHash: string }> =>
