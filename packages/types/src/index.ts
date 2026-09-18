@@ -257,12 +257,6 @@ export interface LineageResponse extends ExplainResponse {
   sparks: SparkSummaryRow[];
 }
 
-export interface FixtureSummary {
-  name: string;
-  description: string;
-  request: ExplainRequest;
-}
-
 // ---------------------------------------------------------------- roster (M3)
 
 /**

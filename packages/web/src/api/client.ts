@@ -2,7 +2,6 @@ import type {
   ErrorResponse,
   ExplainPairRequest,
   ExplainRequest,
-  FixtureSummary,
   LineageResponse,
   RosterResolveResponse,
   RosterVeteranInput,
@@ -98,12 +97,6 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  */
 export const portraitUrl = (cardId: number): string =>
   `${API_BASE}/portraits/${cardId}.png`;
-
-export const fetchFixtureNames = (): Promise<{ names: string[] }> =>
-  get<{ names: string[] }>('/affinity/fixtures');
-
-export const fetchFixture = (name: string): Promise<FixtureSummary> =>
-  get<FixtureSummary>(`/affinity/fixtures/${encodeURIComponent(name)}`);
 
 /**
  * `masterHash` pins the request to a specific extract. If the server is serving
