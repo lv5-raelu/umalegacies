@@ -1124,59 +1124,258 @@ raise them exist.
   policy can cover because the sharing happens outside the server. Say so next to the share
   button whatever the data-handling decision turns out to be.
 
-- **M7 — The borrow search.** *Documented 2026-09-15, not scheduled.* Requested by the
-  builder's friends; the largest missing feature in `breeding-optimizer`.
+- **M7 — The pair search.** *Documented 2026-09-15. Re-planned 2026-09-18 after an
+  engineering review with two measured spikes; the review's decisions are recorded inline
+  below and every one of them changed something.* Requested by the builder's friends.
 
   **The inverse query.** M1-M5 answer "given this lineage, what do I get?". This answers
   "given what I want, which lineage gets it?". The user states the sparks they want to
   inherit and the tool finds the parent pair that delivers them, from their own veterans
-  and optionally from borrowable veterans on uma.moe.
+  and later from borrowable veterans on uma.moe.
+
+  **IT REQUIRES A TRAINEE, and that was an unstated precondition until the 2026-09-18
+  review.** Every number this search ranks by is relative to `traineeCharaId`: odds run
+  through Individual Affinity, which is computed against the trainee, and `App.tsx`
+  composes every pair request around it. So the user journey is "pick who you are
+  breeding, then state what you want", never the reverse. The question players also ask --
+  *which* trainee should I aim at -- is a different feature and is recorded in `TODOS.md`,
+  not deferred within this one.
 
   **The unit of choice is a package, not an ancestor.** Picking a veteran as a parent also
   fixes that veteran's own two parents as the grandparents: a veteran is an indivisible
   three-slot package. The user is not choosing six ancestors, they are choosing **two
   packages of three**. Half A is slots 10/11/12, half B is 20/21/22.
 
-  **Borrowing replaces exactly one package.** A borrowed veteran supplies parent B and
-  grandparents B1 and B2. Half A is always the builder's own. This is what makes the
-  two-stage search the builder described correct rather than merely convenient: pick the
-  best own package first, then search the borrowable pool for the complement that both
-  covers what half A lacks and reinforces what it already has.
+  ```
+  TRAINEE (chosen first -- every number below is relative to it)
+     |
+     +-- half A: one of the user's own veterans ----+   +-- half B ----------------+
+     |     slot 10  the veteran itself             |   |  slot 20  the veteran    |
+     |     slot 11  its parent 1  -> grandparent   |   |  slot 21  its parent 1   |
+     |     slot 12  its parent 2  -> grandparent   |   |  slot 22  its parent 2   |
+     +---------------------------------------------+   +--------------------------+
+                                                         release 1: own roster
+                                                         release 2: OR borrowed
+  ```
+
+  **What the 2026-09-18 spikes measured.** Both numbers below replace guesses that were in
+  this section and were wrong.
+
+  1. **The sweep costs 2.4 seconds, not milliseconds.** A full 33,411-pair sweep with the
+     real engine: 0.072 ms per pair, 3.7 MB heap growth, stable across two consecutive
+     runs. This section previously claimed "brute forces in milliseconds", off by ~1000x.
+     The *conclusion* survives and gets stronger -- no index, no solver, no precomputation,
+     no client-side engine port -- but 2.4s is a latency budget rather than a rounding
+     error, and everything below is shaped by it.
+
+     **MEASURED ON VERCEL 2026-09-21, and the platform is 2-4x slower.** A gated
+     throwaway route ran the identical loop on the alias in `sin1`. Two instances, same
+     code, same work:
+
+     ```
+                        ms/pair    sweep        wall     heap
+       laptop            0.072      2.4s          --     3.7 MB growth
+       instance A        0.254      8.5s        9.3s     86-105 MB
+                         0.279      9.3s        9.8s
+       instance B        0.172      5.8s        6.4s     35 MB   <- COLD, and FASTER
+                         0.154      5.2s          --     21-77 MB
+     ```
+
+     Three things fall out of this and all three bite.
+
+     **The synchronous full sweep does not fit.** Worst observed wall was 9.82s, for the
+     builder's own 259-veteran roster with zero pruning. Nothing timed out, so the ceiling
+     is above that, but the margin is thin enough to be luck.
+
+     **Instance variance is 1.8x on identical work**, so the budget is not a number, it is
+     a distribution. A design that works on instance B fails on instance A.
+
+     **A cold start was FASTER than warm**, which inverts the usual assumption. Fresh heap
+     at 35 MB against 86-105 MB on the instance that had served several sweeps: this
+     workload allocates enough per pair that GC pressure, not container boot, is the thing
+     to watch.
+
+     **Pairs scale as n squared over two**, so headroom is worse than it looks. At the
+     slowest observed rate against a 10s budget, the ceiling is around 267 veterans. The
+     builder has 259. There is no room.
+
+  2. **uma.moe already ships the search half, and this is the FIFTH inferred competitive
+     gap to die.** This section used to open "the largest missing feature in
+     `breeding-optimizer`". The live API says otherwise. `GET /api/v3/search` carries
+     `blue/pink/green/white_sparks`, `min_white_stars_sum` (the lineage-wide scope below),
+     `main_parent_white_sparks` and `min_main_white_count` (the direct-parents scope
+     below), and `optional_white_sparks` -- whites that rank without constraining, the
+     asymmetry this section calls "the feature". The sibling doc already recorded
+     `"The borrow pool is the surviving gap" -- false` and a 0-for-4 record on inferred
+     gaps. This is the fifth. Do not restate the claim.
+
+     **What they do not have is odds.** A search hit returns spark ids, star sums and a
+     nullable `affinity_score`. No per-spark inheritance probability, no pair total, no
+     relation rank, no joint figure. That is this project's engine, and it is the whole
+     differentiator.
+
+     **Their ids are the game's ids.** Verified against our extract: 3/3 card ids resolve,
+     44/44 factor ids resolve with zero unknown and decode correctly (202 -> Stamina 2*
+     blue). Independent cross-check: our star sum from their factor ids came to 56 and
+     their own `white_stars_sum` was 56. A live search record also carries per-slot spark
+     factors AND per-slot win-saddle arrays -- richer than their published spec -- so one
+     call returns a complete, full-fidelity three-generation package, bonus affinity
+     included. A borrowed half is a ~15-line adapter onto the `VeteranPackage` this app
+     already composes, not a new engine path.
+
+     **The integration is sanctioned.** `robots.txt` is fully permissive, `GET /api`
+     answers "Bots, scripts, and integrations should use an API key instead", and the
+     OpenAPI spec calls `X-API-Key` "API key for server-to-server access and usage
+     tracking". Rate limits are not advertised and remain unmeasured; see `TODOS.md`.
 
   **Two constraint scopes, and the second is grounded in mechanics.**
   - *Lineage-wide*: a star total across all six ancestors. "12 Stamina" means twelve stars
-    of Stamina anywhere in the lineage, e.g. 2 stars on each of the six.
+    of Stamina anywhere in the lineage.
   - *Direct parents only*: a requirement pinned to slots 10 and 20. This exists because a
     parent's spark is far likelier to be inherited than a grandparent's: measured across
     the roster, parent Individual Affinity has median **138** against a grandparent median
-    of **36**, and the activation rate is `base x (1 + IA/100)`. A 2-star Medium on a
-    parent is worth materially more than the same spark on a grandparent, so the user must
-    be able to demand it *there*.
+    of **36**, and the activation rate is `base x (1 + IA/100)`.
 
-  **Hard versus soft, and this asymmetry is the feature.**
+  **THE CEILINGS DIFFER BY SUBJECT, and conflating them is a correctness trap.** A package
+  is three umas, so the list filter caps at 3 (parent scope) and 9 (lineage scope). A pair
+  is six umas, so the search caps at 6 and 18. One `SparkCriterion` type drives both
+  surfaces, which means the same stored number means different things depending on where
+  it is read. `maxStarsFor(scope)` therefore becomes `maxStarsFor(scope, subject)` with
+  subject `'package' | 'pair'`, and one function computes every ceiling.
+
+  **Hard versus soft, REVISED 2026-09-18.**
   - Blue, pink and green filters are **requirements**. Unmet means no match, and the user
     is told so plainly and expected to relax them. That loop is the main path, not an
     error state: on the builder's roster, "Stamina >= 12 AND Medium >= 4" is satisfied by
     **25 of 33,411** own-pairs, 0.07%.
-  - White filters are **never requirements**. They only rank. A result that misses a
-    wanted white is still a result; a result that hits more of them ranks higher.
-    Rationale: there are 231 distinct white types in the roster against 5 blue and 10
-    pink, so treating whites as hard constraints would return nothing almost always.
+  - White filters **rank by default and may be promoted to requirements** with a
+    per-criterion "must have" toggle. This reverses the original rule that whites are
+    never requirements. The reason is latency with a user-facing cause: hard constraints
+    are what prune 33,411 pairs down to 25, whites cannot prune while they only rank, and
+    a whites-only search is the common case -- the builder's own stated target is four
+    whites and no blues or pinks. So the unpruned 2.4s sweep was the normal path rather
+    than the tail. The original rationale (231 distinct white types, so *all* whites as
+    hard constraints returns nothing almost always) still holds and is exactly why the
+    toggle is per-criterion and off by default.
 
-  **Search space.** 259 veterans give 33,411 unordered own-by-own pairs, which brute
-  forces in milliseconds; no index or solver is needed for the own-only case. The
-  borrowable case is 259 x P where P is uma.moe's pool, and P is the part that decides
-  the architecture. Own-only must therefore be a first-class mode, not a degraded one.
+  **What orders the results.** The joint chance that **every** wanted spark arrives, with
+  the pair total breaking ties. Affinity is not a second axis to trade against spark
+  coverage -- it is already inside the odds, because the activation rate is
+  `base x (1 + IA/100)`, so a higher-affinity pair already produces higher per-spark odds
+  and ranks above a lower one. The tiebreak exists because ties are common once values
+  round, and pagination needs a deterministic order or a re-swept page reshuffles rows
+  that scored identically. The ranked figure is the same `jointOdds` the compare pane
+  shows after a result is picked, computed by the same function.
+
+  **Search space.** 259 veterans give 33,411 unordered own-by-own pairs. The borrowable
+  case is 259 x P where P is uma.moe's pool, which reports `total: "over 10000"`, and P is
+  the part that decides the architecture. Own-only is therefore a first-class mode, not a
+  degraded one.
+
+  **THE SWEEP RUNS IN THE BROWSER. Decided 2026-09-21, and it replaces a server endpoint
+  that was designed and never built.** The engine, the spark math and a JSON form of the
+  master data ship to the client, and the sweep runs in a web worker so the page stays
+  responsive while it works.
+
+  Measured before deciding, all with the real `explainLineage` and verified to produce
+  identical output (50 sparks per lineage in both places):
+
+  ```
+    payload        41 KB gzipped -- engine AND every byte of game data it reads.
+                   Half of hakuraku's 80 KB precedent, under half this app's own
+                   92 KB JS bundle. The populated Maps hold far less than the
+                   tables: 676 KB of raw rows becomes 172 KB, 33 KB gzipped.
+
+    speed          browser 0.045 ms/pair at 1x, FASTER than Node's 0.066.
+                   Vercel 0.154-0.279. The port costs nothing: all 11 prepared
+                   statements are in MasterData's constructor and the hot path
+                   was already Map lookups.
+
+    CPU throttle   1x 1.5s | 2x 3.0s | 4x 5.9s | 6x 8.8s | 8x 13.4s | 20x 31.2s
+                   for 33,411 pairs. Crossover with Vercel's 5.2-9.3s sits
+                   around 4-6x, i.e. low-end mobile.
+  ```
+
+  **Concurrency decided it.** The app is live and other people use it. A single dedicated
+  container is the worst option under load, not the best: Node is single-threaded and the
+  sweep is a synchronous CPU loop, so while it runs the process serves nothing else -- one
+  person's search makes the whole app unresponsive for everyone. Serverless scales out but
+  still hands the same person 5.2s and then 9.3s for the same search. The browser is
+  perfectly parallel: every user brings their own CPU, no user's search can affect
+  another's, and a hundred concurrent searches cost the server nothing.
+
+  **The consistency that was chosen is per-user, not cross-user.** A given person on a
+  given device gets the same number every time, which is the inconsistency people actually
+  notice. The cost, accepted deliberately, is that the number differs a lot between a fast
+  laptop and an old phone. Shipping Cygames' game data to the client was also weighed and
+  accepted.
+
+  **What this deletes.** There is no search endpoint, no roster upload per search, no
+  top-N truncation, no cursor and no re-sweep past row 200. Results never cross a network,
+  so the UI pages over all 33,411 locally. The earlier response design is superseded
+  entirely.
+
+  **Where the code lives.** `packages/core`, a new JS-emitting workspace, holds the
+  engine, the spark math, `MasterData`, the criterion predicate and the ranking function.
+  One copy, imported by both the web app and the API, so the claim that the list filter
+  and the pair search agree by construction is fact rather than aspiration.
+  `packages/types` cannot hold it: it exports only `types` and emits no JavaScript.
+
+  **The two representations must not drift.** The API reads the SQL extract; the browser
+  reads a JSON form of it. The JSON is GENERATED from the same extract as a build step,
+  never maintained by hand, so a divergence is a build failure rather than a silent
+  difference in the numbers. Two mechanical notes: the root `workspaces` array is an
+  explicit list rather than a glob, so the new package must be added by hand; and
+  `packages/core` must build before both consumers. This project has been bitten once by a
+  Vercel module-resolution subtlety, so the packaging gets verified on a deploy rather
+  than assumed.
+
+  **Pair legality.** `isLegalPair(a, b, traineeCharaId)` is the sweep's predicate, and the
+  existing `pickBlock` is re-expressed in terms of it so one rule keeps one
+  implementation. `pickBlock` takes an accumulated picked-list and carries a `pair-full`
+  branch that can never fire during a sweep, which is the wrong shape for 33,411
+  iterations. Every comparison stays on `charaId`, never `cardId`: two costumes of one
+  character are still one character.
+
+  **The pick model widens now, not later.** A pick is currently a bare roster index. A
+  borrowed half has no roster index, and borrow is the very next release, so `Pick` becomes
+  a discriminated union -- `own` (roster index plus the card id it was made against) or
+  `borrowed` (a full package) -- before release 1 ships. Refactor first, implement second:
+  the alternative lands a structural change and a behavioural change in one commit, across
+  the pick path and the persisted selection format, which is the combination this project
+  avoids.
 
   **Ceilings worth encoding in the UI**, since a user can otherwise ask for the
   impossible: every ancestor carries exactly one blue, one pink and one green, at 1-3
   stars. So one blue type caps at 6 stars across the two parents, 12 across the four
   grandparents, and 18 across all six.
 
-  Unresolved: uma.moe's API shape, terms of use and rate limits, none of which have been
-  checked; how affinity enters, since the best spark match may be a poor affinity pair and
-  the tool currently has no way to trade those off; and whether a veteran the user owns
-  twice can fill both halves.
+  **The search surface is specified by a wireframe, not by this doc.** Before the results
+  list is built, a throwaway wireframe renders real ranked pairs from the real roster with
+  faked scores, and the design review runs against that. The reason is a measured one: 255
+  of the builder's 259 veterans share a character name with another, only 29 distinct names
+  across 259 rows, and that made a name-keyed list unusable -- a fact that was invisible in
+  plan text and obvious the instant a wireframe rendered real rows. A ranked PAIR list
+  doubles the hazard, because every row names two umas and each name is ambiguous on its
+  own: the two halves are always different characters, since `isLegalPair` excludes a
+  same-character pair, but "which Oguri Cap is this" has to be answerable twice per row
+  rather than once per card. The wireframe also has to answer what the
+  screen says before a trainee is chosen, which is the precondition named at the top of
+  this section.
+
+  **Release order.** Own-roster search first and complete; uma.moe as a second candidate
+  source immediately after, feeding the same sweep and the same scoring. The build order
+  was challenged during review on the grounds that it ships the replicated half first and
+  defers the differentiated one, which is a fair reading of the competitive evidence. It
+  stands anyway, for two reasons: the borrow adapter is cheap *because* it reuses the own
+  sweep's machinery, so that machinery is the prerequisite either way; and the only direct
+  user evidence this project has is the builder's own verification session, which named
+  the obstacle as "the difficulty in comparing and evaluating potential parent units"
+  among their own units.
+
+  Still unresolved, and moved to `TODOS.md` rather than left here: uma.moe's rate limit
+  under real load, whether a veteran the user owns twice can fill both halves, per-veteran
+  affinity memoisation in the sweep, and a no-target "what should I breed" mode.
 
 ## Open Questions
 
