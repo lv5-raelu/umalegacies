@@ -199,6 +199,11 @@ function Result({
   // joint to zero instead of being quietly left out of the product.
   const joint = jointOdds(wanted.map(({ row }) => (row ? valueFor(row, view) : null)));
 
+  // Which sparks to light up, and which the pair does not carry at all. A
+  // Set because the list asks this question once per spark, 53 times.
+  const asked = new Set(criteria.map((c) => c.groupId));
+  const missing = wanted.filter(({ row }) => row === null).map(({ groupId }) => groupId);
+
   return (
     <>
       <div className={styles.total}>{traineeUnresolved ? '—' : total}</div>
@@ -253,47 +258,38 @@ function Result({
         </div>
         <p className={styles.viewRubric}>{VIEW_RUBRIC[view]}</p>
 
-        {/* The filtered sparks first, because they are the ones the user asked
-            about.
+        {/*
+          THE FILTERED SPARKS ARE NO LONGER LISTED SEPARATELY, they are
+          highlighted in the list below.
 
-            EVERY requirement gets a line, including the ones this pair misses.
-            The filter matched each veteran's own package; the composed lineage
-            is a different set of six ancestors, so a spark can pass the filter
-            and still be absent here. Dropping those rows would answer a
-            narrower question than the one on screen. */}
-        {wanted.length > 0 && (
-          <div className={styles.filtered}>
-            <p className={styles.oddsRubric}>
-              {wanted.length === 1 ? 'Your filtered spark' : `Your ${wanted.length} filtered sparks`}
-            </p>
-            {/*
-              THE AGGREGATE FIRST, ITS ADDENDS BENEATH, like the pair total.
-              A filter naming four sparks is one build rather than four separate
-              wishes, so "all four" is the number being chosen against and the
-              per-spark rows are the working. Four sparks at 40% each is 2.6%,
-              and until this line existed nothing on the screen said so.
-            */}
-            {joint !== null && (
-              <div className={styles.joint}>
-                <span className={styles.jointLabel}>
-                  {wanted.length === 2 ? 'both together' : `all ${wanted.length} together`}
-                </span>
-                <span className={styles.jointValue}>{percent(joint)}</span>
-              </div>
-            )}
-            {wanted.map(({ groupId, row }) =>
-              row ? (
-                <Odds key={groupId} row={row} view={view} />
-              ) : (
-                // Say so rather than printing 0% and letting it read as a
-                // computed answer.
-                <p key={groupId} className={styles.quiet}>
-                  This pair carries none of{' '}
-                  {sparkOptions.find((o) => o.groupId === groupId)?.name ?? 'that spark'}.
-                </p>
-              ),
-            )}
+          They used to get their own block above the list, which meant every
+          filtered spark appeared twice on a pane whose list already needed 12.5
+          screens of scrolling to read. Highlighting says the same thing in no
+          height at all, and says it in place -- where the spark sits among its
+          own kind -- rather than in a panel that answered the narrower question.
+
+          What CANNOT be highlighted stays: the joint figure, which belongs to
+          no single spark, and a requirement the pair misses entirely, which has
+          nothing in the list to highlight. The filter matched each veteran's own
+          package; the composed lineage is a different set of six ancestors, so a
+          spark can pass the filter and still be absent here.
+        */}
+        {joint !== null && (
+          <div className={styles.joint}>
+            <span className={styles.jointLabel}>
+              {wanted.length === 2 ? 'both together' : `all ${wanted.length} together`}
+            </span>
+            <span className={styles.jointValue}>{percent(joint)}</span>
           </div>
+        )}
+        {missing.length > 0 && (
+          <p className={styles.quiet}>
+            This pair carries none of{' '}
+            {missing
+              .map((groupId) => sparkOptions.find((o) => o.groupId === groupId)?.name ?? 'a spark')
+              .join(', ')}
+            .
+          </p>
         )}
 
         {/*
@@ -316,7 +312,7 @@ function Result({
             <div key={kind} className={styles.group}>
               <p className={styles.groupLabel}>{SPARK_GROUP_LABEL[kind]}</p>
               {rows.map((row) => (
-                <Odds key={row.groupId} row={row} view={view} />
+                <Odds key={row.groupId} row={row} view={view} asked={asked.has(row.groupId)} />
               ))}
             </div>
           ))}
@@ -331,17 +327,34 @@ function Result({
 }
 
 /**
- * One spark's line: what it is, how many stars the lineage carries, and its
- * chance under whichever window is selected.
+ * One spark, as a chip.
  *
- * ONE NUMBER PER ROW. An earlier version printed a second "at least twice" line
- * under each filtered spark, which doubled the pane's height and still could not
- * show the third window. The switch above the list does that job for every row
- * at once, so a row is a row again.
+ * A CHIP RATHER THAN A ROW, and the difference is the whole point. One spark
+ * per line put 53 sparks into 1,644px of a 132px window -- 12.5 screens, in a
+ * 380px column -- and a real user said plainly that he did not bother reading
+ * it. Chips wrap, so the same 53 sparks take the height of however many lines
+ * they fill rather than 53 lines. No information was removed to achieve that.
+ *
+ * `asked` is the spark the user filtered for. It is emphasis, not colour:
+ * DESIGN.md gives amber to "added" and red to "unresolved" and says the accent
+ * budget is spent, and a filter is a choice the reader made rather than a fact
+ * about the game. So the chosen ones take ink and a fill while the rest recede,
+ * which in a dark interface reads faster than a hue would anyway.
  */
-function Odds({ row, view }: { row: SparkSummaryRow; view: OddsView }) {
+function Odds({
+  row,
+  view,
+  asked = false,
+}: {
+  row: SparkSummaryRow;
+  view: OddsView;
+  asked?: boolean;
+}) {
   return (
-    <div className={styles.oddsRow}>
+    <span
+      className={asked ? `${styles.chip} ${styles.chipAsked}` : styles.chip}
+      title={`${row.name} ${row.stars}★ — ${percent(valueFor(row, view))}`}
+    >
       <span
         className={styles.tick}
         style={
@@ -350,12 +363,10 @@ function Odds({ row, view }: { row: SparkSummaryRow; view: OddsView }) {
             : { background: SPARK_COLOR[row.kind] }
         }
       />
-      <span className={styles.oddsName} title={row.name}>
-        {row.name}
-      </span>
-      <span className={styles.oddsStars}>{row.stars}★</span>
-      <span className={styles.oddsValue}>{percent(valueFor(row, view))}</span>
-    </div>
+      <span className={styles.chipName}>{row.name}</span>
+      <span className={styles.chipStars}>{row.stars}★</span>
+      <span className={styles.chipValue}>{percent(valueFor(row, view))}</span>
+    </span>
   );
 }
 
