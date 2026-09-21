@@ -51,6 +51,29 @@
   box-shadow: inset 2px 0 0 var(--ink);
 }
 
+/*
+ * A spark the reader filtered for.
+ *
+ * A FILL MARKS A CLASS, A BAR MARKS A CURSOR. `asked` is a set the reader
+ * chose and it persists while they read; `selected` is one transient row whose
+ * provenance is open below. So the fill goes here, where it can be scanned as
+ * a band down a table of ~50 near-identical rows, and the ink bar stays with
+ * `selected`, where it points. A row that is both gets both, and they do not
+ * fight because they are different marks rather than two weights of one.
+ *
+ * Achromatic on purpose. DESIGN.md: "Don't add a second accent. Amber means
+ * added; that is the whole accent budget", and red already means unresolved.
+ * A filter is also not a fact about the game -- it is a choice the reader made.
+ */
+.asked {
+  background: var(--surface);
+}
+
+.asked td.name {
+  color: var(--ink);
+  font-weight: 500;
+}
+
 .table tbody td {
   padding: var(--space-tight) var(--space-sm);
   height: 30px;

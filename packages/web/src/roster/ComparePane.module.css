@@ -153,6 +153,7 @@
  * addends at the top of the pane.
  */
 .joint {
+  flex: none;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -176,13 +177,6 @@
   color: var(--ink);
 }
 
-/* The filtered spark is set apart: it is the question, the rest is the answer. */
-.filtered {
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: var(--space-snug);
-  margin-bottom: var(--space-snug);
-}
-
 /*
  * The full spark list scrolls INSIDE the pane.
  *
@@ -204,8 +198,21 @@
   scrollbar-width: thin;
 }
 
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-hair);
+  align-items: baseline;
+}
+
 .group + .group {
-  margin-top: var(--space-snug);
+  margin-top: var(--space-tight);
+}
+
+/* The kind label sits on its own line above its chips, so a group reads as a
+   band rather than as a chip with a different shape. */
+.group > .groupLabel {
+  flex: 0 0 100%;
 }
 
 .groupLabel {
@@ -220,12 +227,62 @@
   padding: var(--space-hair) 0;
 }
 
-.oddsRow {
-  display: flex;
+/*
+ * A SPARK IS A CHIP, and chips wrap.
+ *
+ * One spark per line put 53 of them into 1,644px inside a 132px window: 12.5
+ * screens of scrolling in a 380px column, which a real reader declined to do.
+ * Wrapping puts the same 53 into the number of lines they actually fill.
+ * Nothing was removed to get there.
+ */
+.chip {
+  display: inline-flex;
   align-items: baseline;
-  gap: var(--space-sm);
-  font-size: var(--text-xs);
-  padding: var(--space-xs) 0;
+  gap: var(--space-xs);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  padding: var(--space-hair) var(--space-tight);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--ink-muted);
+  /* Never split a spark's name from its stars across a line break. */
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/*
+ * The sparks the reader asked for.
+ *
+ * ACHROMATIC, deliberately. DESIGN.md: "Don't add a second accent. Amber means
+ * added; that is the whole accent budget", and red already means unresolved.
+ * A filter is also not a fact about the game -- it is a choice the reader made,
+ * and this system paints chrome in ink. Brightness does the work: on a dark
+ * ground the lit chips are found before a hue would have been read.
+ */
+.chipAsked {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--rule-strong);
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 22ch;
+}
+
+.chipStars,
+.chipValue {
+  font-family: var(--font-data);
+  flex: none;
+}
+
+.chipValue {
+  color: var(--ink);
+}
+
+.chipAsked .chipValue {
+  font-weight: 500;
 }
 
 .tick {
@@ -233,27 +290,6 @@
   align-self: stretch;
   min-height: 12px;
   border-radius: 1px;
-  flex: none;
-}
-
-.oddsName {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.oddsValue {
-  font-family: var(--font-data);
-  font-size: var(--text-sm);
-  flex: none;
-}
-
-.oddsStars {
-  font-family: var(--font-data);
-  font-size: var(--text-2xs);
-  color: var(--ink-faint);
   flex: none;
 }
 

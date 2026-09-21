@@ -442,6 +442,7 @@ export function App() {
     return (
       <TreePage
         lineage={lineage}
+        criteria={criteria}
         onBack={() => {
           location.hash = '';
         }}

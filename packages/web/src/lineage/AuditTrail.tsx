@@ -17,10 +17,28 @@ export function AuditTrail({
   sparks,
   onSelect,
   selectedGroupId,
+  asked,
 }: {
   sparks: SparkSummaryRow[];
   onSelect: (row: SparkSummaryRow) => void;
   selectedGroupId: number | null;
+  /**
+   * The sparks the reader filtered for, lit up in place.
+   *
+   * NOT a filter. Every spark the lineage carries still appears: this table is
+   * the audit, and hiding rows because a filter is set would make it audit a
+   * narrower claim than the one on screen. It only says which rows the reader
+   * came here for, in a table where ~50 of them look alike.
+   *
+   * TWO WEIGHTS OF ONE IDEA. `selected` already owns a fill plus an ink left
+   * bar for the row whose provenance is open. Asked takes the same left bar at
+   * a quieter weight, so the two read as related rather than as rival accents,
+   * and a row that is both keeps the stronger one. No new colour: DESIGN.md
+   * spends its whole accent budget on amber-means-added and red-means-
+   * unresolved, and a filter is a choice the reader made rather than a fact
+   * about the game.
+   */
+  asked: ReadonlySet<number>;
 }) {
   // A guaranteed row is not information. Blue caps at 100% for every parent and
   // most grandparents, so those rows are dropped -- but a grandparent blue
@@ -34,7 +52,17 @@ export function AuditTrail({
   // 1-star blue at individual affinity 39-42 (career 99.93% to 99.996%) under a
   // note claiming it computed to 100%, and that band sits inside the ordinary
   // grandparent range, whose median is 36.
-  const shown = sparks.filter((row) => !(row.kind === 'blue' && row.onceInCareer >= 1));
+  //
+  // A SPARK THE READER ASKED FOR IS NEVER OMITTED, however certain it is.
+  // Dropping it was right until filtering existed: found by the highlighting
+  // work on 2026-09-21, where a filter naming Speed produced an audit trail
+  // with no Speed row and a heading reading "4 guaranteed, omitted". For a
+  // spark nobody asked about, certainty is noise. For one the reader came here
+  // to check, "this is guaranteed" is the best answer the table can give, and
+  // silence is the worst.
+  const guaranteed = (row: SparkSummaryRow): boolean =>
+    row.kind === 'blue' && row.onceInCareer >= 1;
+  const shown = sparks.filter((row) => asked.has(row.groupId) || !guaranteed(row));
   const certain = sparks.length - shown.length;
 
   if (sparks.length === 0) {
@@ -95,7 +123,14 @@ export function AuditTrail({
               ...group.map((row) => (
                 <tr
                   key={row.groupId}
-                  className={row.groupId === selectedGroupId ? styles.selected : undefined}
+                  className={
+                    [
+                      asked.has(row.groupId) ? styles.asked : '',
+                      row.groupId === selectedGroupId ? styles.selected : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined
+                  }
                   tabIndex={0}
                   role="button"
                   aria-pressed={row.groupId === selectedGroupId}
