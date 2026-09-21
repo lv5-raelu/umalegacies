@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type {
   LineageResponse,
+  ParentPick,
   RosterSparkOption,
   SparkCriterion,
   SparkKind,
@@ -52,6 +53,49 @@ const VIEW_RUBRIC: Readonly<Record<OddsView, string>> = {
   twice: 'chance of inheriting at least twice across a career',
 };
 
+/**
+ * Everything the pane can be showing, as one closed set.
+ *
+ * Named rather than inlined on the prop because `paneState` below returns it.
+ * It used to be spelled `Parameters<typeof ComparePane>[0]['state']` at the one
+ * call site, which is a way of reading a type off a component that stops
+ * working the moment anything else needs to name the same thing.
+ */
+export type PaneState =
+  | { kind: 'need-trainee' }
+  | { kind: 'need-picks'; picked: number }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ok'; lineage: LineageResponse };
+
+/**
+ * Which of those the app's state adds up to. ORDER IS THE RULE.
+ *
+ * A precondition beats a failure: with no trainee chosen there is nothing to
+ * have failed yet, and a stale error from the previous pair must not outrank
+ * "pick two veterans". Then the error, then loading -- so a re-explain shows
+ * the spinner rather than the old lineage under a new pair.
+ *
+ * Lives beside the pane rather than in `App` because it is the pane's own
+ * contract, and because it is the only thing between a `ParentPick` and what
+ * the user reads. It takes the picks themselves, not a count, so that the
+ * borrow release changes this file rather than discovering that the pane was
+ * handed a number derived somewhere else.
+ */
+export function paneState(
+  traineeCardId: number | null,
+  picks: readonly ParentPick[],
+  loading: boolean,
+  error: string | null,
+  lineage: LineageResponse | null,
+): PaneState {
+  if (traineeCardId === null) return { kind: 'need-trainee' };
+  if (picks.length !== 2) return { kind: 'need-picks', picked: picks.length };
+  if (error) return { kind: 'error', message: error };
+  if (loading || !lineage) return { kind: 'loading' };
+  return { kind: 'ok', lineage };
+}
+
 const valueFor = (row: SparkSummaryRow, view: OddsView): number =>
   view === 'inspiration'
     ? row.withinOneInspiration
@@ -67,12 +111,7 @@ export function ComparePane({
   onClearPicks,
   onOpenTree,
 }: {
-  state:
-    | { kind: 'need-trainee' }
-    | { kind: 'need-picks'; picked: number }
-    | { kind: 'loading' }
-    | { kind: 'error'; message: string }
-    | { kind: 'ok'; lineage: LineageResponse };
+  state: PaneState;
   criteria: readonly SparkCriterion[];
   /** Only for naming a requirement this pair misses. */
   sparkOptions: readonly RosterSparkOption[];

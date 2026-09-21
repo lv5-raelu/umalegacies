@@ -1,5 +1,6 @@
 import type {
   FilterScope,
+  ParentPick,
   ResolvedVeteran,
   RosterResolveResponse,
   SparkCriterion,
@@ -7,6 +8,7 @@ import type {
 } from '@umalegacies/types';
 import { CACHE_VERSION } from './cache-policy';
 import { maxStarsFor, pickBlock } from './filter';
+import { ownPick } from './picks';
 
 /**
  * What was chosen last time: the trainee, the spark requirements, and the pair.
@@ -23,34 +25,29 @@ import { maxStarsFor, pickBlock } from './filter';
  * tested.
  */
 
-/**
- * A pick, carrying the card it was made against.
- *
- * `index` alone would be a lie waiting to happen: it is a position in the
- * request array, so the same number means a different uma the moment a
- * different save is loaded. Storing the card id turns "is this still the uma I
- * picked" into a comparison rather than an assumption, and a mismatch drops the
- * pick instead of silently substituting whoever now sits at that index.
- */
-export interface CachedPick {
-  index: number;
-  cardId: number;
-}
-
 export interface CachedSelection {
   /** Shares `CACHE_VERSION` with the roster record: they are written together. */
   version: number;
   traineeCardId: number | null;
   criteria: SparkCriterion[];
-  picks: CachedPick[];
+  /**
+   * The pair, in the SAME shape the app holds it in.
+   *
+   * There used to be a separate `CachedPick { index, cardId }`, because the
+   * in-memory pick was a bare index and the stored one had to carry its proof.
+   * Widening `ParentPick` folded the card into the pick itself, so the two
+   * shapes became identical and keeping both would have been two definitions
+   * that must agree rather than one that cannot disagree.
+   */
+  picks: ParentPick[];
 }
 
 /** Exactly what `App` holds, so a restore is three `set` calls and no mapping. */
 export interface Selection {
   traineeCardId: number | null;
   criteria: SparkCriterion[];
-  /** Request-array indices, oldest first, at most two. */
-  picks: number[];
+  /** The pair, oldest first, at most two. */
+  picks: ParentPick[];
 }
 
 export const EMPTY_SELECTION: Selection = { traineeCardId: null, criteria: [], picks: [] };
@@ -136,14 +133,22 @@ function restorePicks(
   stored: unknown,
   roster: RosterResolveResponse,
   traineeCharaId: number | null,
-): number[] {
+): ParentPick[] {
   if (!Array.isArray(stored)) return [];
-  const picks: number[] = [];
+  const picks: ParentPick[] = [];
   const picked: ResolvedVeteran[] = [];
 
   for (const raw of stored) {
     if (typeof raw !== 'object' || raw === null) continue;
     const p = raw as Record<string, unknown>;
+    // ONLY THE ARM THIS BUILD WRITES. Release 1 emits nothing but `own`, so a
+    // `borrowed` entry, or the pre-union shape with no `kind` at all, is
+    // refused whole rather than read for the fields it happens to share. The
+    // borrow release adds its arm HERE, with a shape check of its own: a
+    // borrowed package arrives complete from a third party, so none of the
+    // checks below apply to it -- there is no roster row to compare it against
+    // and no index that could have moved.
+    if (p.kind !== 'own') continue;
     if (typeof p.index !== 'number' || !Number.isInteger(p.index)) continue;
 
     const veteran = roster.veterans[p.index];
@@ -151,19 +156,31 @@ function restorePicks(
     if (!veteran || veteran.self.cardId !== p.cardId) continue;
     if (pickBlock(veteran, picked, traineeCharaId) !== null) continue;
 
-    picks.push(p.index);
+    // Rebuilt from the roster row, never the stored object: what comes back is
+    // then a pick this UI could have produced, rather than whatever shape the
+    // record carried around the two fields that were checked.
+    picks.push(ownPick(veteran));
     picked.push(veteran);
   }
   return picks;
 }
 
-/** The pair as it is stored: the index the UI works in, plus its proof. */
+/**
+ * The pair as it is stored.
+ *
+ * Nearly nothing left to do, and that is the point: a pick now carries the card
+ * it was made against, so this no longer re-reads it out of the roster at write
+ * time. Re-reading would have LAUNDERED a mismatch -- stamping whoever now sits
+ * at that index onto a pick made against somebody else -- which is the exact
+ * failure the stored card exists to catch on the way back in.
+ *
+ * What remains is the one drop it always made: an `own` pick with nothing
+ * behind it is not written, so a record can never name an index this roster
+ * does not have. A borrowed pick has no roster row to check and passes through.
+ */
 export function picksToCache(
-  picks: readonly number[],
+  picks: readonly ParentPick[],
   roster: RosterResolveResponse,
-): CachedPick[] {
-  return picks.flatMap((index) => {
-    const veteran = roster.veterans[index];
-    return veteran ? [{ index, cardId: veteran.self.cardId }] : [];
-  });
+): ParentPick[] {
+  return picks.filter((pick) => pick.kind !== 'own' || roster.veterans[pick.index] !== undefined);
 }

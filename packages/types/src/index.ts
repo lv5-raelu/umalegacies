@@ -476,6 +476,40 @@ export interface TraineeOption {
   ambiguous: boolean;
 }
 
+// ---------------------------------------------------------------- picks (M7)
+
+/**
+ * One of the two parents chosen on the compare screen.
+ *
+ * WIDENED BEFORE THE FEATURE THAT NEEDS IT, not with it. A pick used to be a
+ * bare index into the roster array, and an index is the one thing a borrowed
+ * veteran can never have: it arrives from uma.moe as a complete
+ * three-generation package with no position in any file the user uploaded.
+ * Adding the second arm alongside the borrow adapter would have put a
+ * structural change -- the pick path, plus the persisted selection format --
+ * in the same commit as a behavioural one, which is the combination this
+ * project avoids.
+ *
+ * So `borrowed` is declared and never emitted: release 1 produces `own` and
+ * nothing else, and every consumer already has somewhere to put the other case
+ * rather than a shape to rewrite.
+ *
+ * `cardId` rides along on `own` instead of being looked up where it is needed.
+ * `index` is a position in the array that was SENT, so the same number means a
+ * different uma the moment a different save is loaded; carrying the card turns
+ * "is this still the uma I picked" into a comparison rather than an assumption.
+ * The persisted selection was already storing exactly this pair, so the widened
+ * pick and its cached form are now one shape instead of two that must agree.
+ *
+ * NOT named `Pick`, though the plan called it that. `Pick<T, K>` is a
+ * TypeScript builtin, and importing this would shadow it inside the importing
+ * file with a type that takes no arguments -- an error that surfaces nowhere
+ * near the import that caused it.
+ */
+export type ParentPick =
+  | { kind: 'own'; index: number; cardId: number }
+  | { kind: 'borrowed'; package: VeteranPackage };
+
 // ---------------------------------------------------------------- errors
 
 export interface ErrorResponse {

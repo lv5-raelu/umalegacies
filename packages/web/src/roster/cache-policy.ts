@@ -18,8 +18,21 @@ import type { SkippedEntry } from './save';
  * Bump when the shape changes. A record written by an older build is discarded
  * rather than read optimistically: the alternative is a restore that half works
  * and reports numbers from a structure nobody checked.
+ *
+ * 3: a pick became a discriminated union (`ParentPick`), so a stored pick
+ * carries a `kind`. A version-2 pick is `{ index, cardId }` with no
+ * discriminant, and its two fields are a strict subset of the `own` arm's --
+ * which is precisely why the stamp has to do the work here. Read
+ * optimistically, an old record would have passed every field check
+ * `restorePicks` makes and come back as a pair, from a format this build never
+ * agreed to.
+ *
+ * The roster record pays for it too, since both are stamped from this one
+ * constant and are cleared together. That costs one re-upload, which is the
+ * price of the roster and the selection never disagreeing about which build
+ * wrote them.
  */
-export const CACHE_VERSION = 2;
+export const CACHE_VERSION = 3;
 
 /**
  * What a restore needs, and nothing more.

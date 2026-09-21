@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  ExplainPairRequest,
   LineageResponse,
+  ParentPick,
   RosterResolveResponse,
   RosterVeteranInput,
   SparkCriterion,
   TraineeOption,
-  VeteranPackage,
 } from '@umalegacies/types';
 import {
   ApiError,
@@ -16,13 +15,14 @@ import {
   resolveRoster,
 } from './api/client';
 import { TreePage } from './lineage/TreePage';
-import { ComparePane } from './roster/ComparePane';
+import { ComparePane, paneState } from './roster/ComparePane';
 import { DropZone } from './roster/DropZone';
 import { SparkFilter } from './roster/SparkFilter';
 import { TraineePicker } from './roster/TraineePicker';
 import { catalogueOf } from './roster/catalogue';
 import { VeteranList } from './roster/VeteranList';
 import { filterVeterans, pickBlock } from './roster/filter';
+import { explainPairRequest, isOwnPickOf, ownPick, ownVeterans } from './roster/picks';
 import { SaveError, slimSave, type SkippedEntry } from './roster/save';
 import { CACHE_VERSION, explainDiscard, inspectCache } from './roster/cache-policy';
 import {
@@ -54,8 +54,8 @@ export function App() {
   const [trainees, setTrainees] = useState<TraineeOption[]>([]);
   const [traineeCardId, setTraineeCardId] = useState<number | null>(null);
   const [criteria, setCriteria] = useState<SparkCriterion[]>([]);
-  /** Request-array indices, oldest first, at most two. */
-  const [picks, setPicks] = useState<number[]>([]);
+  /** The pair, oldest first, at most two. See `ParentPick`. */
+  const [picks, setPicks] = useState<ParentPick[]>([]);
   const [lineage, setLineage] = useState<LineageResponse | null>(null);
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
@@ -312,13 +312,7 @@ export function App() {
    * two-is-the-limit, and no two parents of the same uma -- must hold whether or
    * not the picked card is currently on screen.
    */
-  const pickedVeterans = useMemo(
-    () =>
-      picks
-        .map((index) => roster?.veterans[index])
-        .filter((v): v is NonNullable<typeof v> => v !== undefined),
-    [roster, picks],
-  );
+  const pickedVeterans = useMemo(() => ownVeterans(picks, roster), [roster, picks]);
 
   /**
    * Picks the filter is currently hiding. Narrow on a spark neither pick
@@ -326,7 +320,7 @@ export function App() {
    * looks picked -- the one state the counter has to spell out.
    */
   const hiddenPicks = useMemo(
-    () => picks.filter((index) => !shown.some((v) => v.index === index)).length,
+    () => picks.filter((p) => p.kind === 'own' && !shown.some((v) => v.index === p.index)).length,
     [picks, shown],
   );
 
@@ -338,20 +332,24 @@ export function App() {
   const pick = useCallback(
     (index: number) => {
       const veteran = roster?.veterans[index];
+      // No row, no pick. The index always comes from a rendered card, so this
+      // cannot fire -- but a pick now CARRIES the card it was made against, and
+      // there is nowhere to read that from if the row is not there.
+      if (!veteran) return;
       // The rule lives in one place and is enforced here too, not only by the
       // card refusing its own click: a keyboard or a stale render must not be
       // able to compose a pair the game does not allow.
-      if (veteran && pickBlock(veteran, pickedVeterans, trainee?.charaId ?? null) !== null)
-        return;
+      if (pickBlock(veteran, pickedVeterans, trainee?.charaId ?? null) !== null) return;
       setPicks((current) => {
-        if (current.includes(index)) return current.filter((i) => i !== index);
+        if (current.some((p) => isOwnPickOf(p, index)))
+          return current.filter((p) => !isOwnPickOf(p, index));
         // TWO IS THE LIMIT, and a third click does nothing rather than
         // silently evicting a pick. Swapping a parent is a deliberate two-step:
         // unselect the one you are replacing, then select its replacement.
         // Auto-replacing the older pick guessed at which of the two the user
         // meant to keep, and it guessed invisibly.
         if (current.length >= 2) return current;
-        return [...current, index];
+        return [...current, ownPick(veteran)];
       });
     },
     [roster, pickedVeterans, trainee],
@@ -360,11 +358,15 @@ export function App() {
   // Changing the trainee can invalidate a pick that was legal a moment ago: you
   // are not your own parent. Drop those rather than leave the pair in a state
   // the rules forbid and the pick handler would refuse to recreate.
+  //
+  // Own picks only, because the test is on `charaId` and that is a resolved
+  // field: a borrowed package carries card ids and nothing else, so the borrow
+  // release has to resolve one before it can ask this question at all.
   useEffect(() => {
     if (!roster || trainee === null) return;
     setPicks((current) => {
       const kept = current.filter(
-        (index) => roster.veterans[index]?.self.charaId !== trainee.charaId,
+        (p) => p.kind !== 'own' || roster.veterans[p.index]?.self.charaId !== trainee.charaId,
       );
       // Same array when nothing was dropped. `filter` always returns a new one,
       // and a new identity here re-fires the pair request and the selection
@@ -398,17 +400,17 @@ export function App() {
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
-    if (!save || !roster || trainee === null || picks.length !== 2) {
+    if (!save || !roster || trainee === null) {
       setLineage(null);
       return;
     }
 
-    const request: ExplainPairRequest = {
-      traineeCharaId: trainee.charaId,
-      traineeCardId: trainee.cardId,
-      veteranA: packageAt(save.veterans, picks[0] as number),
-      veteranB: packageAt(save.veterans, picks[1] as number),
-    };
+    const request = explainPairRequest(trainee, picks, save.veterans);
+    // Null until the pair is two. Nothing to explain, and nothing to show.
+    if (!request) {
+      setLineage(null);
+      return;
+    }
 
     let cancelled = false;
     setPairLoading(true);
@@ -576,33 +578,4 @@ export function App() {
       )}
     </main>
   );
-}
-
-/**
- * The slimmed package the browser kept, by request index.
- *
- * `ResolvedVeteran.index` is the position in the array that was SENT, which is
- * why the API preserves request order. The display list is sorted separately.
- */
-function packageAt(veterans: readonly RosterVeteranInput[], index: number): VeteranPackage {
-  const veteran = veterans[index];
-  if (!veteran) throw new Error(`no veteran at index ${index}`);
-  return {
-    self: veteran.self,
-    parents: [veteran.parents[0], veteran.parents[1]],
-  };
-}
-
-function paneState(
-  traineeCardId: number | null,
-  picks: readonly number[],
-  loading: boolean,
-  error: string | null,
-  lineage: LineageResponse | null,
-): Parameters<typeof ComparePane>[0]['state'] {
-  if (traineeCardId === null) return { kind: 'need-trainee' };
-  if (picks.length !== 2) return { kind: 'need-picks', picked: picks.length };
-  if (error) return { kind: 'error', message: error };
-  if (loading || !lineage) return { kind: 'loading' };
-  return { kind: 'ok', lineage };
 }

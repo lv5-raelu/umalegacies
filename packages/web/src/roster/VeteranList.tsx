@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
 import type {
   PackageSpark,
+  ParentPick,
   ResolvedMember,
   ResolvedVeteran,
   SparkKind,
@@ -8,6 +9,7 @@ import type {
 import { Portrait } from '../lineage/Portrait';
 import type { Catalogue } from './catalogue';
 import { pickBlock, type PickBlock } from './filter';
+import { slotOf } from './picks';
 import { RankBadge } from './RankBadge';
 import { SPARK_COLOR, isWhite } from '../lineage/sparks';
 import styles from './VeteranList.module.css';
@@ -35,7 +37,13 @@ export function VeteranList({
   /** The picked veterans themselves, which may be filtered out of `veterans`. */
   pickedVeterans: readonly ResolvedVeteran[];
   catalogue: Catalogue;
-  picked: readonly number[];
+  /**
+   * The pair. Handed over whole rather than as the indices it contains,
+   * because the A/B badge is an ORDINAL: which half a card fills is its
+   * position among both picks, and a borrowed half occupies one of them
+   * without appearing in this list at all.
+   */
+  picked: readonly ParentPick[];
   /** Who is being trained. A parent cannot be the same uma. */
   traineeCharaId: number | null;
   onPick: (index: number) => void;
@@ -60,7 +68,7 @@ export function VeteranList({
           <Card
             veteran={veteran}
             catalogue={catalogue}
-            pickedAt={picked.indexOf(veteran.index)}
+            pickedAt={slotOf(picked, veteran.index)}
             block={pickBlock(veteran, pickedVeterans, traineeCharaId)}
             onPick={onPick}
           />

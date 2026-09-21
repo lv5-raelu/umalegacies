@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ResolvedVeteran, RosterResolveResponse, TraineeOption } from '@umalegacies/types';
+import type {
+  ParentPick,
+  ResolvedVeteran,
+  RosterResolveResponse,
+  TraineeOption,
+} from '@umalegacies/types';
 import { CACHE_VERSION } from './cache-policy';
+import { ownPick } from './picks';
 import { EMPTY_SELECTION, picksToCache, restoreSelection, type CachedSelection } from './selection';
 
 /**
@@ -8,10 +14,18 @@ import { EMPTY_SELECTION, picksToCache, restoreSelection, type CachedSelection }
  *
  * The risk is the mirror of the roster cache's. That one guards against showing
  * numbers computed from game data that moved; this one guards against showing a
- * PAIR that is not the pair you picked. Picks are indices into the request
- * array, so a restore that trusts them against a different save would put two
- * confident, plausible, wrong umas on screen with nothing to indicate it.
+ * PAIR that is not the pair you picked. An `own` pick is an index into the
+ * request array, so a restore that trusts one against a different save would
+ * put two confident, plausible, wrong umas on screen with nothing to indicate
+ * it.
+ *
+ * Every assertion below survived the widening of `Pick` into `ParentPick`
+ * unchanged in MEANING -- only the shape of a pick moved. That is the point of
+ * the refactor and the reason this file is the one that guards it.
  */
+
+/** A pick as this build writes it. Release 1 emits no other kind. */
+const own = (index: number, cardId: number): ParentPick => ({ kind: 'own', index, cardId });
 
 const STAMINA = 2;
 const MEDIUM = 15;
@@ -50,10 +64,7 @@ const stored = (over: Partial<CachedSelection> = {}): unknown => ({
   version: CACHE_VERSION,
   traineeCardId: null,
   criteria: [{ groupId: STAMINA, minStars: 4, scope: 'package' }],
-  picks: [
-    { index: 1, cardId: 101401 },
-    { index: 2, cardId: 100901 },
-  ],
+  picks: [own(1, 101401), own(2, 100901)],
   ...over,
 });
 
@@ -62,7 +73,7 @@ describe('a selection restored from this browser', () => {
     expect(restoreSelection(stored(), roster(), trainees)).toEqual({
       traineeCardId: null,
       criteria: [{ groupId: STAMINA, minStars: 4, scope: 'package' }],
-      picks: [1, 2],
+      picks: [own(1, 101401), own(2, 100901)],
     });
   });
 
@@ -97,7 +108,7 @@ describe('a selection restored from this browser', () => {
       trainees,
     );
     expect(result.criteria).toEqual([]);
-    expect(result.picks).toEqual([1, 2]);
+    expect(result.picks).toEqual([own(1, 101401), own(2, 100901)]);
   });
 });
 
@@ -106,11 +117,7 @@ describe('a pick is only restored as the uma it was picked as', () => {
     // The whole reason the card id is stored. Loading a different save leaves
     // index 1 pointing at a different veteran, and restoring it by index would
     // put a confident, plausible, wrong pair on screen.
-    const moved = restoreSelection(
-      stored({ picks: [{ index: 1, cardId: 999999 }] }),
-      roster(),
-      trainees,
-    );
+    const moved = restoreSelection(stored({ picks: [own(1, 999999)] }), roster(), trainees);
     expect(moved.picks).toEqual([]);
   });
 
@@ -120,11 +127,23 @@ describe('a pick is only restored as the uma it was picked as', () => {
   });
 
   it.each([
-    ['a negative index', [{ index: -1, cardId: 101401 }]],
-    ['a fractional index', [{ index: 1.5, cardId: 101401 }]],
-    ['no index at all', [{ cardId: 101401 }]],
+    ['a negative index', [own(-1, 101401)]],
+    ['a fractional index', [own(1.5, 101401)]],
+    ['no index at all', [{ kind: 'own', cardId: 101401 }]],
     ['entries that are not objects', [7, null, 'x']],
     ['picks that are not an array', 'picks'],
+    // The pre-union shape. Its two fields are a strict SUBSET of the `own`
+    // arm's, so every other check here would wave it through; only the missing
+    // discriminant stops it. CACHE_VERSION is the real guard and this is the
+    // second one, because a subset that passes silently is how a restore ends
+    // up reading a format nobody agreed to.
+    ['a pick written before the union existed', [{ index: 1, cardId: 101401 }]],
+    // Release 1 never writes this arm, so anything carrying it was not written
+    // by this build. The borrow release adds a case; it does not relax this.
+    [
+      'a borrowed pick, which this build cannot have written',
+      [{ kind: 'borrowed', package: { self: { cardId: 101401, winSaddleIds: [] }, parents: [null, null] } }],
+    ],
   ])('ignores %s', (_label, picks) => {
     expect(restoreSelection(stored({ picks: picks as never }), roster(), trainees).picks).toEqual(
       [],
@@ -140,10 +159,10 @@ describe('a pick is only restored as the uma it was picked as', () => {
   it('drops a pick that is the trainee, because you are not your own parent', () => {
     // Compared by charaId, never cardId: the veteran below is Gold Ship in a
     // different costume from the card being trained, and it is still Gold Ship.
-    const own = roster({ veterans: [veteran(0, 100601, 1006), veteran(1, 101402, 1014)] });
+    const costumes = roster({ veterans: [veteran(0, 100601, 1006), veteran(1, 101402, 1014)] });
     const result = restoreSelection(
-      stored({ traineeCardId: 101401, picks: [{ index: 1, cardId: 101402 }] }),
-      own,
+      stored({ traineeCardId: 101401, picks: [own(1, 101402)] }),
+      costumes,
       trainees,
     );
     expect(result.traineeCardId).toBe(101401);
@@ -155,31 +174,20 @@ describe('a pick is only restored as the uma it was picked as', () => {
     // though the two cards differ.
     const twins = roster({ veterans: [veteran(0, 100601, 1006), veteran(1, 100602, 1006)] });
     const result = restoreSelection(
-      stored({
-        picks: [
-          { index: 0, cardId: 100601 },
-          { index: 1, cardId: 100602 },
-        ],
-      }),
+      stored({ picks: [own(0, 100601), own(1, 100602)] }),
       twins,
       trainees,
     );
-    expect(result.picks).toEqual([0]);
+    expect(result.picks).toEqual([own(0, 100601)]);
   });
 
   it('never restores more than two', () => {
     const result = restoreSelection(
-      stored({
-        picks: [
-          { index: 0, cardId: 100601 },
-          { index: 1, cardId: 101401 },
-          { index: 2, cardId: 100901 },
-        ],
-      }),
+      stored({ picks: [own(0, 100601), own(1, 101401), own(2, 100901)] }),
       roster(),
       trainees,
     );
-    expect(result.picks).toEqual([0, 1]);
+    expect(result.picks).toEqual([own(0, 100601), own(1, 101401)]);
   });
 });
 
@@ -225,24 +233,46 @@ describe('a criterion is only restored if it can still be asked', () => {
 });
 
 describe('what gets written', () => {
-  it('stamps each pick with the card it was made against', () => {
-    expect(picksToCache([0, 2], roster())).toEqual([
-      { index: 0, cardId: 100601 },
-      { index: 2, cardId: 100901 },
+  it('stamps a pick with the card it was made against, at pick time', () => {
+    // The stamp moved OUT of the write and into the pick itself when the type
+    // widened. It is the same proof in the same record; it is just no longer
+    // re-derived from a roster that may have been replaced since.
+    expect(ownPick(roster().veterans[2] as ResolvedVeteran)).toEqual(own(2, 100901));
+  });
+
+  it('writes the pair through unchanged', () => {
+    expect(picksToCache([own(0, 100601), own(2, 100901)], roster())).toEqual([
+      own(0, 100601),
+      own(2, 100901),
     ]);
   });
 
-  it('drops an index with nothing behind it rather than writing a null card', () => {
-    expect(picksToCache([0, 99], roster())).toEqual([{ index: 0, cardId: 100601 }]);
+  it('drops an own pick with nothing behind it rather than naming a missing index', () => {
+    expect(picksToCache([own(0, 100601), own(99, 100601)], roster())).toEqual([own(0, 100601)]);
   });
 
-  it('round-trips through a restore', () => {
+  it('never launders a stale card onto a pick that has moved', () => {
+    // The whole reason the card rides on the pick. Re-reading it here would
+    // stamp whoever NOW sits at index 1 onto a pick made against somebody
+    // else, and the restore would then find nothing wrong with it.
+    const written = picksToCache([own(1, 999999)], roster());
+    expect(written).toEqual([own(1, 999999)]);
+    expect(restoreSelection({ ...(stored() as object), picks: written }, roster(), trainees).picks).toEqual([]);
+  });
+
+  it('round-trips the widened pick through a write and a restore', () => {
     const r = roster();
-    const written = { version: CACHE_VERSION, traineeCardId: 100601, criteria: [], picks: picksToCache([1, 2], r) };
+    const picks = [ownPick(r.veterans[1] as ResolvedVeteran), ownPick(r.veterans[2] as ResolvedVeteran)];
+    const written: CachedSelection = {
+      version: CACHE_VERSION,
+      traineeCardId: 100601,
+      criteria: [],
+      picks: picksToCache(picks, r),
+    };
     expect(restoreSelection(written, r, trainees)).toEqual({
       traineeCardId: 100601,
       criteria: [],
-      picks: [1, 2],
+      picks: [own(1, 101401), own(2, 100901)],
     });
   });
 });
