@@ -9,6 +9,7 @@
   },
   "workspaces": [
     "packages/types",
+    "packages/core",
     "packages/api",
     "packages/web"
   ],

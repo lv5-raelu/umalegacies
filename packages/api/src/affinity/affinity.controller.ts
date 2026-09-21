@@ -1,8 +1,6 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { MasterService } from '../master/master.service.js';
-import { explainLineage, type LineageResponse } from './lineage.js';
-import type { ExplainRequest } from './types.js';
-import { lineageFromPair } from './pair.js';
+import { explainLineage, type ExplainRequest, lineageFromPair, type LineageResponse } from '@umalegacies/core';
 import {
   assertMasterHashCurrent,
   parseExplainPairRequest,

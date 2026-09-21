@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { explain, findSumViolations } from './engine.js';
+import { explain, type ExplainNode, type ExplainResponse, findSumViolations } from '@umalegacies/core';
 import { extractHash, extractMaster } from '../master/master-extract.js';
 import { loadFixture } from './fixtures.js';
-import type { ExplainNode, ExplainResponse } from './types.js';
 
 const master = extractMaster();
 const run = (name: string): { fixture: ReturnType<typeof loadFixture>; result: ExplainResponse } => {

@@ -1,6 +1,5 @@
-import type { DatabaseSync } from 'node:sqlite';
-import type { SparkKind } from '../sparks/spark-types.js';
-import { SPARK_KIND_BY_FACTOR_TYPE } from '../sparks/spark-types.js';
+import type { SparkKind } from './spark-types.js';
+import { SPARK_KIND_BY_FACTOR_TYPE } from './spark-types.js';
 
 /** One succession_factor row, joined to its name. */
 export interface Factor {
@@ -19,6 +18,56 @@ export interface Factor {
  * engine can be tested against the committed master extract with no NestJS
  * container and no 16 MB user file present.
  */
+/**
+ * The master rows this engine reads, as plain data.
+ *
+ * WHY THIS EXISTS RATHER THAN A DATABASE HANDLE. The constructor used to take a
+ * `node:sqlite` DatabaseSync and run eleven queries. That tied the engine to
+ * Node, and the engine now runs in the browser too: the M7 pair sweep is 33,411
+ * lineages, measured at 0.045 ms each on a laptop against 0.154-0.279 on the
+ * server, so it belongs on the machine the user already owns.
+ *
+ * Every query moved out to whoever has the data. The API runs them against the
+ * committed SQL extract; the browser receives the same rows as JSON generated
+ * from that same extract at build time, so the two cannot drift. What stayed
+ * here is every loop body: the validation, the dedup and the reasons, which are
+ * the parts worth keeping in one place.
+ *
+ * ORDER IS PART OF THE CONTRACT, and two fields depend on it. `cardData` must
+ * ascend by id, because the first card seen for a character is taken as its base
+ * costume. `careerRank` and `relationRank` must ascend by their lower bound,
+ * because both are scanned for the first row a score falls into.
+ */
+export interface MasterTables {
+  successionRelation: ReadonlyArray<{ relation_type: number; relation_point: number }>;
+  successionRelationMember: ReadonlyArray<{ relation_type: number; chara_id: number }>;
+  /** Ascending by id. See above: the ordering is load-bearing. */
+  cardData: ReadonlyArray<{ id: number; chara_id: number }>;
+  winsSaddle: ReadonlyArray<{ id: number; group_id: number; win_saddle_type: number }>;
+  /** Ascending by min_value. */
+  careerRank: ReadonlyArray<{ id: number; min_value: number; max_value: number }>;
+  /** Ascending by rank_value_min. */
+  relationRank: ReadonlyArray<{
+    relation_rank: number;
+    rank_value_min: number;
+    rank_value_max: number;
+  }>;
+  /**
+   * Every text_data row this engine reads, categories mixed. Four are used: 6 is
+   * character names, 5 is the costume label alone, 111 is win-saddle epithets
+   * and 147 is spark names, whose `index` IS the factor_id. The column is
+   * literally named `index`, a SQL reserved word, which is why it arrives here
+   * renamed.
+   */
+  textData: ReadonlyArray<{ category: number; idx: number; text: string }>;
+  successionFactor: ReadonlyArray<{
+    factor_id: number;
+    factor_group_id: number;
+    rarity: number;
+    factor_type: number;
+  }>;
+}
+
 export class MasterData {
   /** relation_type -> relation_point. The number a shared relation is worth. */
   private readonly relationPoints = new Map<number, number>();
@@ -52,16 +101,12 @@ export class MasterData {
   /** factor_id -> the succession_factor row, joined to its category 147 name. */
   private readonly factors = new Map<number, Factor>();
 
-  constructor(db: DatabaseSync) {
-    for (const r of db
-      .prepare('SELECT relation_type, relation_point FROM succession_relation')
-      .iterate() as Iterable<{ relation_type: number; relation_point: number }>) {
+  constructor(tables: MasterTables) {
+    for (const r of tables.successionRelation) {
       this.relationPoints.set(r.relation_type, r.relation_point);
     }
 
-    for (const r of db
-      .prepare('SELECT relation_type, chara_id FROM succession_relation_member')
-      .iterate() as Iterable<{ relation_type: number; chara_id: number }>) {
+    for (const r of tables.successionRelationMember) {
       let set = this.relationTypesByChara.get(r.chara_id);
       if (!set) {
         set = new Set<number>();
@@ -70,9 +115,7 @@ export class MasterData {
       set.add(r.relation_type);
     }
 
-    for (const r of db
-      .prepare('SELECT id, chara_id FROM card_data ORDER BY id')
-      .iterate() as Iterable<{ id: number; chara_id: number }>) {
+    for (const r of tables.cardData) {
       this.charaIdByCardId.set(r.id, r.chara_id);
       // Ordered by id, so the first card seen for a chara is the lowest: the
       // base costume. Only the TRAINEE needs this, because the request carries
@@ -87,13 +130,7 @@ export class MasterData {
       else this.cardsByCharaId.set(r.chara_id, [r.id]);
     }
 
-    for (const r of db
-      .prepare('SELECT id, group_id, win_saddle_type FROM single_mode_wins_saddle')
-      .iterate() as Iterable<{
-      id: number;
-      group_id: number;
-      win_saddle_type: number;
-    }>) {
+    for (const r of tables.winsSaddle) {
       this.groupIdBySaddle.set(r.id, r.group_id);
       // win_saddle_type 3 is a single G1. 0 is an epithet requiring a SET of G1
       // wins (Triple Crown and friends) and is not itself a race; 2 is G2 and
@@ -101,59 +138,44 @@ export class MasterData {
       if (r.win_saddle_type === 3) this.g1SaddleIds.add(r.id);
     }
 
-    this.careerRankRows = db
-      .prepare('SELECT id, min_value, max_value FROM single_mode_rank ORDER BY min_value')
-      .all() as typeof this.careerRankRows;
+    this.careerRankRows = [...tables.careerRank];
 
-    this.rankRows = db
-      .prepare(
-        'SELECT relation_rank, rank_value_min, rank_value_max ' +
-          'FROM succession_relation_rank ORDER BY rank_value_min',
-      )
-      .all() as typeof this.rankRows;
+    this.rankRows = [...tables.relationRank];
 
-    // text_data's key column is literally named `index`, a SQL reserved word
-    // that must be quoted in every query. category 6 is chara names.
-    for (const r of db
-      .prepare('SELECT "index" AS idx, text FROM text_data WHERE category = 6')
-      .iterate() as Iterable<{ idx: number; text: string }>) {
-      this.charaNames.set(r.idx, r.text);
-    }
-    // category 5 is the costume label alone ("[Special Dreamer]"), keyed by CARD
-    // id. Category 4 is the same label with the character name already appended,
-    // which would mean splitting a string to get either half back.
-    for (const r of db
-      .prepare('SELECT "index" AS idx, text FROM text_data WHERE category = 5')
-      .iterate() as Iterable<{ idx: number; text: string }>) {
-      this.costumeByCardId.set(r.idx, r.text);
-    }
-    // category 111 is win-saddle names. They are epithets ("Classic Triple
-    // Crown"), not race names, so they read oddly next to a single G1 win.
-    for (const r of db
-      .prepare('SELECT "index" AS idx, text FROM text_data WHERE category = 111')
-      .iterate() as Iterable<{ idx: number; text: string }>) {
-      this.saddleNames.set(r.idx, r.text);
-    }
-
-    // Sparks. category 147 is the spark name and its `index` IS the factor_id,
-    // so the join is direct. Every one of the 663 factor ids a real roster
-    // surfaces has a row in both, verified 2026-09-15.
+    // ONE PASS OVER text_data, not four filters over the same array. The
+    // categories were four separate WHERE clauses when this read SQL; the rows
+    // now arrive together, and 1,775 of them is one cheap loop.
+    //
+    // category 6   chara names
+    // category 5   the costume label ALONE ("[Special Dreamer]"), keyed by CARD
+    //              id. Category 4 is the same label with the character name
+    //              already appended, which would mean splitting a string to get
+    //              either half back.
+    // category 111 win-saddle names. Epithets ("Classic Triple Crown") rather
+    //              than race names, so they read oddly next to a single G1 win.
+    // category 147 spark names, whose `index` IS the factor_id, so the join is
+    //              direct. Every one of the 663 factor ids a real roster
+    //              surfaces has a row in both, verified 2026-09-15.
     const factorNames = new Map<number, string>();
-    for (const r of db
-      .prepare('SELECT "index" AS idx, text FROM text_data WHERE category = 147')
-      .iterate() as Iterable<{ idx: number; text: string }>) {
-      factorNames.set(r.idx, r.text);
+    for (const r of tables.textData) {
+      switch (r.category) {
+        case 6:
+          this.charaNames.set(r.idx, r.text);
+          break;
+        case 5:
+          this.costumeByCardId.set(r.idx, r.text);
+          break;
+        case 111:
+          this.saddleNames.set(r.idx, r.text);
+          break;
+        case 147:
+          factorNames.set(r.idx, r.text);
+          break;
+        default:
+          break;
+      }
     }
-    for (const r of db
-      .prepare(
-        'SELECT factor_id, factor_group_id, rarity, factor_type FROM succession_factor',
-      )
-      .iterate() as Iterable<{
-      factor_id: number;
-      factor_group_id: number;
-      rarity: number;
-      factor_type: number;
-    }>) {
+    for (const r of tables.successionFactor) {
       const kind = SPARK_KIND_BY_FACTOR_TYPE[r.factor_type];
       // An unknown factor_type is a new game mechanic, not a spark this tool
       // knows: the live extract already carries type 7 ("Carnival Bonus"). An

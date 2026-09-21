@@ -1,8 +1,8 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { explain } from '../affinity/engine.js';
+import { explain, MasterData } from '@umalegacies/core';
 import { loadFixture } from '../affinity/fixtures.js';
-import { MasterData } from './master-data.js';
 import { MasterContentError } from './master.errors.js';
+import { readTables } from './master-extract.js';
 
 /**
  * A boot-time assertion that the opened database says what we believe it says.
@@ -128,7 +128,7 @@ const goldenLineage: ContentCheck = {
     const expected = (fixture.expected as { pairTotal: number }).pairTotal;
     let actual: number;
     try {
-      actual = explain(fixture.request, new MasterData(db), 'boot-check').pairTotal.value;
+      actual = explain(fixture.request, new MasterData(readTables(db)), 'boot-check').pairTotal.value;
     } catch (cause) {
       throw new MasterContentError(
         this.name,

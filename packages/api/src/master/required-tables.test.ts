@@ -24,8 +24,12 @@ describe('the boot schema check covers every table MasterData queries', () => {
       (m) => m[1] as string,
     ),
   );
+  // master-extract.ts, not master-data.ts. The eleven queries moved here when
+  // the engine went to @umalegacies/core, which cannot hold SQL because it also
+  // runs in a browser. The list this test guards is still "every table the code
+  // actually SELECTs from", so it follows the SQL rather than the class.
   const queried = new Set(
-    [...readFileSync(here('master-data.ts'), 'utf8').matchAll(/FROM\s+([a-z_]+)/g)].map(
+    [...readFileSync(here('master-extract.ts'), 'utf8').matchAll(/FROM\s+([a-z_]+)/g)].map(
       (m) => m[1] as string,
     ),
   );

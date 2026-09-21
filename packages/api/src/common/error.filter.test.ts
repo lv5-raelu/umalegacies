@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { DomainError, type ErrorResponse } from './error-response.js';
+import { DomainError, type ErrorResponse } from '@umalegacies/core';
 import { ErrorFilter } from './error.filter.js';
 
 /**

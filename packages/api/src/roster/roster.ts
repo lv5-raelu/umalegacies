@@ -8,9 +8,7 @@ import type {
   RosterVeteranInput,
   TraineeOption,
 } from '@umalegacies/types';
-import type { MasterData } from '../master/master-data.js';
-import { allSparks, ancestorSparks } from '../sparks/sparks.js';
-import { SPARK_KIND_ORDER } from '../sparks/spark-types.js';
+import { allSparks, ancestorSparks, type MasterData, SPARK_KIND_ORDER } from '@umalegacies/core';
 
 /** A member as the response describes it, beside the sparks used to build it. */
 interface Member {

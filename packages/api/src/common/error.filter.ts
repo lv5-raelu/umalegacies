@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { DomainError, type ErrorResponse } from './error-response.js';
+import { DomainError, type ErrorResponse } from '@umalegacies/core';
 
 /**
  * Normalises every thrown value into ErrorResponse, so a client never has to

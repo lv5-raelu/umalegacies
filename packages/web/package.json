@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "@umalegacies/core": "*"
   },
   "devDependencies": {
     "@types/react": "19.3.0 19.3.0",

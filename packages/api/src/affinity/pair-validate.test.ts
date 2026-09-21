@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DomainError } from '../common/error-response.js';
+import { DomainError, explainLineage } from '@umalegacies/core';
 import { extractHash, extractMaster } from '../master/master-extract.js';
-import { explainLineage } from './lineage.js';
 import { parseExplainPairRequest, parseExplainRequest } from './validate.js';
 
 const master = extractMaster();

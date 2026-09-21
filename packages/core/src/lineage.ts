@@ -1,7 +1,7 @@
-import { DomainError } from '../common/error-response.js';
-import type { MasterData } from '../master/master-data.js';
-import { ancestorSparks, emptySparkSet, summariseSparks } from '../sparks/sparks.js';
-import type { AncestorSparkSet, SparkSummaryRow } from '../sparks/spark-types.js';
+import { DomainError } from './error-response.js';
+import type { MasterData } from './master-data.js';
+import { ancestorSparks, emptySparkSet, summariseSparks } from './sparks.js';
+import type { AncestorSparkSet, SparkSummaryRow } from './spark-types.js';
 import { explain } from './engine.js';
 import type { AncestorIdentity, LineageResponse } from '@umalegacies/types';
 import {
