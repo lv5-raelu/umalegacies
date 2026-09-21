@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { LineageResponse, SparkSummaryRow } from '@umalegacies/types';
+import type { LineageResponse, SparkCriterion, SparkSummaryRow } from '@umalegacies/types';
 import { AuditTrail } from './AuditTrail';
 import {
   LinkProvenance,
@@ -23,12 +23,18 @@ import styles from '../App.module.css';
  */
 export function TreePage({
   lineage,
+  criteria,
   onBack,
 }: {
   lineage: LineageResponse;
+  /** Only to light up the sparks the reader asked for. Nothing here filters. */
+  criteria: readonly SparkCriterion[];
   onBack: () => void;
 }) {
   const [selection, setSelection] = useState<Selection>({ kind: 'total' });
+  // The sparks the reader filtered for, so the audit trail can light them up.
+  // A Set because the table asks this once per row, ~50 times.
+  const askedGroupIds = new Set(criteria.map((c) => c.groupId));
   const [spark, setSpark] = useState<SparkSummaryRow | null>(null);
 
   const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
@@ -98,6 +104,7 @@ export function TreePage({
 
       <h2 className={styles.rubric}>Audit trail — every spark this lineage can pass down</h2>
       <AuditTrail
+        asked={askedGroupIds}
         sparks={lineage.sparks}
         selectedGroupId={spark?.groupId ?? null}
         onSelect={(row) => setSpark(row.groupId === spark?.groupId ? null : row)}
