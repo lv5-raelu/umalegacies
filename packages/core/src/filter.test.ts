@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { PackageSpark, ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
+import type { PackageSpark, ResolvedVeteran, SparkCriterion, SparkKind } from '@umalegacies/types';
 import {
   filterVeterans,
   isLegalPair,
+  isRequirement,
   matchesCriterion,
   maxStarsFor,
   pickBlock,
@@ -198,6 +199,66 @@ describe('several criteria at once', () => {
     const loose = criterion({ groupId: STAMINA, minStars: 1 });
     const strict = criterion({ groupId: STAMINA, minStars: 9 });
     expect(filterVeterans(roster, [loose, strict]).map((v) => v.index)).toEqual([0, 1]);
+  });
+});
+
+describe('isRequirement: which criteria may prune', () => {
+  const NAMED = ['blue', 'pink', 'green'] as const;
+  const WHITES = ['white_skill', 'white_race', 'white_scenario'] as const;
+
+  it.each(NAMED)('%s is a requirement without being asked', (kind) => {
+    expect(isRequirement(criterion(), kind)).toBe(true);
+  });
+
+  it.each(NAMED)('%s stays a requirement even if mustHave says otherwise', (kind) => {
+    // Every ancestor carries exactly one of each, so naming one is always a
+    // claim worth pruning on. The flag is redundant here, not obeyed.
+    expect(isRequirement(criterion({ mustHave: false }), kind)).toBe(true);
+  });
+
+  it.each(WHITES)('%s only ranks by default', (kind) => {
+    expect(isRequirement(criterion(), kind)).toBe(false);
+    expect(isRequirement(criterion({ mustHave: false }), kind)).toBe(false);
+  });
+
+  it.each(WHITES)('%s prunes once promoted', (kind) => {
+    expect(isRequirement(criterion({ mustHave: true }), kind)).toBe(true);
+  });
+
+  it('is the only thing that changes between two whites in one search', () => {
+    // The toggle is PER-CRITERION, which is the whole point: 231 distinct white
+    // types means requiring them all at once returns nothing almost always.
+    const asked = criterion({ groupId: 10, mustHave: true });
+    const preferred = criterion({ groupId: 11 });
+    expect(isRequirement(asked, 'white_skill')).toBe(true);
+    expect(isRequirement(preferred, 'white_skill')).toBe(false);
+  });
+
+  it('never leaves a criterion neither pruning nor ranking', () => {
+    // A total function over every kind, so a new SparkKind cannot quietly land
+    // in a third state that no caller handles.
+    const kinds: SparkKind[] = [...NAMED, ...WHITES];
+    for (const kind of kinds) {
+      for (const mustHave of [undefined, true, false]) {
+        expect(typeof isRequirement(criterion({ mustHave }), kind)).toBe('boolean');
+      }
+    }
+  });
+});
+
+describe('the roster list treats every criterion as a requirement', () => {
+  // filterVeterans deliberately does NOT consult isRequirement: a list has
+  // nothing to rank with, so an un-promoted white must still filter or the
+  // roster filter loses its main use.
+  it('filters on an un-promoted white exactly as on a promoted one', () => {
+    const has = veteran([3, 0, 0], { index: 0 });
+    const lacks = veteran([0, 0, 0], { index: 1 });
+    const roster = [has, lacks];
+    const soft = criterion({ minStars: 1 });
+    const hard = criterion({ minStars: 1, mustHave: true });
+
+    expect(filterVeterans(roster, [soft])).toEqual([has]);
+    expect(filterVeterans(roster, [hard])).toEqual([has]);
   });
 });
 

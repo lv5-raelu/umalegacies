@@ -431,6 +431,19 @@ export interface SparkCriterion {
   groupId: number;
   minStars: number;
   scope: FilterScope;
+  /**
+   * Promote a WHITE criterion from a preference to a requirement.
+   *
+   * Absent or false is the default and the common case. Blue, pink and green
+   * are requirements whatever this says: every ancestor carries exactly one of
+   * each, so a criterion naming one can always prune. Whites are a bag of 231
+   * distinct types, and requiring all of them at once returns nothing almost
+   * always -- which is why the toggle is per-criterion rather than global.
+   *
+   * Read through `isRequirement`, never directly: it is the one place that
+   * knows the flag does nothing on the three named slots.
+   */
+  mustHave?: boolean;
 }
 
 // ---------------------------------------------------------------- pair (M3)

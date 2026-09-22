@@ -20,8 +20,8 @@ argument for the file.
 | T2b | Move `filter.ts` and `joint.ts` into core | core | done (#25) |
 | T3 | `maxStarsFor(scope, subject)` + pair ceilings | core | done **[REGRESSION]** — guard is the required arg |
 | T4 | `isLegalPair`, `pickBlock` re-expressed over it | core | done |
-| T5 | `matchesPair` over two packages | core | TODO |
-| T6 | Per-criterion must-have flag | core | **TODO — next** |
+| T5 | `matchesPair` over two packages | core | **TODO — next** |
+| T6 | Per-criterion must-have flag | core | done |
 | T7 | The sweep: generate, prune, score, rank | **web** (was api) | TODO |
 | T8 | `POST /search/pairs` + its own body limit | api | **dead** — see below |
 | T9 | Widen `Pick` to a union | web | done (#19) |
@@ -53,8 +53,8 @@ rather than tidying. It is tracked here as T2b.
 
 ```
   T2b ─→ T3 ─→ T4 ─→ T6 ─→ T5 ─→ T7 sweep ─→ T15 worker ─→ T10 surface
-  done  done  done   ^^^               ↑
-                     (T6 and T5 still edit filter.ts -- one file, sequential)
+  done  done  done  done  ^^^          ↑
+                     (T5 is the last one editing filter.ts)
   T13  master JSON build step ─────────┘   (T7 needs game data in the browser)
 
   independent of the chain:
@@ -79,6 +79,15 @@ invariant breaks — the pair is illegal, `isLegalPair` says so, and `pickBlock`
 still reports the other card as clickable. The app handles it downstream (the
 lineage goes null and the tree closes), so it is a boundary rather than a bug,
 and `filter.test.ts` now asserts both the agreement and the exception.
+
+**T6 settled what the flag means on each surface, and it is not the same thing.**
+The sweep reads `isRequirement(criterion, kind)`: blue, pink and green always
+prune, whites only rank until promoted. `filterVeterans` deliberately does NOT
+read it — a list has nothing to rank with, so an un-promoted white must still
+filter or the roster filter loses its main use. So a `SparkCriterion` means two
+things depending on the reader, exactly as `minStars` already does across the two
+ceilings. T10 decides whether the search's control and the list's control are
+even the same control.
 
 ## Open design questions, from the wireframe
 
