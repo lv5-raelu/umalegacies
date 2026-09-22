@@ -3,7 +3,9 @@ import type {
   PackageSpark,
   ResolvedVeteran,
   SparkCriterion,
+  SparkKind,
 } from '@umalegacies/types';
+import { isWhite } from './spark-types.js';
 
 /** The most stars any ONE uma can carry of one spark. The game's cap. */
 export const MAX_STARS_PER_UMA = 3;
@@ -64,6 +66,37 @@ const SUBJECT_HALVES: Readonly<Record<StarSubject, number>> = {
 export const maxStarsFor = (scope: FilterScope, subject: StarSubject): number =>
   SCOPE_MEMBERS[scope].length * MAX_STARS_PER_UMA * SUBJECT_HALVES[subject];
 
+/**
+ * Does this criterion have to be MET, or does it only rank?
+ *
+ * THE LEVER THAT MAKES THE SWEEP AFFORDABLE. Hard constraints are what prune:
+ * on the builder's roster "Stamina >= 12 AND Medium >= 4" leaves 25 of 33,411
+ * pairs, 0.07%. A criterion that only ranks prunes nothing, so a whites-only
+ * search -- the builder's own stated target is four whites and no blues or
+ * pinks -- scores the whole space. That made the full sweep the normal path
+ * rather than the tail, and it is why the user gets a per-criterion toggle
+ * rather than the tool guessing.
+ *
+ * BLUE, PINK AND GREEN IGNORE THE FLAG. Every ancestor carries exactly one of
+ * each, so naming one is always a claim that can be checked and always worth
+ * pruning on. `mustHave` on a blue is redundant, not wrong, and this function
+ * is the reason no caller has to remember that.
+ *
+ * WHITES DEFAULT TO RANKING. There are 231 distinct white types on a real
+ * roster; requiring all of them at once returns nothing almost always. The
+ * original rule was that whites can NEVER be requirements, and it was reversed
+ * on 2026-09-18 for the latency reason above -- but the rationale behind it is
+ * exactly why the promotion is per-criterion and off by default.
+ *
+ * The kind comes from the catalogue (`RosterSparkOption.kind`), not from the
+ * criterion: a criterion is a groupId and a threshold, and denormalising the
+ * kind onto it would put a second copy of the catalogue in the persisted
+ * selection.
+ */
+export function isRequirement(criterion: SparkCriterion, kind: SparkKind): boolean {
+  return !isWhite(kind) || criterion.mustHave === true;
+}
+
 /** Stars this package carries for one spark, within one scope. */
 export function starsInScope(spark: PackageSpark, scope: FilterScope): number[] {
   return SCOPE_MEMBERS[scope].map((i) => spark.stars[i] ?? 0);
@@ -99,6 +132,19 @@ export function matchesCriterion(veteran: ResolvedVeteran, criterion: SparkCrite
  * An empty list is not a filter. It returns everything rather than nothing,
  * because "no requirements" and "impossible requirements" are different
  * questions and only one of them is what an empty row set means.
+ *
+ * THIS DOES NOT CONSULT `isRequirement`, AND THAT IS DELIBERATE. Here every
+ * criterion is a requirement, including an un-promoted white. `mustHave`
+ * distinguishes pruning from ranking, and a LIST has nothing to rank with --
+ * it either shows a row or it does not. Honouring the flag here would mean an
+ * un-promoted white stopped filtering at all, which deletes the roster
+ * filter's main use: a veteran carries 12-19 whites and the only question a
+ * white answers is whether one of them is the one you want.
+ *
+ * So one `SparkCriterion` still means two things depending on who reads it,
+ * the same way `minStars` does across the two ceilings. The sweep is the
+ * surface where soft means something; T10 decides whether the search's control
+ * and the list's control are even the same control.
  */
 export const filterVeterans = (
   veterans: readonly ResolvedVeteran[],

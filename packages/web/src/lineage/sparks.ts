@@ -13,8 +13,17 @@ export const SPARK_COLOR: Readonly<Record<SparkKind, string>> = {
   white_scenario: 'var(--spark-white)',
 };
 
-/** The three whites share one hue, so their tick is outlined rather than filled. */
-export const isWhite = (kind: SparkKind): boolean => kind.startsWith('white');
+/*
+ * `isWhite` tells this screen the three whites share one hue, so their tick is
+ * outlined rather than filled.
+ *
+ * It and `SPARK_KIND_ORDER` are re-exported from core, not redefined here.
+ * Both were duplicated -- byte-identical, so nothing was broken yet -- and both
+ * are read by the sweep as well as by this screen. A second copy of the kind
+ * ordering is how two surfaces start listing sparks in different orders while
+ * every test still passes.
+ */
+export { SPARK_KIND_ORDER, isWhite } from '@umalegacies/core';
 
 export const SPARK_GROUP_LABEL: Readonly<Record<SparkKind, string>> = {
   blue: 'blue · stat',
@@ -24,15 +33,6 @@ export const SPARK_GROUP_LABEL: Readonly<Record<SparkKind, string>> = {
   white_skill: 'white · skill',
   white_scenario: 'white · scenario',
 };
-
-export const SPARK_KIND_ORDER: readonly SparkKind[] = [
-  'blue',
-  'pink',
-  'green',
-  'white_race',
-  'white_skill',
-  'white_scenario',
-];
 
 /**
  * Percentages round to whole numbers, with an exception at EACH end.

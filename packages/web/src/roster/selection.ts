@@ -104,7 +104,7 @@ function restoreCriteria(stored: unknown, roster: RosterResolveResponse): SparkC
   for (const raw of stored) {
     if (typeof raw !== 'object' || raw === null) continue;
     const c = raw as Record<string, unknown>;
-    const { groupId, minStars, scope } = c;
+    const { groupId, minStars, scope, mustHave } = c;
 
     if (typeof groupId !== 'number' || !known.has(groupId)) continue;
     // The filter refuses a second row for the same spark, so a record holding
@@ -123,8 +123,23 @@ function restoreCriteria(stored: unknown, roster: RosterResolveResponse): SparkC
     // belongs with the surface that needs it, not guessed at now.
     if (minStars < 1 || minStars > maxStarsFor(scope as FilterScope, 'package')) continue;
 
+    // Absent is the default and by far the common case. Present-but-not-boolean
+    // means the record was not written by this UI, and the rule here is to drop
+    // a criterion that does not check out rather than to guess at it.
+    if (mustHave !== undefined && typeof mustHave !== 'boolean') continue;
+
     seen.add(groupId);
-    out.push({ groupId, minStars, scope: scope as FilterScope });
+    // THE FLAG HAS TO MAKE THE ROUND TRIP. `SelectionRecord.criteria` stores
+    // whole `SparkCriterion` objects, so `mustHave` is already being written;
+    // rebuilding the criterion without it here would drop a promoted white on
+    // every reload and quietly widen the user's search. Nothing sets it yet,
+    // which is exactly why it is worth wiring before something does.
+    out.push({
+      groupId,
+      minStars,
+      scope: scope as FilterScope,
+      ...(mustHave === undefined ? {} : { mustHave }),
+    });
   }
   return out;
 }

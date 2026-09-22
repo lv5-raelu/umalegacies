@@ -230,6 +230,39 @@ describe('a criterion is only restored if it can still be asked', () => {
       ]),
     ).toEqual([{ groupId: STAMINA, minStars: 2, scope: 'package' }]);
   });
+
+  describe('the must-have flag makes the round trip', () => {
+    // The record stores whole SparkCriterion objects, so the flag is written
+    // whether or not the restore looks for it. A restore that rebuilt the
+    // criterion without it would silently un-promote a white on every reload
+    // and widen the search with nothing on screen to say so.
+    it('keeps a promoted white promoted', () => {
+      expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', mustHave: true }])).toEqual([
+        { groupId: STAMINA, minStars: 1, scope: 'package', mustHave: true },
+      ]);
+    });
+
+    it('keeps an explicit false rather than inventing an absence', () => {
+      expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', mustHave: false }])).toEqual([
+        { groupId: STAMINA, minStars: 1, scope: 'package', mustHave: false },
+      ]);
+    });
+
+    it('leaves the field off entirely when the record has none', () => {
+      const [restored] = only([{ groupId: STAMINA, minStars: 1, scope: 'package' }]);
+      expect(restored).toEqual({ groupId: STAMINA, minStars: 1, scope: 'package' });
+      expect(restored && 'mustHave' in restored).toBe(false);
+    });
+
+    it('drops a criterion whose flag is not a boolean', () => {
+      // Same rule as every other field here: a record this UI did not write is
+      // not guessed at.
+      expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', mustHave: 'yes' }])).toEqual(
+        [],
+      );
+      expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', mustHave: 1 }])).toEqual([]);
+    });
+  });
 });
 
 describe('what gets written', () => {

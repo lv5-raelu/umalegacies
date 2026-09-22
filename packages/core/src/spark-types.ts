@@ -57,6 +57,16 @@ export const BASE_RATES: Readonly<Record<SparkKind, readonly [number, number, nu
   white_scenario: [0.03, 0.06, 0.09],
 };
 
+/**
+ * Is this one of the three named slots, or one of the bag?
+ *
+ * The distinction is load-bearing beyond colour. Every ancestor carries exactly
+ * one blue, one pink and one green, so a criterion naming one of those is a
+ * requirement the search can prune on. Whites are a bag of 231 distinct types,
+ * so a criterion naming one is a preference by default -- see `isRequirement`.
+ */
+export const isWhite = (kind: SparkKind): boolean => kind.startsWith('white');
+
 /** The order the audit trail renders its groups in. Structural first, bag last. */
 export const SPARK_KIND_ORDER: readonly SparkKind[] = [
   'blue',
