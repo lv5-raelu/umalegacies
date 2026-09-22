@@ -100,14 +100,23 @@ anything is scored, and choosing a trainee cuts it to ~20,000. Every latency
 number in the design was measured against 33,411 and is therefore conservative.
 Both figures are now corrected in `planner-that-shows-its-work.md`.
 
-**`packages/api/scripts/check-roster.mjs` IS BROKEN and nothing noticed.** It is
-the project's oracle harness — the independent hakuraku transcription the whole
-engine is checked against — and PR #22 moved the engine into `packages/core`
-without updating it. It imports `../dist/affinity/engine.js` and
-`../dist/master/master-data.js`, neither of which exists any more, and calls
-`new MasterData(db)` when the constructor now takes `MasterTables`. It never runs
-in CI by design (it needs both user files), which is exactly why the breakage was
-invisible. Not fixed here; it is its own change.
+**Both local-only scripts were broken by PR #22, and both are fixed.** The
+`packages/core` extraction moved the engine out from under
+`scripts/check-roster.mjs` (the oracle harness, which compares every
+per-grandparent affinity against a transcription of hakuraku) and
+`scripts/build-fixtures.ts` (which generates the golden fixtures CI reads).
+Neither is imported, compiled or run by anything in CI — both need `master.mdb`
+and `data.json` — so both were dead for eight days with nothing to report it.
+
+After the fix: the oracle passes **1,036 comparisons across 259 lineages**, and
+regenerating the fixtures produces all 7 byte-identical, so the committed
+expected values are exactly reproducible from the current engine.
+
+`src/scripts-resolve.test.ts` is the guard. It checks every import specifier in
+`scripts/` against the source tree, and it found the second breakage within
+seconds of being written. It does NOT catch type-level drift — `MasterData`'s
+constructor also changed shape, and a `.mjs` file gets no typechecking from any
+config here.
 
 ## Open design questions, from the wireframe
 
