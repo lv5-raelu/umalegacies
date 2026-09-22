@@ -209,12 +209,53 @@
   padding-top: var(--space-hair);
 }
 
+/*
+ * THE SEPARATOR, WHICH USED TO BE A FLOATING GLYPH.
+ *
+ * A bare x parked at the top of a 280px row read as a stray character rather
+ * than as the join between two halves -- the builder's words were that they
+ * were confused as to what it was. It is now a full-height rule with the glyph
+ * centred on it and the card's own ground punched out behind it, which is the
+ * one shape that can only be read as "these two things, together".
+ *
+ * `align-self: stretch` against the row's `align-items: start`: this is the
+ * only cell that wants the track's full height, and the halves must keep their
+ * top alignment or two spark lists of different lengths would centre against
+ * each other.
+ *
+ * It also now has ONE meaning. The `x` inside each half's `out of A x B` line
+ * said "these two are the parents" while this one said "these two are the
+ * pair", same glyph, same row, two jobs. That line is now faces, so the only
+ * x left on the row is this one.
+ */
 .times {
+  align-self: stretch;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-data);
   font-size: var(--text-sm);
-  color: var(--ink-faint);
-  text-align: center;
-  padding-top: var(--space-sm);
+  color: var(--ink-muted);
+}
+
+.times::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--rule);
+}
+
+/* Sits on top of the rule with the card's ground behind it, so the line reads
+   as continuous and interrupted rather than as two stubs. */
+.timesGlyph {
+  position: relative;
+  background: var(--surface);
+  padding: var(--space-xs) 0;
+  line-height: 1;
 }
 
 /* One veteran of the pair. */
@@ -238,11 +279,56 @@
   margin-top: var(--space-hair);
 }
 
+/*
+ * THE PACKAGE AS A LITTLE TREE: the veteran, a connector, its two parents.
+ *
+ * The whole cluster is 44px wide, which is the width of two 20px parent discs
+ * and the 4px between them, and the fork above is 24px so its two uprights
+ * land on those discs' centres rather than near them. Change one of the three
+ * and the bracket stops pointing at anything.
+ *
+ * It is TALLER than the 32px portrait it replaces and costs no row height,
+ * because the sparks beside it already make the half four times this tall. It
+ * also takes back the line the `out of A x B` text used to spend.
+ */
+.lineage {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 44px;
+}
+
 /* 32px, down from the roster card's 44px. The portrait is the fastest way to
    tell two entries of one character apart, so it shrinks last and least. */
-.portrait {
+.lineageSelf {
   --portrait-size: 32px;
-  flex: none;
+}
+
+/* The drop out of the veteran, and the bracket that splits it in two. Borders
+   rather than an SVG: three 1px lines that already have a token. */
+.trunk {
+  width: 1px;
+  height: 4px;
+  background: var(--rule-strong);
+}
+
+.fork {
+  width: 24px;
+  height: 5px;
+  border: 1px solid var(--rule-strong);
+  border-bottom: 0;
+}
+
+.parents {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+/* Smaller than the veteran, because the hierarchy is the point: these two are
+   how you tell one Oguri Cap from the next, not what you picked. */
+.parentDisc {
+  --portrait-size: 20px;
 }
 
 .identity {
@@ -261,21 +347,6 @@
 .costume {
   color: var(--ink-faint);
   font-size: var(--text-2xs);
-}
-
-/* The 166-distinct unit, against the bare name's 29. Clipped rather than
-   wrapped: two parent names plus two costume tags run past any width a half
-   column has, and a wrapped package line would make the row height depend on
-   which umas it happens to name. */
-.package {
-  font-family: var(--font-data);
-  font-size: var(--text-3xs);
-  color: var(--ink-faint);
-  display: block;
-  margin-top: var(--space-hair);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* The costume's unique skill, which is the one spark that varies between two

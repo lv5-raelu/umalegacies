@@ -301,7 +301,7 @@ const PairRow = memo(function PairRow({
 
       <Half veteran={row.a} slot="A" catalogue={catalogue} asked={asked} />
       <span className={styles.times} aria-hidden="true">
-        ×
+        <span className={styles.timesGlyph}>×</span>
       </span>
       <Half veteran={row.b} slot="B" catalogue={catalogue} asked={asked} />
 
@@ -494,9 +494,7 @@ function Half({
       <span className={styles.slot} aria-hidden="true">
         {slot}
       </span>
-      <span className={styles.portrait}>
-        <Portrait cardId={veteran.self.cardId} name={veteran.self.name} />
-      </span>
+      <Lineage veteran={veteran} />
       <span className={styles.identity}>
         <span className={styles.name}>
           {veteran.self.name}
@@ -504,8 +502,6 @@ function Half({
             <span className={styles.costume}> {veteran.self.costume}</span>
           )}
         </span>
-        {/* The 166-distinct unit, against the bare name's 29. */}
-        <span className={styles.package}>out of {packageLine(veteran)}</span>
         <span className={styles.sparks}>
           {ordered.map((row) => (
             <Chip key={row.groupId} row={row} asked={asked.has(row.groupId)} />
@@ -528,6 +524,58 @@ function Half({
   );
 }
 
+/**
+ * THE PACKAGE, AS FACES.
+ *
+ * DESIGN.md's reason for leading the veteran card on portrait rather than name
+ * is that names cannot identify these rows: 255 of 259 veterans share a
+ * character name with another and only 29 distinct names exist, while "the
+ * veteran plus its own two parents is 166-distinct and is the real unit of
+ * choice". The row used to state that unit as text -- `out of Mejiro Dober
+ * [Off the Line] x Narita Brian` -- which is the right unit in the wrong
+ * medium: it clipped with an ellipsis at this column width, it cost a line of
+ * height in eighty rows, and it made the reader parse two names and two
+ * costume tags to answer a question a face answers at a glance.
+ *
+ * So the package is drawn the way uma.moe draws it and the way this product
+ * already draws a lineage on the tree screen: the veteran, a connector, and
+ * its two parents beneath. The names are not lost, they move to the tooltip.
+ *
+ * NO PER-ANCESTOR NUMBERS, unlike uma.moe, which prints an affinity under each
+ * face. Those are real numbers there and would be invented ones here, and this
+ * screen already carries a banner about how much of it is invented.
+ */
+function Lineage({ veteran }: { veteran: ResolvedVeteran }) {
+  return (
+    <span className={styles.lineage} title={`out of ${packageLine(veteran)}`}>
+      <span className={styles.lineageSelf}>
+        <Portrait cardId={veteran.self.cardId} name={veteran.self.name} />
+      </span>
+      <span className={styles.trunk} aria-hidden="true" />
+      <span className={styles.fork} aria-hidden="true" />
+      <span className={styles.parents}>
+        {veteran.parents.map((parent, i) => (
+          <span
+            // Position, not identity: an empty slot has no id and two parents
+            // can be the same CHARACTER at this depth (only the pair's two
+            // halves are barred from that), so the slot index is the only
+            // stable key here.
+            key={i}
+            className={styles.parentDisc}
+            title={memberName(parent)}
+          >
+            {/* An empty slot keeps its disc rather than collapsing: a veteran
+                out of one parent is a different thing from one whose second
+                face failed to load, and the fork above would otherwise point
+                at nothing. `Portrait` already draws the no-image state. */}
+            <Portrait cardId={parent?.cardId ?? null} name={memberName(parent)} />
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
 /** Whites share one hue, so their tick is outlined rather than filled. */
 function tickStyle(kind: SparkKind | undefined): React.CSSProperties {
   // A spark the catalogue has no row for gets the plain rule colour rather
@@ -546,7 +594,9 @@ function tickStyle(kind: SparkKind | undefined): React.CSSProperties {
  * render, and here it is also a distinguishing fact worth seeing.
  */
 function packageLine(veteran: ResolvedVeteran): string {
-  const name = (member: ResolvedMember | null): string =>
-    member === null ? 'no parent' : member.name + (member.costume ? ` ${member.costume}` : '');
-  return `${name(veteran.parents[0])} × ${name(veteran.parents[1])}`;
+  return `${memberName(veteran.parents[0])} × ${memberName(veteran.parents[1])}`;
+}
+
+function memberName(member: ResolvedMember | null): string {
+  return member === null ? 'no parent' : member.name + (member.costume ? ` ${member.costume}` : '');
 }
