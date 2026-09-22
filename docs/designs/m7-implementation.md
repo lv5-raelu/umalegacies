@@ -28,9 +28,9 @@ argument for the file.
 | T10 | The search surface | web | TODO |
 | T11 | Settle the own-twice question empirically | domain | done — `TODOS.md` #4 |
 | T12 | Wireframe for the design review | web | done (#23) |
-| T13 | Generate the master JSON from the SQL extract, as a build step | build | **TODO — next** |
+| T13 | Generate the master JSON from the SQL extract, as a build step | build | done — 28 KB gzipped, parity proven |
 | T14 | `MasterData` takes plain rows, not a `DatabaseSync` | core | done, shipped inside #22 |
-| T15 | Run the sweep in a web worker | web | TODO |
+| T15 | Run the sweep in a web worker | web | **TODO — next** |
 | T16 | Decide what `explain-pair` is for once the sweep is local | api | TODO |
 
 ## Two corrections the original list does not carry
@@ -53,9 +53,9 @@ rather than tidying. It is tracked here as T2b.
 
 ```
   T2b ─→ T3 ─→ T4 ─→ T6 ─→ T5 ─→ T7 sweep ─→ T15 worker ─→ T10 surface
-  done  done  done  done  done    done      ^^^
-  T13  master JSON build step ──→ the sweep cannot RUN in a browser without it
-  ^^^                             (it runs in Node today, which is how T7 was measured)
+  done  done  done  done  done    done        ^^^          then the UI
+  T13  master JSON ─→ done. The browser can build the same MasterData the
+                      server has, so nothing engine-shaped is left.
 
   independent of the chain:
    T16  explain-pair decision
@@ -146,6 +146,28 @@ already met the requirement, so it survives either way.
 One row is not what it looks like: "4 filters, whites soft" scores 18,996 rather
 than all 24,958, because one of those four is Medium, which is PINK and so a
 requirement whatever the flag says.
+
+**T13 shipped the game data to the browser, and proved it is the same data.**
+`packages/web/public/master.json` is generated from the committed SQL extract and
+committed alongside it, so the web build stays standalone and a clean clone can
+`npm run dev`. `master-json.test.ts` regenerates and compares, so drift is a red
+build rather than a browser sweeping against last patch's data.
+
+```
+  master.json        121,319 bytes raw    28,310 gzipped
+  parse + decode         0.8 ms
+  build MasterData       1.1 ms
+```
+
+**Columnar, and measured before choosing.** Rows-as-objects repeat every key on
+every row; keys once plus parallel value arrays came to 390,307 raw / 42,134
+gzipped against 120,641 / 28,264. A third off the wire, and a third of the bytes
+to parse -- the half gzip cannot help with. It also beats the 2026-09-18 spike's
+projected 33 KB, which was measured on pre-built Maps rather than raw tables.
+
+**Parity is proven, not assumed.** A full sweep driven by a `MasterData` built
+from the JSON returns results byte-identical to one built from `node:sqlite` --
+same 2,930 scored pairs, same top joint `0.17070613945720706`, same ordering.
 
 ## Open design questions, from the wireframe
 
