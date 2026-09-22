@@ -7,7 +7,7 @@ import type {
   TraineeOption,
 } from '@umalegacies/types';
 import { CACHE_VERSION } from './cache-policy';
-import { maxStarsFor, pickBlock } from './filter';
+import { maxStarsFor, pickBlock } from '@umalegacies/core';
 import { ownPick } from './picks';
 
 /**

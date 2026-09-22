@@ -1,6 +1,5 @@
 import type { ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
-import { jointOdds } from '../lineage/joint';
-import { pickBlock, starsInScope } from '../roster/filter';
+import { jointOdds, pickBlock, starsInScope } from '@umalegacies/core';
 
 /**
  * ============================================================================

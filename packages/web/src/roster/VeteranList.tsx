@@ -8,7 +8,7 @@ import type {
 } from '@umalegacies/types';
 import { Portrait } from '../lineage/Portrait';
 import type { Catalogue } from './catalogue';
-import { pickBlock, type PickBlock } from './filter';
+import { pickBlock, type PickBlock } from '@umalegacies/core';
 import { slotOf } from './picks';
 import { RankBadge } from './RankBadge';
 import { SPARK_COLOR, isWhite } from '../lineage/sparks';

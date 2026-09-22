@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PackageSpark, ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
-import { filterVeterans, matchesCriterion, maxStarsFor, pickBlock, starsInScope } from './filter';
+import { filterVeterans, matchesCriterion, maxStarsFor, pickBlock, starsInScope } from './filter.js';
 
 const STAMINA = 2;
 

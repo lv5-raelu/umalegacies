@@ -1,5 +1,5 @@
 import type { FilterScope, RosterSparkOption, SparkCriterion } from '@umalegacies/types';
-import { maxStarsFor } from './filter';
+import { maxStarsFor } from '@umalegacies/core';
 import { SparkPicker } from './SparkPicker';
 import styles from './Controls.module.css';
 

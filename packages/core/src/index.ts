@@ -15,6 +15,11 @@
 // the modules actually export, and the first symptom is a consumer being told a
 // member does not exist when it plainly does.
 export * from './engine.js';
+// The two predicates M7 shares between the roster list and the pair sweep. They
+// live here so "the list filter and the pair search agree by construction" is a
+// fact about the code rather than a hope about two copies.
+export * from './filter.js';
+export * from './joint.js';
 export * from './lineage.js';
 export * from './pair.js';
 export * from './master-data.js';

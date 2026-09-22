@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jointOdds } from './joint';
+import { jointOdds } from './joint.js';
 
 /**
  * The number that turns four encouraging rows into one honest one.
