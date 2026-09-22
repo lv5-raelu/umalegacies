@@ -1,0 +1,27 @@
+{
+  "name": "@umalegacies/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The engine. Affinity, sparks and the master data they read -- the code that both the API and the browser run, in one copy so they cannot disagree.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "@umalegacies/types": "*",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

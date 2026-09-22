@@ -1,5 +1,5 @@
-import type { MasterData } from '../master/master-data.js';
-import type { AncestorRef, Position } from '../affinity/types.js';
+import type { MasterData } from './master-data.js';
+import type { AncestorRef, Position } from './types.js';
 import {
   BASE_RATES,
   SPARK_KIND_ORDER,

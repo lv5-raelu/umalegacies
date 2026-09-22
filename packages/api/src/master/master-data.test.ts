@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { MasterData } from './master-data.js';
-import { extractDatabase, extractMaster } from './master-extract.js';
+import { MasterData } from '@umalegacies/core';
+import { extractDatabase, extractMaster, readTables } from './master-extract.js';
 
 describe('charaIdFor', () => {
   it('joins card_data rather than dividing by 100', () => {
-    const master = new MasterData(extractDatabase());
+    const master = new MasterData(readTables(extractDatabase()));
 
     // The ordinary case, where division would also have worked.
     expect(master.charaIdFor(101601)).toBe(1016);
@@ -19,7 +19,7 @@ describe('charaIdFor', () => {
   it('returns null for an unknown card, so callers can report it', () => {
     // This null becomes resolution { ok: false, reason: 'unknown_card' } in
     // the explain tree, never a bare 0.
-    expect(new MasterData(extractDatabase()).charaIdFor(999999)).toBeNull();
+    expect(new MasterData(readTables(extractDatabase())).charaIdFor(999999)).toBeNull();
   });
 });
 

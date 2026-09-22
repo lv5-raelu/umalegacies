@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { findPackageFile } from '../common/find-file.js';
-import type { ExplainPairRequest, ExplainRequest } from './types.js';
+import { type ExplainPairRequest, type ExplainRequest } from '@umalegacies/core';
 
 /**
  * Loads the committed fixture lineages. Runs with neither master.mdb nor

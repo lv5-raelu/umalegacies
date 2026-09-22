@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Matches the API's module settings, because the API imports the EMITTED
+    // JavaScript at runtime: a mismatch here is the ERR_REQUIRE_ESM failure
+    // that cost this project a production outage on 2026-09-17.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": "dist",
+    "rootDir": "src",
+    // Declarations are emitted here and NOT in the API, because both consumers
+    // resolve this package through its published `types` entry rather than by
+    // reaching into src/.
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    // NO "types": ["node"]. Nothing in this package may touch a Node API: it is
+    // bundled into the browser, where `node:sqlite` and friends do not exist.
+    // Omitting the ambient types makes that a compile error rather than a
+    // runtime surprise in a Vite build.
+    "types": []
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "**/*.test.ts", "**/*.test-utils.ts"]
+}

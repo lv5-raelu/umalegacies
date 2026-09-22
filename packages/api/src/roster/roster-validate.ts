@@ -1,5 +1,5 @@
 import type { RosterMemberInput, RosterResolveRequest, RosterVeteranInput } from '@umalegacies/types';
-import { DomainError } from '../common/error-response.js';
+import { DomainError } from '@umalegacies/core';
 import { parseAncestor, parseMasterHash } from '../affinity/validate.js';
 
 /**

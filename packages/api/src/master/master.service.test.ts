@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DomainError } from '../common/error-response.js';
+import { DomainError } from '@umalegacies/core';
 import { MasterService } from './master.service.js';
 
 /**

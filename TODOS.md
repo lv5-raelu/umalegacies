@@ -86,7 +86,7 @@ transcript on 2026-09-18 and should be rotated.
 
 ---
 
-## 4. Can a veteran you own twice fill both halves of a pair?
+## 4. ~~Can a veteran you own twice fill both halves of a pair?~~ ANSWERED 2026-09-21: no
 
 **What.** Carried over unresolved from the original M7 section. If two roster entries are
 the same character, the pair is illegal by the same-uma rule. But two entries can be
@@ -110,3 +110,28 @@ so competing readings predict different numbers, and include a control where the
 
 **Depends on.** Nothing. Answer it before M7 release 1 ships, since it changes which pairs
 the sweep is allowed to generate.
+
+**ANSWERED 2026-09-21, empirically, and the existing rule is correct.** Tested against
+2,500 unique real inheritance records from uma.moe covering 66 distinct characters:
+
+```
+  two parents, same CARD                         0   (0.000%)
+  two parents, same CHARACTER                    0   (0.000%)
+  control: uma's own parent is its own character 0   (0.000%)
+```
+
+Random pairing across 66 characters would give roughly 38 same-character pairs and 75
+control hits. Both are zero. The control is the informative half: the constraint is
+general to the DIRECT parent relationship rather than peculiar to the two-parents slot.
+That squares with what this project already verified independently -- fixture 5774 has the
+trainee's character appearing as a GRANDPARENT, modelled deliberately -- so a character may
+repeat at distance 2 and never at distance 1.
+
+`pickBlock` compares by `charaId` and refuses two parents of the same character. That
+matches 2,500 real records with zero counterexamples. No change to the sweep's legality.
+
+Honest caveat: observational absence is not proof of an engine constraint. It is equally
+consistent with "possible but universally avoided". The zero control and the known
+distance-2 positive are what make the forbidden reading the better-supported one. Method
+followed [[umalegacies-ask-the-tools-before-asking-memory]]: 2,500 records beat asking
+anyone to recall a rule.

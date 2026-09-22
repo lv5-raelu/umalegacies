@@ -1,4 +1,4 @@
-import type { MasterData } from '../master/master-data.js';
+import type { MasterData } from './master-data.js';
 import { RULE_CITATIONS } from './citations.js';
 import { positionLabel } from './positions.js';
 import {

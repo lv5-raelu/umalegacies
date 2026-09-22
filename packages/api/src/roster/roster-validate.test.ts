@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DomainError } from '../common/error-response.js';
+import { DomainError } from '@umalegacies/core';
 import { parseRosterResolveRequest } from './roster-validate.js';
 
 const member = (over: Record<string, unknown> = {}) => ({

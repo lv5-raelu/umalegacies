@@ -8,8 +8,7 @@ import {
   SPARK_GROUP_LABEL,
   SPARK_KIND_ORDER as webOrder,
 } from '../../web/src/lineage/sparks.js';
-import { POSITION_LABEL as apiPositions } from './affinity/positions.js';
-import { SPARK_KIND_ORDER as apiOrder } from './sparks/spark-types.js';
+import { POSITION_LABEL as apiPositions, SPARK_KIND_ORDER as apiOrder } from '@umalegacies/core';
 
 /**
  * What is left to check once the wire types are shared.

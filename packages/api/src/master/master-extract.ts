@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { findPackageFile } from '../common/find-file.js';
-import { MasterData } from './master-data.js';
+import { MasterData, type MasterTables } from '@umalegacies/core';
 import { MasterDbMissing } from './master.errors.js';
 
 /**
@@ -100,8 +100,47 @@ export function extractDatabase(): DatabaseSync {
   return db;
 }
 
+/**
+ * The eleven queries the engine used to run for itself.
+ *
+ * They live here now because `@umalegacies/core` runs in the browser as well as
+ * on the server, and a browser has no `node:sqlite`. Core declares what rows it
+ * needs (`MasterTables`); this is the SQL half of that contract, and the build
+ * step that generates the browser's JSON is the other half. Both read the SAME
+ * committed extract, so a drift between them is a build failure rather than two
+ * runtimes quietly disagreeing about a number.
+ *
+ * THE THREE `ORDER BY` CLAUSES ARE LOAD-BEARING and `MasterTables` says so:
+ * `card_data` ascending by id is what makes the first card seen for a character
+ * its base costume, and both rank tables are scanned for the first row a score
+ * falls into.
+ */
+export function readTables(db: DatabaseSync): MasterTables {
+  const all = <T>(sql: string): T[] => db.prepare(sql).all() as T[];
+  return {
+    successionRelation: all('SELECT relation_type, relation_point FROM succession_relation'),
+    successionRelationMember: all('SELECT relation_type, chara_id FROM succession_relation_member'),
+    cardData: all('SELECT id, chara_id FROM card_data ORDER BY id'),
+    winsSaddle: all('SELECT id, group_id, win_saddle_type FROM single_mode_wins_saddle'),
+    careerRank: all('SELECT id, min_value, max_value FROM single_mode_rank ORDER BY min_value'),
+    relationRank: all(
+      'SELECT relation_rank, rank_value_min, rank_value_max ' +
+        'FROM succession_relation_rank ORDER BY rank_value_min',
+    ),
+    // One query where there were four. `index` is a SQL reserved word and must
+    // stay quoted; core switches on `category` rather than filtering four times.
+    textData: all(
+      'SELECT category, "index" AS idx, text FROM text_data ' +
+        'WHERE category IN (5, 6, 111, 147)',
+    ),
+    successionFactor: all(
+      'SELECT factor_id, factor_group_id, rarity, factor_type FROM succession_factor',
+    ),
+  };
+}
+
 export function extractMaster(): MasterData {
-  return new MasterData(extractDatabase());
+  return new MasterData(readTables(extractDatabase()));
 }
 
 /** SHA-256 of the extract, matching what GET /master/meta reports. */

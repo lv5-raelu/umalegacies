@@ -1,11 +1,11 @@
-import { DomainError } from '../common/error-response.js';
+import { DomainError } from '@umalegacies/core';
 import type {
   AncestorRef,
   ExplainPairRequest,
   ExplainRequest,
   GrandparentTuple,
   VeteranPackage,
-} from './types.js';
+} from '@umalegacies/core';
 
 /**
  * Generous against the observed maximum of 26. A cap at all exists because the

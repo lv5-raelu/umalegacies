@@ -3,10 +3,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DatabaseSync } from 'node:sqlite';
-import { DomainError } from '../common/error-response.js';
+import { DomainError, MasterData } from '@umalegacies/core';
 import { contentChecks } from './content-checks.js';
-import { MasterData } from './master-data.js';
-import { extractHeader, findExtract } from './master-extract.js';
+import { extractHeader, findExtract, readTables } from './master-extract.js';
 import { MasterBootError, MasterDbMissing, MasterSchemaError } from './master.errors.js';
 
 /**
@@ -100,7 +99,7 @@ export class MasterService implements OnModuleInit {
     // a real lineage through the real engine.
     for (const check of contentChecks) check.run(this.db);
 
-    this.masterData = new MasterData(this.db);
+    this.masterData = new MasterData(readTables(this.db));
     this.meta = {
       ...loaded,
       tables: Object.fromEntries(
