@@ -112,7 +112,16 @@ function restoreCriteria(stored: unknown, roster: RosterResolveResponse): SparkC
     if (seen.has(groupId)) continue;
     if (typeof scope !== 'string' || !SCOPES.includes(scope as FilterScope)) continue;
     if (typeof minStars !== 'number' || !Number.isInteger(minStars)) continue;
-    if (minStars < 1 || minStars > maxStarsFor(scope as FilterScope)) continue;
+    // 'package': every criterion in this store was written by the ROSTER LIST's
+    // filter, where a row is one veteran.
+    //
+    // T10 HAS TO REVISIT THIS. When the pair search persists its own criteria,
+    // the same `minStars` will mean a pair's ceiling -- 6 and 18 rather than 3
+    // and 9 -- and a perfectly good "12 across the lineage" would be dropped
+    // here as out of range. The stored record carries no field saying which
+    // surface wrote it, and inventing one is a persisted-format decision that
+    // belongs with the surface that needs it, not guessed at now.
+    if (minStars < 1 || minStars > maxStarsFor(scope as FilterScope, 'package')) continue;
 
     seen.add(groupId);
     out.push({ groupId, minStars, scope: scope as FilterScope });

@@ -28,6 +28,9 @@ const SCOPE_LABEL: Readonly<Record<FilterScope, string>> = {
  * changes with the trainee: measured on the roster, any two trainees' parent sets
  * overlap only 48%, and the most-run trainee used 22 distinct parents.
  */
+/** 1..n, which is every star count a selector may offer. */
+const starsUpTo = (n: number): number[] => Array.from({ length: n }, (_, i) => i + 1);
+
 export function SparkFilter({
   options,
   criteria,
@@ -54,7 +57,12 @@ export function SparkFilter({
   // that caps at 3. Clamping keeps every row on screen satisfiable by
   // construction, which is why there is no warning about impossible rows.
   const rescope = (at: number, scope: FilterScope): void =>
-    replace(at, { scope, minStars: Math.min(criteria[at]!.minStars, maxStarsFor(scope)) });
+    replace(at, {
+      scope,
+      // 'package': this control filters the roster LIST, and a row there is one
+      // veteran. The pair search reuses the same component against 'pair'.
+      minStars: Math.min(criteria[at]!.minStars, maxStarsFor(scope, 'package')),
+    });
 
   // A spark already required cannot be required again: a second row for the
   // same spark is either a duplicate or a contradiction, and neither is a thing
@@ -93,7 +101,7 @@ export function SparkFilter({
             aria-label="minimum stars"
             onChange={(e) => replace(at, { minStars: Number(e.target.value) })}
           >
-            {Array.from({ length: maxStarsFor(criterion.scope) }, (_, i) => i + 1).map((n) => (
+            {starsUpTo(maxStarsFor(criterion.scope, 'package')).map((n) => (
               <option key={n} value={n}>
                 {n}★
               </option>

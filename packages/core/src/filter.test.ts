@@ -70,11 +70,31 @@ describe('a scope sums its members', () => {
 describe('the ceiling a scope can hold', () => {
   // The star selector offers exactly this range, which is how a requirement
   // nobody can satisfy stops being expressible instead of being warned about.
+  //
+  // All four corners, because the two axes are independent and the bug this
+  // guards against is reading one of them off the wrong table: three stars per
+  // uma, times the members the scope counts, times the halves the subject has.
   it.each([
-    ['parent', 3],
-    ['package', 9],
-  ] as const)('%s caps at %i stars', (scope, expected) => {
-    expect(maxStarsFor(scope)).toBe(expected);
+    ['parent', 'package', 3],
+    ['package', 'package', 9],
+    ['parent', 'pair', 6],
+    ['package', 'pair', 18],
+  ] as const)('%s scope on a %s caps at %i stars', (scope, subject, expected) => {
+    expect(maxStarsFor(scope, subject)).toBe(expected);
+  });
+
+  // The relationship, stated separately from the numbers. If someone ever
+  // changes a ceiling, this says which of the two tables they meant to edit.
+  it.each(['parent', 'package'] as const)('a pair holds twice a package, %s scope', (scope) => {
+    expect(maxStarsFor(scope, 'pair')).toBe(maxStarsFor(scope, 'package') * 2);
+  });
+
+  // The design doc calls conflating the two a correctness trap, so the trap is
+  // pinned: these must never be the same number.
+  it('never reads the same ceiling for a package and a pair', () => {
+    for (const scope of ['parent', 'package'] as const) {
+      expect(maxStarsFor(scope, 'package')).not.toBe(maxStarsFor(scope, 'pair'));
+    }
   });
 });
 
