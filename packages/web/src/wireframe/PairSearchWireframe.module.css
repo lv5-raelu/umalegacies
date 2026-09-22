@@ -1,0 +1,716 @@
+/*
+ * WIREFRAME STYLES. Throwaway, and deliberately built only out of the tokens
+ * and the patterns that already exist: the card vocabulary from
+ * VeteranList.module.css, the rubric and region vocabulary from
+ * App.module.css and Controls.module.css. Nothing here invents a colour, a
+ * radius, a size or a spacing step. If M7's real results screen wants a new
+ * one, that is a DESIGN.md decision and not something a wireframe gets to
+ * smuggle in.
+ */
+
+/*
+ * The comparison width, not the reading width.
+ *
+ * DESIGN.md gives 900px to reading one answer and 1400px to comparing
+ * candidates, and this is comparing: a row holds two full identities plus a
+ * figure. At 900px the two halves get ~380px each, which is the compare pane's
+ * width -- and the pane holds ONE uma.
+ */
+.shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) var(--space-2xl);
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.back {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-snug);
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/*
+ * The banner that says this screen is not real.
+ *
+ * `--warning`, which DESIGN.md permits in SYSTEM CHROME only, and this is
+ * chrome: it is about the page rather than about any datum on it. Same hex as
+ * --bonus and deliberately a different token, because amber inside the data
+ * surface means "added" and nothing else.
+ *
+ * A ruled region, never a card: it is not an entity anyone points at.
+ */
+.banner {
+  font-size: var(--text-xs);
+  color: var(--warning);
+  border: 1px dashed var(--warning);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-snug);
+  margin: var(--space-md) 0 var(--space-lg);
+  max-width: 92ch;
+}
+
+.bannerLead {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  font-weight: 400;
+  display: block;
+  margin-bottom: var(--space-hair);
+}
+
+/* The precondition, stated once. Muted ink: it is neither a warning nor a
+   failure, it is the next thing to do. */
+.precondition {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  padding: var(--space-lg) 0;
+  max-width: 72ch;
+}
+
+.listHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: var(--space-lg) 0 0;
+}
+
+.rubric {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+.count {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin-left: auto;
+}
+
+/* What the right-hand figure means, in plain words, once for the whole list --
+   the same job ComparePane's view rubric does for its odds columns. */
+.headlineRubric {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin: var(--space-tight) 0 0;
+  max-width: 92ch;
+}
+
+/*
+ * Column rubrics on the page ground, not inside the list.
+ *
+ * A header ROW made the first card look like a different kind of card, which
+ * is the same reason the pedigree tree keeps its edge labels off the nodes.
+ * Shares the row's grid so the labels sit over the columns they name.
+ */
+.columns {
+  display: grid;
+  grid-template-columns: var(--pair-grid);
+  column-gap: var(--space-snug);
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0 var(--space-snug);
+  margin-top: var(--space-md);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-tight);
+}
+
+.columnRight {
+  text-align: right;
+}
+
+.list {
+  list-style: none;
+  margin: var(--space-snug) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-snug);
+  counter-reset: none;
+}
+
+/*
+ * THE PAIR IS THE CARD.
+ *
+ * DESIGN.md allows a card for "a discrete entity you can point at", and in a
+ * search that entity is the pair: half a result is not something anyone picks.
+ * So the row takes the card's border and the two halves inside it are ruled
+ * columns, not nested cards -- nesting would invent a second meaning for the
+ * 1px rule and a level of hierarchy the product has nowhere else.
+ *
+ * The column template is a variable because `.columns` above has to line up
+ * with it exactly, and two copies of a five-column track list is two chances
+ * to drift.
+ *
+ * THE LAST TRACK IS 69px BECAUSE THAT IS WHAT IT HOLDS. It was 132px while the
+ * joint lived there; the joint moved into the band and the track kept the width,
+ * which right-aligned a two-digit total against the card edge and left ~90px of
+ * nothing between it and half B's score. Measured over all 80 rows, the widest
+ * ink in the column is `〇 rank 2` at 52px. The header wraps to two lines to
+ * stay inside that, rather than the column widening to fit the header -- the
+ * label describes the data, so the data sizes the track.
+ *
+ * 52 + 4 slack + 12 padding + 1 border. `box-sizing` is border-box here, so
+ * the rule and its padding come OUT of the track: the first cut of this left
+ * the track at 56 and silently wrapped `〇 rank 2` onto two lines.
+ */
+.list,
+.columns {
+  --pair-grid: 34px minmax(0, 1fr) 14px minmax(0, 1fr) 69px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--pair-grid);
+  column-gap: var(--space-snug);
+  row-gap: var(--space-sm);
+  align-items: start;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-snug);
+}
+
+.row:hover {
+  border-color: var(--rule-strong);
+}
+
+/*
+ * The position in the ranking. Faint: it is an index, not a score.
+ *
+ * RULED OFF THE PAIR, because it is the one thing on the row that is not about
+ * these two umas -- it is about where they landed in a list, and it changes
+ * when the filter changes while nothing else in the row does. The track went
+ * 26px -> 34px to give two digits room to sit clear of the rule rather than
+ * against it.
+ */
+.ordinal {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  text-align: right;
+  padding-top: var(--space-hair);
+  padding-right: var(--space-sm);
+  /* Both rows, so the rule runs the card's full height and the band's rule
+     tees off it partway down rather than stopping where it starts.
+     `span 2`, NOT `1 / -1`: this grid declares no explicit rows, so `-1`
+     resolves to the end of the EXPLICIT grid -- line 1 -- and the span
+     silently collapses to the first row. */
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  border-right: 1px solid var(--rule);
+}
+
+/*
+ * THE SEPARATOR, WHICH USED TO BE A FLOATING GLYPH.
+ *
+ * A bare x parked at the top of a 280px row read as a stray character rather
+ * than as the join between two halves -- the builder's words were that they
+ * were confused as to what it was. It is now a full-height rule with the glyph
+ * centred on it and the card's own ground punched out behind it, which is the
+ * one shape that can only be read as "these two things, together".
+ *
+ * `align-self: stretch` against the row's `align-items: start`: this is the
+ * only cell that wants the track's full height, and the halves must keep their
+ * top alignment or two spark lists of different lengths would centre against
+ * each other.
+ *
+ * It also now has ONE meaning. The `x` inside each half's `out of A x B` line
+ * said "these two are the parents" while this one said "these two are the
+ * pair", same glyph, same row, two jobs. That line is now faces, so the only
+ * x left on the row is this one.
+ */
+.times {
+  align-self: stretch;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.times::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--rule);
+}
+
+/* Sits on top of the rule with the card's ground behind it, so the line reads
+   as continuous and interrupted rather than as two stubs. */
+.timesGlyph {
+  position: relative;
+  background: var(--surface);
+  padding: var(--space-xs) 0;
+  line-height: 1;
+}
+
+/* One veteran of the pair. */
+.half {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+/* Ties this half to the A/B split printed in the requirement band below. */
+.slot {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-xs);
+  flex: none;
+  margin-top: var(--space-hair);
+}
+
+/*
+ * THE PACKAGE AS A LITTLE TREE: the veteran, a connector, its two parents.
+ *
+ * The whole cluster is 60px wide, which is the width of two 28px parent discs
+ * and the 4px between them, and the fork above is 32px so its two uprights
+ * land on those discs' centres rather than near them. Change one of the three
+ * and the bracket stops pointing at anything.
+ *
+ * SIZED UP FROM 32/20 ON THE BUILDER'S EYE: the parents read as too small to
+ * be faces. 40/28 holds uma.moe's own ratio between the two ranks (they draw
+ * roughly 100 and 70) where 32/20 was flatter than it at 0.63, and 28px is
+ * where a portrait stops being a token and starts being recognisable, which is
+ * the entire job these two discs have.
+ *
+ * It is TALLER than the 32px portrait it replaces and costs no row height,
+ * because the sparks beside it already make the half four times this tall. It
+ * also takes back the line the `out of A x B` text used to spend.
+ */
+.lineage {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+}
+
+/* 40px, between the roster card's 44px and the tree node's 48px. The portrait
+   is the fastest way to tell two entries of one character apart, so it shrinks
+   last and least. */
+.lineageSelf {
+  --portrait-size: 40px;
+}
+
+/* The drop out of the veteran, and the bracket that splits it in two. Borders
+   rather than an SVG: three 1px lines that already have a token. */
+.trunk {
+  width: 1px;
+  height: 4px;
+  background: var(--rule-strong);
+}
+
+.fork {
+  width: 32px;
+  height: 5px;
+  border: 1px solid var(--rule-strong);
+  border-bottom: 0;
+}
+
+.parents {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+/* Smaller than the veteran, because the hierarchy is the point: these two are
+   how you tell one Oguri Cap from the next, not what you picked. */
+.parentDisc {
+  --portrait-size: 28px;
+}
+
+.identity {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.name {
+  font-size: var(--text-xs);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.costume {
+  color: var(--ink-faint);
+  font-size: var(--text-2xs);
+}
+
+/* The costume's unique skill, which is the one spark that varies between two
+   entries of the same character the way the portrait does. */
+.green {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  margin-top: var(--space-hair);
+  min-width: 0;
+}
+
+.greenName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Colour is a 3px tick and nothing else. Never a fill. */
+.tick {
+  width: 3px;
+  align-self: stretch;
+  min-height: 11px;
+  border-radius: 1px;
+  flex: none;
+}
+
+/*
+ * Score and rank, NOT ruled off the sparks.
+ *
+ * A rule was tried here and taken out on the builder's call: the rank and the
+ * score are the veteran's own, so fencing them off from the veteran says the
+ * wrong thing. The rules on this row separate one UMA from another, or a half
+ * from the pair -- never an uma from its own figures. Whitespace is enough.
+ */
+.score {
+  text-align: right;
+  flex: none;
+}
+
+/* The rank read first, the score qualifying it -- the order the roster card
+   fixed. As text rather than the game's badge art: eighty rows would want 160
+   badges, and a 36px badge is taller than the line it sits on. */
+.scoreRank {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  display: block;
+}
+
+.scoreValue {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  display: block;
+}
+
+/*
+ * The aggregate, with its addends permanently beneath it.
+ *
+ * RULED OFF TOO, once the ordinal and the two scores were. This is the only
+ * boundary on the row where the rule changes what a number MEANS rather than
+ * just tidying the edge: `18,945` is half B's score and `97` is the PAIR's,
+ * they sit 56px apart, and with every other boundary ruled an unruled one here
+ * would read as "another figure about half B". It is the one column that
+ * belongs to neither half.
+ */
+.result {
+  text-align: right;
+  align-self: stretch;
+  padding-left: var(--space-snug);
+  border-left: 1px solid var(--rule);
+}
+
+.headline {
+  font-family: var(--font-data);
+  font-size: var(--text-lg);
+  line-height: 1.1;
+  display: block;
+}
+
+.addends {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  display: block;
+  margin-top: var(--space-hair);
+}
+
+/*
+ * The requirement band, spanning everything right of the ordinal.
+ *
+ * It replaces the roster card's full white list, which cannot survive here:
+ * a veteran carries 12-19 whites, and two of those per row for eighty rows is
+ * not a layout. A SEARCH knows which sparks are wanted, so it can print those
+ * instead of all of them -- which is a better answer as well as a shorter one.
+ */
+/*
+ * The band starts at column 2, but its rule starts 12px further left, on the
+ * ordinal's. The negative margin eats the row's column gap so the two rules
+ * MEET in a T instead of the horizontal one beginning in mid-air; the matching
+ * padding puts the chips back exactly where they were.
+ */
+.wants {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  padding-top: var(--space-sm);
+  margin-left: calc(-1 * var(--space-snug));
+  padding-left: var(--space-snug);
+  border-top: 1px solid var(--rule);
+}
+
+.want {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.wantName {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wantStars {
+  font-family: var(--font-data);
+  color: var(--ink);
+  flex: none;
+}
+
+/* Which half supplies the stars. 6+0 and 3+3 are different propositions and
+   the odds column cannot tell them apart. */
+.wantSplit {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  flex: none;
+}
+
+.wantOdds {
+  font-family: var(--font-data);
+  color: var(--ink);
+  flex: none;
+}
+
+.empty {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  padding: var(--space-lg) 0;
+  max-width: 72ch;
+}
+
+.more {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-md);
+  cursor: pointer;
+  width: 100%;
+}
+
+.more:hover {
+  background: var(--surface);
+  border-color: var(--rule-strong);
+}
+
+/*
+ * Below 1100px the two halves stop fitting side by side.
+ *
+ * Measured by the content rather than by a breakpoint habit: a half needs the
+ * package line, which is two names and two costume tags, and under ~300px that
+ * line is ellipsis for most of its length -- at which point it has stopped
+ * identifying anything and the row is back to being keyed on a name that 254
+ * other veterans share. So the halves STACK instead, and the row grows taller
+ * rather than saying less.
+ */
+@media (max-width: 1100px) {
+  .list,
+  .columns {
+    --pair-grid: 34px minmax(0, 1fr) 96px;
+  }
+
+  .columns > :nth-child(3),
+  .columns > :nth-child(4) {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: 34px minmax(0, 1fr) 96px;
+  }
+
+  .half {
+    grid-column: 2;
+  }
+
+  .times {
+    display: none;
+  }
+
+  /* Three rows here, not two: the halves stack. Without this the rule stops
+     at the second half and the band hangs off its end again. */
+  .ordinal {
+    grid-row: 1 / span 3;
+  }
+
+  .result {
+    grid-row: 1 / span 2;
+    grid-column: 3;
+  }
+
+  .wants {
+    grid-column: 2 / -1;
+  }
+}
+
+
+/*
+ * EVERY SPARK THIS HALF CARRIES.
+ *
+ * Chips, not lines, for the reason the compare pane learned the hard way: a
+ * median package holds 51 distinct sparks, and one per line is 51 lines. The
+ * pane's own list measured 1,644px in a 132px window before this treatment and
+ * a real reader declined to scroll it. Wrapping costs the height the chips
+ * actually fill.
+ *
+ * No percentage on these chips, unlike the pane's. The odds belong to the PAIR
+ * and are stated once per row; a per-half figure would be a number this screen
+ * cannot compute. That also makes these chips narrower than the pane's 157px
+ * median, which is the whole reason the density works here.
+ */
+/*
+ * `sm` above, `hair` inside. The 2px here was the gap the `out of A x B` line
+ * used to sit in, and with that line gone the name sat straight on top of a
+ * dense block of chips with nothing separating the one thing you read first
+ * from the twenty you scan after. The chips keep their 2px: they are one list
+ * and should read as one.
+ */
+.sparks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-hair);
+  align-items: baseline;
+  margin-top: var(--space-sm);
+}
+
+/* A kind stays contiguous, so the eye can still find the blues, but the group
+   does not force its own line: with two halves per row the vertical budget is
+   half what the pane has. */
+
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: var(--text-3xs);
+  line-height: 1.5;
+  padding: 0 var(--space-hair);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/*
+ * The sparks the reader filtered for.
+ *
+ * Achromatic, as on the pane and the audit trail. DESIGN.md: "Don't add a
+ * second accent. Amber means added; that is the whole accent budget", and red
+ * already means unresolved. With 100-odd chips in a row the contrast is doing
+ * more work here than anywhere else in the product: the lit ones are the row's
+ * actual answer and the rest are the context you drop into once a row looks
+ * worth it.
+ */
+.chipAsked {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--rule-strong);
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 20ch;
+}
+
+.chipStars {
+  font-family: var(--font-data);
+  flex: none;
+}
+
+.chipAsked .chipStars {
+  color: var(--ink);
+}
+
+/*
+ * The joint, at the far end of the band.
+ *
+ * `margin-left: auto` rather than a fixed column, so it sits hard right however
+ * many requirements precede it and wraps with them when the band runs out of
+ * width. It is the aggregate of everything to its left, which is why it reads
+ * after them and not above: a horizontal band has no above.
+ */
+.joint {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  margin-left: auto;
+  padding-left: var(--space-md);
+}
+
+.jointLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* The one figure on this row long enough to need its own size: eleven digits
+   at --text-sm would crowd the band it belongs to. */
+.jointValue {
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  color: var(--ink);
+}

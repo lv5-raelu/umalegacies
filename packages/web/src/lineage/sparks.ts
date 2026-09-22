@@ -61,6 +61,31 @@ export function percent(p: number): string {
   return `${Math.round(p * 100)}%`;
 }
 
+/**
+ * The same figure as `percent`, but keeping the digits that tell rows apart.
+ *
+ * WHY THIS EXISTS. The joint chance that every filtered spark arrives is a
+ * product, so it collapses fast: four sparks at 40% each is 2.6%, and a ranked
+ * list of them reads "2%, 2%, 1%, 1%, 1%..." under `percent`. The ordering is
+ * real and the rounding hides it. Only used where rows are COMPARED; a lone
+ * figure on a pane does not need eleven digits to be understood.
+ *
+ * Trailing zeros are trimmed, so a round 48% reads `48%` rather than
+ * `48.0000000000%`.
+ *
+ * A CAVEAT WORTH KNOWING: the base activation rates underneath are community
+ * research carrying about two significant figures, so digits past the fourth
+ * or so are arithmetic, not measurement. They still order the list correctly,
+ * which is what they are here for -- they are not a claim about accuracy.
+ */
+export function percentPrecise(p: number, maxDecimals = 10): string {
+  if (!Number.isFinite(p)) return '\u2014';
+  if (p <= 0) return '0%';
+  if (p >= 1) return '100%';
+  const trimmed = (p * 100).toFixed(maxDecimals).replace(/\.?0+$/, '');
+  return `${trimmed}%`;
+}
+
 /** The star count on a single spark. Lineage totals use the same glyph. */
 export const stars = (n: number): string => `${n}★`;
 

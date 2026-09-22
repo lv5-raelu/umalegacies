@@ -34,7 +34,17 @@ import {
   writeSelection,
 } from './roster/cache';
 import { picksToCache, restoreSelection } from './roster/selection';
+import { PairSearchWireframe } from './wireframe/PairSearchWireframe';
 import styles from './App.module.css';
+
+/**
+ * The M7 pair-search WIREFRAME, at its own hash. Throwaway, for design review,
+ * and additive by construction: it is a branch that returns before the roster
+ * screen renders, it holds its own trainee and its own filters so it cannot
+ * touch the persisted selection, and nothing links to it outside development.
+ * Both the hash and the link go when the real results screen lands.
+ */
+const WIREFRAME_HASH = '#wireframe/pair-search';
 
 /**
  * M3: your own roster, on screen, with two veterans compared.
@@ -60,6 +70,7 @@ export function App() {
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
   const [onTreePage, setOnTreePage] = useState(() => location.hash === '#tree');
+  const [onWireframe, setOnWireframe] = useState(() => location.hash === WIREFRAME_HASH);
   const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
   /**
@@ -118,6 +129,22 @@ export function App() {
 
   useEffect(() => {
     const sync = (): void => setOnTreePage(location.hash === '#tree');
+    addEventListener('hashchange', sync);
+    return () => removeEventListener('hashchange', sync);
+  }, []);
+
+  /**
+   * Its own listener rather than a branch inside the one above, so the
+   * wireframe can be deleted by deleting whole blocks.
+   *
+   * NO GUARD LIKE #tree's. The tree hash is meaningless without a lineage and
+   * has to disarm itself; this one only needs a ROSTER, and arriving at it with
+   * none is a state the app already handles well -- the drop zone renders, the
+   * hash survives the upload, and the wireframe appears the moment there is
+   * something to draw.
+   */
+  useEffect(() => {
+    const sync = (): void => setOnWireframe(location.hash === WIREFRAME_HASH);
     addEventListener('hashchange', sync);
     return () => removeEventListener('hashchange', sync);
   }, []);
@@ -438,6 +465,20 @@ export function App() {
     };
   }, [save, roster, trainee, picks]);
 
+  // The wireframe, which replaces the whole screen the way the tree page does.
+  // Needs only a roster: it composes its own pairs and holds its own trainee.
+  if (onWireframe && roster) {
+    return (
+      <PairSearchWireframe
+        roster={roster}
+        trainees={trainees}
+        onBack={() => {
+          location.hash = '';
+        }}
+      />
+    );
+  }
+
   if (onTreePage && lineage) {
     return (
       <TreePage
@@ -471,6 +512,15 @@ export function App() {
     <main className={`${styles.shell} ${roster ? styles.wide : styles.landing}`}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
+        {/* DEV ONLY, and `import.meta.env.DEV` is a compile-time constant, so
+            the production bundle does not contain this element. A wireframe
+            nobody can find is a wireframe nobody reviews; it still has no
+            place in the shipped header. */}
+        {import.meta.env.DEV && roster && (
+          <a className={styles.quiet} href={WIREFRAME_HASH}>
+            pair search wireframe →
+          </a>
+        )}
       </header>
 
       {masterChanged && (
