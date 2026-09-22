@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { PackageSpark, ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
-import { filterVeterans, matchesCriterion, maxStarsFor, pickBlock, starsInScope } from './filter.js';
+import {
+  filterVeterans,
+  isLegalPair,
+  matchesCriterion,
+  maxStarsFor,
+  pickBlock,
+  starsInScope,
+} from './filter.js';
 
 const STAMINA = 2;
 
@@ -260,5 +267,125 @@ describe('pickBlock: what the pair will not accept', () => {
     const unknownB = veteran([0, 0, 0], { index: 5, cardId: 999999, charaId: null });
     expect(pickBlock(unknownB, [unknownA], null)).toBeNull();
     expect(pickBlock(unknownB, [], OGURI)).toBeNull();
+  });
+});
+
+describe('isLegalPair: the sweep asks the same rules a different way', () => {
+  const OGURI = 1006;
+  const GOLD_SHIP = 1007;
+  const SUZUKA = 1002;
+  const oguriStarlight = veteran([0, 0, 0], { index: 0, cardId: 100601, charaId: OGURI });
+  const oguriAshen = veteran([0, 0, 0], { index: 1, cardId: 100602, charaId: OGURI });
+  const goldShip = veteran([0, 0, 0], { index: 2, cardId: 100701, charaId: GOLD_SHIP });
+  const suzuka = veteran([0, 0, 0], { index: 3, cardId: 100201, charaId: SUZUKA });
+  const unknownA = veteran([0, 0, 0], { index: 4, cardId: 999998, charaId: null });
+  const unknownB = veteran([0, 0, 0], { index: 5, cardId: 999999, charaId: null });
+
+  it('accepts two different characters', () => {
+    expect(isLegalPair(goldShip, suzuka, null)).toBe(true);
+  });
+
+  it('refuses two COSTUMES of one character', () => {
+    // The case every identity rule in this file exists for. Comparing by cardId
+    // would wave this through, which is exactly the bug.
+    expect(isLegalPair(oguriStarlight, oguriAshen, null)).toBe(false);
+  });
+
+  it('refuses either half being the trainee, in either position', () => {
+    expect(isLegalPair(oguriAshen, goldShip, OGURI)).toBe(false);
+    expect(isLegalPair(goldShip, oguriAshen, OGURI)).toBe(false);
+  });
+
+  it('leaves a pair alone when the trainee is neither of them', () => {
+    expect(isLegalPair(goldShip, suzuka, OGURI)).toBe(true);
+  });
+
+  it('does not use the identity rules on an unresolved card', () => {
+    // Two cards the extract cannot name are not shown to be one character, so
+    // the pair stands. A stale extract must not silently shrink the search.
+    expect(isLegalPair(unknownA, unknownB, null)).toBe(true);
+    expect(isLegalPair(unknownA, goldShip, OGURI)).toBe(true);
+  });
+
+  it('refuses one veteran as BOTH parents, resolved or not', () => {
+    // A sweep over unordered pairs never produces this, which is why the guard
+    // looks unreachable. It is not: with a null charaId, rule 2 cannot see that
+    // the two halves are the same uma, so nothing else would refuse it.
+    expect(isLegalPair(goldShip, goldShip, null)).toBe(false);
+    expect(isLegalPair(unknownA, unknownA, null)).toBe(false);
+  });
+
+  /**
+   * THE POINT OF T4. `pickBlock` and `isLegalPair` answer different questions in
+   * different shapes, and the claim is that they enforce ONE set of rules. This
+   * is that claim, checked over every ordered pair of the fixtures rather than
+   * asserted in a comment.
+   *
+   * TWO CONDITIONS ON THE PROPERTY, both of them real and neither cosmetic.
+   *
+   * Distinct veterans, because `pickBlock` deliberately returns null for a card
+   * already in the picked list so it can be UNSELECTED -- a statement about
+   * clicking, not about legality.
+   *
+   * And the already-picked half must itself still be a legal parent. `pickBlock`
+   * validates only the card being CLICKED; it trusts that whatever is already
+   * in the list was checked when it went in. That invariant can be broken from
+   * outside, by switching the trainee to a picked uma, and then the two
+   * functions genuinely differ -- see the test below, which pins the difference
+   * rather than papering over it.
+   */
+  it('never disagrees with pickBlock about a pair', () => {
+    const all = [oguriStarlight, oguriAshen, goldShip, suzuka, unknownA, unknownB];
+    const trainees = [null, OGURI, GOLD_SHIP, SUZUKA];
+    let checked = 0;
+
+    for (const trainee of trainees) {
+      for (const a of all) {
+        // The invariant pickBlock assumes: the half already in the list was
+        // legal when it was put there.
+        if (pickBlock(a, [], trainee) !== null) continue;
+        for (const b of all) {
+          if (a.index === b.index) continue;
+          expect({ a: a.index, b: b.index, trainee, legal: isLegalPair(a, b, trainee) }).toEqual({
+            a: a.index,
+            b: b.index,
+            trainee,
+            legal: pickBlock(b, [a], trainee) === null,
+          });
+          checked++;
+        }
+      }
+    }
+
+    // A guard on the guard: a loop whose filter quietly excluded everything
+    // would still pass every assertion inside it.
+    //
+    // Legal first halves per trainee, out of six fixtures: `null` bars none, so
+    // 6. GOLD_SHIP and SUZUKA bar their own card, so 5 each. OGURI bars TWO --
+    // both Oguri costumes -- so 4, and that asymmetry is the entire reason
+    // these fixtures include two cards of one character. Five second halves
+    // each way.
+    expect(checked).toBe((6 + 4 + 5 + 5) * 5);
+  });
+
+  /**
+   * WHERE THE TWO DO DIFFER, on purpose.
+   *
+   * Pick two legal parents, then switch the trainee to one of them. The pair is
+   * now illegal and `isLegalPair` says so, but `pickBlock` still reports the
+   * OTHER card as clickable, because it gates the click rather than auditing the
+   * list. The app handles this downstream instead: switching the trainee to a
+   * picked uma nulls the lineage, so nothing is computed from the illegal pair
+   * and the tree closes itself.
+   *
+   * Recorded here so the next person reads it as a boundary between two
+   * questions rather than as a bug in whichever one they looked at second.
+   */
+  it('is stricter than pickBlock when the trainee changes under a live pick', () => {
+    expect(isLegalPair(oguriStarlight, goldShip, OGURI)).toBe(false);
+    expect(pickBlock(goldShip, [oguriStarlight], OGURI)).toBeNull();
+    // And the picked half stays unselectable-away, which is what makes the
+    // state recoverable at all.
+    expect(pickBlock(oguriStarlight, [oguriStarlight], OGURI)).toBeNull();
   });
 });
