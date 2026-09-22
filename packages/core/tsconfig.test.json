@@ -1,0 +1,24 @@
+{
+  // Typecheck-only pass that ADDS the test files back.
+  //
+  // `tsconfig.json` excludes `**/*.test.ts` because it EMITS: a test file in
+  // `dist` is dead weight in a package the browser downloads. That exclusion is
+  // right for the build and wrong for `tsc --noEmit`, and the difference went
+  // unnoticed until `filter.test.ts` and `joint.test.ts` moved here from
+  // `packages/web`, whose tsconfig has no `exclude` at all and so had been
+  // typechecking them all along. Without this file the move would have quietly
+  // dropped type coverage on 38 tests.
+  //
+  // `vitest` does not typecheck, so nothing else would have caught it either.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Declarations are the build's job. Asking for them here only slows a pass
+    // whose entire output is discarded.
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist"]
+}

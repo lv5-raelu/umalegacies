@@ -21,7 +21,7 @@ import { SparkFilter } from './roster/SparkFilter';
 import { TraineePicker } from './roster/TraineePicker';
 import { catalogueOf } from './roster/catalogue';
 import { VeteranList } from './roster/VeteranList';
-import { filterVeterans, pickBlock } from './roster/filter';
+import { filterVeterans, pickBlock } from '@umalegacies/core';
 import { explainPairRequest, isOwnPickOf, ownPick, ownVeterans } from './roster/picks';
 import { SaveError, slimSave, type SkippedEntry } from './roster/save';
 import { CACHE_VERSION, explainDiscard, inspectCache } from './roster/cache-policy';

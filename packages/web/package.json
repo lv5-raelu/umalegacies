@@ -9,8 +9,10 @@
     "prebuild": "npm run build --workspace @umalegacies/core --prefix ../..",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
+    "pretest": "npm run build --workspace @umalegacies/core --prefix ../..",
     "test": "vitest run",
     "test:watch": "vitest",
+    "pretypecheck": "npm run build --workspace @umalegacies/core --prefix ../..",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

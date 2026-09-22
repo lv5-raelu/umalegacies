@@ -7,7 +7,7 @@ import type {
   SparkKind,
   SparkSummaryRow,
 } from '@umalegacies/types';
-import { jointOdds } from '../lineage/joint';
+import { jointOdds } from '@umalegacies/core';
 import { pairTotalOf, rankGlyph } from '../lineage/pair-total';
 import {
   SPARK_COLOR,
