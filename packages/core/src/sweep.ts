@@ -95,7 +95,30 @@ export interface PairSweepInput {
   kindOf: (groupId: number) => SparkKind | undefined;
   master: MasterData;
   masterHash: string;
+  /**
+   * Called every `PROGRESS_EVERY` legal pairs with how far along the sweep is.
+   *
+   * ADDED FOR T15, NOT BEFORE IT. T7 deliberately shipped without progress
+   * because nothing consumed it; the worker is the first caller that does, and
+   * a 1.5-second worst case behind a spinner with no movement is the thing it
+   * exists to avoid.
+   *
+   * `considered` counts LEGAL pairs rather than scored ones, because scored is
+   * a number nobody can predict in advance -- it depends on how much the
+   * requirements prune -- and a progress bar needs a denominator. `total` is
+   * the combination count, which is known before the loop starts.
+   */
+  onProgress?: (considered: number, total: number) => void;
 }
+
+/**
+ * How often progress is reported, in legal pairs.
+ *
+ * A call per pair would dominate the loop it measures; 30,000 pairs at this
+ * interval is about 60 calls, which is more than enough to move a bar smoothly
+ * and few enough to disappear into the noise.
+ */
+const PROGRESS_EVERY = 512;
 
 export interface PairSweep {
   /** Ranked best first. */
@@ -120,6 +143,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
   const results: PairSearchResult[] = [];
   let legal = 0;
   let scored = 0;
+  const total = (veterans.length * (veterans.length - 1)) / 2;
 
   for (let i = 0; i < veterans.length; i++) {
     const a = veterans[i] as ResolvedVeteran;
@@ -128,6 +152,9 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
 
       if (!isLegalPair(a, b, traineeCharaId)) continue;
       legal++;
+      if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
+        input.onProgress(legal, total);
+      }
 
       let meets = true;
       for (const requirement of requirements) {
@@ -168,6 +195,9 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
   }
 
   results.sort(compare);
+  // One final call, so a consumer always ends at a settled number rather than
+  // wherever the last multiple of 512 happened to land.
+  input.onProgress?.(legal, total);
   return { results, legal, scored };
 }
 

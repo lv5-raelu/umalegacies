@@ -25,12 +25,12 @@ argument for the file.
 | T7 | The sweep: generate, prune, score, rank | core | done — measured on the real roster |
 | T8 | `POST /search/pairs` + its own body limit | api | **dead** — see below |
 | T9 | Widen `Pick` to a union | web | done (#19) |
-| T10 | The search surface | web | TODO |
+| T10 | The search surface | web | **TODO — next** |
 | T11 | Settle the own-twice question empirically | domain | done — `TODOS.md` #4 |
 | T12 | Wireframe for the design review | web | done (#23) |
 | T13 | Generate the master JSON from the SQL extract, as a build step | build | done — 28 KB gzipped, parity proven |
 | T14 | `MasterData` takes plain rows, not a `DatabaseSync` | core | done, shipped inside #22 |
-| T15 | Run the sweep in a web worker | web | **TODO — next** |
+| T15 | Run the sweep in a web worker | web | done — verified in a real browser |
 | T16 | Decide what `explain-pair` is for once the sweep is local | api | TODO |
 
 ## Two corrections the original list does not carry
@@ -53,9 +53,13 @@ rather than tidying. It is tracked here as T2b.
 
 ```
   T2b ─→ T3 ─→ T4 ─→ T6 ─→ T5 ─→ T7 sweep ─→ T15 worker ─→ T10 surface
-  done  done  done  done  done    done        ^^^          then the UI
-  T13  master JSON ─→ done. The browser can build the same MasterData the
-                      server has, so nothing engine-shaped is left.
+  done  done  done  done  done    done         done          ^^^
+  T13  master JSON ─→ done.  Only the UI is left, plus T16's decision.
+
+  T10 AND T15 COULD NOT BE PARALLELISED. T10 calls the client T15 builds, in
+  the same package; building it against an interface that did not exist yet
+  would have meant inventing it twice. T16 is independent but it is a DECISION
+  rather than an implementation, so it belongs in front of the builder.
 
   independent of the chain:
    T16  explain-pair decision
@@ -168,6 +172,37 @@ projected 33 KB, which was measured on pre-built Maps rather than raw tables.
 **Parity is proven, not assumed.** A full sweep driven by a `MasterData` built
 from the JSON returns results byte-identical to one built from `node:sqlite` --
 same 2,930 scored pairs, same top joint `0.17070613945720706`, same ordering.
+
+**T15 put the sweep in a worker, and the reason was measured in a real browser.**
+
+```
+  worst-case sweep      1,179 ms   (24,958 legal pairs, all scored)
+  main thread meanwhile   141 animation frames, longest gap 9.4 ms
+```
+
+Roughly 60fps throughout. On the main thread that same sweep is a 1.2-second
+freeze with a spinner that cannot spin.
+
+Driven against the real roster through the real worker, the numbers agree with
+every other path: legal 24,958, scored 2,930, top joint `0.17070613945720706` --
+bit-identical to the Node sweep (T7) and the JSON-backed one (T13). A second
+search took 184 ms against the first's 251 ms, which is the worker being reused
+rather than rebuilding its `MasterData`. A deliberately wrong `masterHash` was
+refused.
+
+**Two bugs in the client, both found by tests before the browser saw them.**
+Posting the bare query left every reply carrying `id: undefined`, so no reply
+ever matched and the promise never settled -- a hang with no error. And
+`search()` cancelled unconditionally, killing the idle worker and rebuilding its
+`MasterData` every time, while a comment three lines above claimed the opposite.
+Both are pinned by tests that were re-run against the broken versions to confirm
+they fail.
+
+**The worker builds for production, checked rather than assumed.** Nothing
+imports the client yet, so Vite tree-shakes the worker out entirely and the
+`new Worker(new URL(...), { type: 'module' })` idiom was unverified. Temporarily
+importing it produced a separate 15,184-byte chunk, so T10 will not discover a
+bundler problem.
 
 ## Open design questions, from the wireframe
 
