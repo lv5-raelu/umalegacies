@@ -25,6 +25,8 @@ export * from './sweep.js';
 export * from './lineage.js';
 export * from './pair.js';
 export * from './master-data.js';
+// The browser's half of the master-data contract; the API generates it.
+export * from './master-json.js';
 export * from './sparks.js';
 export * from './spark-types.js';
 export * from './error-response.js';

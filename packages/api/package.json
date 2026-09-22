@@ -18,6 +18,7 @@
     "check:roster": "node scripts/check-roster.mjs",
     "build:fixtures": "node --import ts-node/esm scripts/build-fixtures.ts",
     "build:master": "node scripts/build-master-extract.mjs",
+    "build:master-json": "npm run build --workspace @umalegacies/core --prefix ../.. && node scripts/build-master-json.mjs",
     "fetch:portraits": "node scripts/fetch-portraits.mjs",
     "fetch:rank-icons": "node scripts/fetch-rank-icons.mjs"
   },
