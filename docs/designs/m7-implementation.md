@@ -25,7 +25,7 @@ argument for the file.
 | T7 | The sweep: generate, prune, score, rank | core | done — measured on the real roster |
 | T8 | `POST /search/pairs` + its own body limit | api | **dead** — see below |
 | T9 | Widen `Pick` to a union | web | done (#19) |
-| T10 | The search surface | web | **TODO — next** |
+| T10 | The search surface | web | done — **M7 release 1 is complete** |
 | T11 | Settle the own-twice question empirically | domain | done — `TODOS.md` #4 |
 | T12 | Wireframe for the design review | web | done (#23) |
 | T13 | Generate the master JSON from the SQL extract, as a build step | build | done — 28 KB gzipped, parity proven |
@@ -235,6 +235,31 @@ carries the 1,775 `textData` rows that hold the names. Going fully client-side
 would turn parse-and-discard from a server promise into a structural fact and
 remove a 157 KB roster upload per load. The builder scoped T16 to the pair only;
 the rest is a milestone of its own, not a task.
+
+**T10 turned the wireframe into the surface, and M7 release 1 is complete.**
+The wireframe was never a mock-up to be re-drawn: its layout survived review, so
+T10 kept it and replaced `fakePairSearch` with the real sweep. `fake-scores.ts`
+and the "every number below is invented" banner are gone.
+
+Verified in the browser, against the real roster, end to end:
+
+```
+  trainee + filters shared with the roster screen   yes (persisted, survives Back)
+  star ceiling offered by the filter                18   (T3's pair ceiling, was 9)
+  must-have toggle on a white                       shown
+  Uma Stan as a preference                          24,958 of 24,958 scored
+  Uma Stan promoted                                 18,774 of 24,958 scored
+  pick the top row -> compare pane                  Gold Ship / El Condor Pasa / Mayano Top Gun
+  search row said                                   437 and rank 3
+  compare pane said                                 437 = 146 base + 291 bonus, rank 3
+```
+
+That last pair of lines is the product's central claim, checked rather than
+argued: **the figure the search ranks by is the figure the pane shows**, because
+both come from the same `packages/core` functions.
+
+The whole row is the pick control, as a `button`, so eighty results are
+reachable from a keyboard in reading order.
 
 ## Open design questions, from the wireframe
 

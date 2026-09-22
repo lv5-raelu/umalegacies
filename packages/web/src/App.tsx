@@ -35,7 +35,7 @@ import {
   writeSelection,
 } from './roster/cache';
 import { picksToCache, restoreSelection } from './roster/selection';
-import { PairSearchWireframe } from './wireframe/PairSearchWireframe';
+import { PairSearch, PAGE } from './search/PairSearch';
 import styles from './App.module.css';
 
 /**
@@ -45,7 +45,8 @@ import styles from './App.module.css';
  * touch the persisted selection, and nothing links to it outside development.
  * Both the hash and the link go when the real results screen lands.
  */
-const WIREFRAME_HASH = '#wireframe/pair-search';
+/** The pair search, a whole-screen route like the tree. */
+const SEARCH_HASH = '#search';
 
 /**
  * M3: your own roster, on screen, with two veterans compared.
@@ -71,9 +72,11 @@ export function App() {
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
   const [onTreePage, setOnTreePage] = useState(() => location.hash === '#tree');
-  const [onWireframe, setOnWireframe] = useState(() => location.hash === WIREFRAME_HASH);
+  const [onSearch, setOnSearch] = useState(() => location.hash === SEARCH_HASH);
   const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
+  /** How many result rows are rendered. The sweep is complete; the LIST is paged. */
+  const [shownResults, setShownResults] = useState(PAGE);
   /**
    * True until the stored roster has been looked for.
    *
@@ -145,7 +148,7 @@ export function App() {
    * something to draw.
    */
   useEffect(() => {
-    const sync = (): void => setOnWireframe(location.hash === WIREFRAME_HASH);
+    const sync = (): void => setOnSearch(location.hash === SEARCH_HASH);
     addEventListener('hashchange', sync);
     return () => removeEventListener('hashchange', sync);
   }, []);
@@ -473,13 +476,40 @@ export function App() {
     };
   }, [save, roster, trainee, picks]);
 
-  // The wireframe, which replaces the whole screen the way the tree page does.
-  // Needs only a roster: it composes its own pairs and holds its own trainee.
-  if (onWireframe && roster) {
+  /*
+   * THE PAIR SEARCH, a whole-screen route like the tree.
+   *
+   * It shares this component's trainee and criteria rather than holding its
+   * own, which is what makes a filter set here still set when the user goes
+   * back, and what makes the pair it returns the pair the compare pane
+   * explains. The wireframe it grew out of deliberately kept its own copies,
+   * because a throwaway surface must not rewrite a persisted selection.
+   */
+  if (onSearch && roster && save) {
     return (
-      <PairSearchWireframe
+      <PairSearch
         roster={roster}
+        packages={save.veterans}
         trainees={trainees}
+        traineeCardId={traineeCardId}
+        criteria={criteria}
+        shown={shownResults}
+        onTrainee={setTraineeCardId}
+        onCriteria={(next) => {
+          setCriteria(next);
+          setShownResults(PAGE);
+        }}
+        onShowMore={() => setShownResults((n) => n + PAGE)}
+        onPick={(a, b) => {
+          // Both halves at once, because a search result IS a pair -- unlike a
+          // click in the roster list, which can only ever add one. `ownPick`
+          // stamps each with the card it was made against, exactly as a click
+          // does, so a restore checks them the same way.
+          const picked = [roster.veterans[a], roster.veterans[b]];
+          if (picked[0] === undefined || picked[1] === undefined) return;
+          setPicks([ownPick(picked[0]), ownPick(picked[1])]);
+          location.hash = '';
+        }}
         onBack={() => {
           location.hash = '';
         }}
@@ -520,13 +550,12 @@ export function App() {
     <main className={`${styles.shell} ${roster ? styles.wide : styles.landing}`}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
-        {/* DEV ONLY, and `import.meta.env.DEV` is a compile-time constant, so
-            the production bundle does not contain this element. A wireframe
-            nobody can find is a wireframe nobody reviews; it still has no
-            place in the shipped header. */}
-        {import.meta.env.DEV && roster && (
-          <a className={styles.quiet} href={WIREFRAME_HASH}>
-            pair search wireframe →
+        {/* The way into the inverse query, and only once there is a roster to
+            search. It was DEV-ONLY while it was a wireframe with invented
+            numbers; every figure behind it is real now. */}
+        {roster && (
+          <a className={styles.quiet} href={SEARCH_HASH}>
+            find a pair →
           </a>
         )}
       </header>

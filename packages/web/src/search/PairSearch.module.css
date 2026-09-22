@@ -714,3 +714,60 @@
   font-size: var(--text-xs);
   color: var(--ink);
 }
+
+/*
+ * THE PICK CONTROL, WHICH IS THE ORDINAL'S CELL.
+ *
+ * The whole row is the thing you choose, so the control has to feel like the
+ * whole row rather than a button parked in it. It occupies the ordinal's grid
+ * cell and keeps that cell's rule, so nothing moves when it appears; the word
+ * "pick" replaces the number on hover and focus, which is the only moment the
+ * reader is asking "how do I take this one".
+ */
+.pick {
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: var(--space-hair);
+  padding: var(--space-hair) var(--space-sm) 0 0;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+/* `.ordinal` keeps its own type; the button only positions it. */
+.pick .ordinal {
+  padding: 0;
+  border: 0;
+  grid-row: auto;
+}
+
+.pickLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--primary);
+  opacity: 0;
+}
+
+.pick:hover .pickLabel,
+.pick:focus-visible .pickLabel {
+  opacity: 1;
+}
+
+.pick:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.row:has(.pick:hover),
+.row:has(.pick:focus-visible) {
+  border-color: var(--rule-strong);
+}

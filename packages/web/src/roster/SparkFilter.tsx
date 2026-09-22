@@ -1,5 +1,5 @@
-import type { FilterScope, RosterSparkOption, SparkCriterion } from '@umalegacies/types';
-import { maxStarsFor } from '@umalegacies/core';
+import type { FilterScope, RosterSparkOption, SparkCriterion, SparkKind } from '@umalegacies/types';
+import { isWhite, isRequirement, maxStarsFor, type StarSubject } from '@umalegacies/core';
 import { SparkPicker } from './SparkPicker';
 import styles from './Controls.module.css';
 
@@ -36,12 +36,24 @@ export function SparkFilter({
   criteria,
   matching,
   total,
+  subject = 'package',
   onChange,
 }: {
   options: readonly RosterSparkOption[];
   criteria: readonly SparkCriterion[];
   matching: number;
   total: number;
+  /**
+   * WHAT THE CRITERIA ARE ABOUT, which decides the ceilings this control
+   * offers and whether the must-have toggle appears at all.
+   *
+   * `'package'` on the roster list, where a row is one veteran capping at 3
+   * stars on the parent and 9 across its lineage. `'pair'` in the search, where
+   * six ancestors cap at 6 and 18. One `SparkCriterion` type drives both, so
+   * the same stored `minStars` means different things depending on who reads
+   * it, and this prop is how the control knows which it is.
+   */
+  subject?: StarSubject;
   onChange: (criteria: SparkCriterion[]) => void;
 }) {
   const replace = (at: number, patch: Partial<SparkCriterion>): void =>
@@ -61,13 +73,20 @@ export function SparkFilter({
       scope,
       // 'package': this control filters the roster LIST, and a row there is one
       // veteran. The pair search reuses the same component against 'pair'.
-      minStars: Math.min(criteria[at]!.minStars, maxStarsFor(scope, 'package')),
+      minStars: Math.min(criteria[at]!.minStars, maxStarsFor(scope, subject)),
     });
 
   // A spark already required cannot be required again: a second row for the
   // same spark is either a duplicate or a contradiction, and neither is a thing
   // to offer. Changing an existing row still reaches every spark, so nothing is
   // unreachable -- only unrepeatable.
+  // A criterion is a groupId and a threshold; its KIND lives in the catalogue,
+  // and whether the toggle even appears depends on it. Unknown reads as white,
+  // the most permissive answer, for the same reason the sweep does it: a stale
+  // catalogue must not silently change what the user is allowed to ask for.
+  const kinds = new Map(options.map((o) => [o.groupId, o.kind]));
+  const kindOf = (groupId: number): SparkKind => kinds.get(groupId) ?? 'white_skill';
+
   const taken = new Set(criteria.map((c) => c.groupId));
   const unused = options.filter((o) => !taken.has(o.groupId));
 
@@ -101,7 +120,7 @@ export function SparkFilter({
             aria-label="minimum stars"
             onChange={(e) => replace(at, { minStars: Number(e.target.value) })}
           >
-            {starsUpTo(maxStarsFor(criterion.scope, 'package')).map((n) => (
+            {starsUpTo(maxStarsFor(criterion.scope, subject)).map((n) => (
               <option key={n} value={n}>
                 {n}★
               </option>
@@ -120,6 +139,33 @@ export function SparkFilter({
               </option>
             ))}
           </select>
+
+          {/*
+            THE MUST-HAVE TOGGLE, ON WHITES, IN THE SEARCH ONLY.
+
+            A white ranks by default and prunes nothing, which is how a
+            whites-only search ends up scoring every legal pair. Promoting one
+            cuts the work: four whites promoted took a real sweep from 18,996
+            scored pairs to 2,930, and the wall time from 1,128 ms to 205 ms,
+            without moving the top result.
+
+            Absent on blue, pink and green, because those are requirements
+            already -- every ancestor carries exactly one of each -- and a
+            toggle that cannot change anything is a control that lies. Absent on
+            the roster LIST too: a list has nothing to rank with, so every
+            criterion there already filters.
+          */}
+          {subject === 'pair' && isWhite(kindOf(criterion.groupId)) && (
+            <label className={styles.mustHave}>
+              <input
+                type="checkbox"
+                checked={isRequirement(criterion, kindOf(criterion.groupId))}
+                onChange={(e) => replace(at, { mustHave: e.target.checked })}
+              />
+              must have
+            </label>
+          )}
+
           <button
             type="button"
             className={styles.clear}
