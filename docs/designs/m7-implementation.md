@@ -31,7 +31,7 @@ argument for the file.
 | T13 | Generate the master JSON from the SQL extract, as a build step | build | done — 28 KB gzipped, parity proven |
 | T14 | `MasterData` takes plain rows, not a `DatabaseSync` | core | done, shipped inside #22 |
 | T15 | Run the sweep in a web worker | web | done — verified in a real browser |
-| T16 | Decide what `explain-pair` is for once the sweep is local | api | TODO |
+| T16 | Decide what `explain-pair` is for once the sweep is local | web | done — the pair is explained in the tab |
 
 ## Two corrections the original list does not carry
 
@@ -203,6 +203,38 @@ imports the client yet, so Vite tree-shakes the worker out entirely and the
 `new Worker(new URL(...), { type: 'module' })` idiom was unverified. Temporarily
 importing it produced a separate 15,184-byte chunk, so T10 will not discover a
 bundler problem.
+
+**T16: the pair is explained in the tab, and the route survives anyway.**
+Measured in a browser against the real roster:
+
+```
+  explainLineage LOCAL    0.375 ms
+  explain-pair REMOTE    35.3   ms   (to LOCALHOST, 153,571 bytes back)
+  identical JSON         true
+```
+
+94x, to localhost -- the ratio only widens over a real network with a cold
+function at the other end. Nothing is traded for it: the outputs were compared
+as whole JSON documents, not spot-checked. The game data was already downloaded
+for the search, so the local path costs nothing extra.
+
+`POST /affinity/explain-pair` is UNCHANGED and still served. It is what the
+golden fixtures are generated and checked through, and release 2 needs a server
+regardless, since uma.moe authenticates with a key that cannot ship to a
+browser. What was deleted is a client wrapper with no remaining callers.
+
+**The staleness check moved with the computation.** The route answered `409
+STALE_MASTER_HASH` when the caller's extract was not the server's; the page now
+compares `master.json`'s hash against the hash its roster was resolved with and
+raises `StaleMasterError`, which drives the same banner.
+
+**THE BIGGER FINDING, DELIBERATELY NOT ACTED ON.** Every route the web calls
+could run in the browser: `roster.ts`, `validate.ts` and `roster-validate.ts`
+import only `@umalegacies/types` and `@umalegacies/core`, and `master.json`
+carries the 1,775 `textData` rows that hold the names. Going fully client-side
+would turn parse-and-discard from a server promise into a structural fact and
+remove a 157 KB roster upload per load. The builder scoped T16 to the pair only;
+the rest is a milestone of its own, not a task.
 
 ## Open design questions, from the wireframe
 

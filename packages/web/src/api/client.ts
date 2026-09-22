@@ -1,6 +1,5 @@
 import type {
   ErrorResponse,
-  ExplainPairRequest,
   ExplainRequest,
   LineageResponse,
   RosterResolveResponse,
@@ -154,18 +153,15 @@ export const fetchMasterMeta = (): Promise<{ masterHash: string }> =>
 export const fetchTrainees = (): Promise<{ trainees: TraineeOption[]; masterHash: string }> =>
   get<{ trainees: TraineeOption[]; masterHash: string }>('/roster/trainees');
 
-/**
- * Explains a chosen pair.
+/*
+ * `explainPair` USED TO LIVE HERE and is gone as of T16. The pair is explained
+ * in this tab now -- `lineage/explain-local.ts` -- from the game data the page
+ * already downloads for the search, at 0.375 ms against this route's measured
+ * 35.3 ms and with byte-identical output.
  *
- * The client sends two three-uma packages and the SERVER composes them into six
- * positioned slots. Nothing here builds an ExplainRequest: a mis-composed one is
- * still well-formed and returns a confident, plausible, wrong total.
+ * `POST /affinity/explain-pair` itself is UNCHANGED and still served. It is
+ * what the golden fixtures are generated and checked through, and release 2
+ * needs a server regardless, since uma.moe authenticates with a key that cannot
+ * ship to a browser. What was deleted is a client wrapper with no callers, not
+ * the reference implementation.
  */
-export const explainPair = (
-  request: ExplainPairRequest,
-  masterHash?: string,
-): Promise<LineageResponse> =>
-  post<LineageResponse>(
-    '/affinity/explain-pair',
-    masterHash ? { ...request, masterHash } : request,
-  );
