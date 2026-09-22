@@ -9,9 +9,15 @@ import type {
 } from '@umalegacies/types';
 import { Portrait } from '../lineage/Portrait';
 import { rankGlyph } from '../lineage/pair-total';
-import { SPARK_COLOR, isWhite, percent } from '../lineage/sparks';
+import {
+  SPARK_COLOR,
+  SPARK_KIND_ORDER,
+  isWhite,
+  percent,
+  percentPrecise,
+} from '../lineage/sparks';
 import { catalogueOf, type Catalogue } from '../roster/catalogue';
-import { rankLabel } from '../roster/rank-labels';
+import { RankBadge } from '../roster/RankBadge';
 import { SparkFilter } from '../roster/SparkFilter';
 import { TraineePicker } from '../roster/TraineePicker';
 import { fakePairSearch, type FakePairRow } from './fake-scores';
@@ -288,15 +294,19 @@ const PairRow = memo(function PairRow({
   criteria: readonly SparkCriterion[];
   catalogue: Catalogue;
 }) {
+  // Built per row rather than per list, because PairRow is memoised on its
+  // props and a Set rebuilt in the parent would defeat that for all 80 rows.
+  const asked = new Set(criteria.map((c) => c.groupId));
+
   return (
     <article className={styles.row}>
       <span className={styles.ordinal}>{at}</span>
 
-      <Half veteran={row.a} slot="A" catalogue={catalogue} />
+      <Half veteran={row.a} slot="A" catalogue={catalogue} asked={asked} />
       <span className={styles.times} aria-hidden="true">
         ×
       </span>
-      <Half veteran={row.b} slot="B" catalogue={catalogue} />
+      <Half veteran={row.b} slot="B" catalogue={catalogue} asked={asked} />
 
       <div className={styles.result}>
         {/* FAKE. The aggregate, with its addends beneath, in the shape
@@ -304,7 +314,7 @@ const PairRow = memo(function PairRow({
             addends are the pair total and the rank it bands into, because the
             per-spark addends of the JOINT need a row of their own. */}
         <span className={styles.headline}>
-          {criteria.length === 0 ? row.pairTotal : percent(row.joint ?? (row.perSpark[0] as number))}
+          {criteria.length === 0 ? row.pairTotal : percentPrecise(row.joint ?? (row.perSpark[0] as number))}
         </span>
         <span className={styles.addends}>
           {criteria.length === 0
@@ -314,18 +324,46 @@ const PairRow = memo(function PairRow({
       </div>
 
       {/*
-        THE BAND: every requirement, what the pair carries of it, and WHICH HALF
-        carries it. The split is the part a ranked list cannot leave out -- a
-        pair holding 6 Stamina as 6+0 and one holding it as 3+3 are different
-        breeding propositions, and the per-spark odds do not say which is which.
-        A requirement met entirely by one half also tells the reader that the
-        other half is there for something else, which is half the reason to read
-        the pair at all.
+        THE BAND: every requirement, what the pair carries of it, and the odds.
+        The odds are the only figure here that belongs to the PAIR rather than
+        to either half, which is the whole reason the band survives now that
+        each half lists its own sparks.
+
+        THE `A5+B7` SPLIT IS GONE. It was the one thing a ranked list could not
+        leave out -- a pair holding 6 Stamina as 6+0 is a different proposition
+        from one holding it as 3+3 -- but it is now said better by the halves
+        themselves: the spark appears in each half's list with that half's star
+        count. The builder could not read the notation, which settles it: a
+        notation that needs a legend is a puzzle.
       */}
       {criteria.length > 0 && (
         <div className={styles.wants}>
-          {criteria.map((criterion, c) => {
+          {/*
+            THE SELECTOR'S ORDER, not the order the rows were added in. The
+            spark picker lists blue, pink, green, then whites, and within a kind
+            the game's own order -- so a Medium added after three whites belongs
+            with the pinks here rather than wherever it was typed. Reported by
+            the builder looking at a real filter.
+
+            The ORIGINAL index travels with each criterion, because `row.stars`
+            and `row.perSpark` are positional and sorting the display must not
+            reorder the data behind it.
+          */}
+          {criteria
+            .map((criterion, c) => ({ criterion, c }))
+            .sort((x, y) => {
+              const kx = catalogue.get(x.criterion.groupId)?.kind;
+              const ky = catalogue.get(y.criterion.groupId)?.kind;
+              return (
+                SPARK_KIND_ORDER.indexOf(kx as SparkKind) -
+                  SPARK_KIND_ORDER.indexOf(ky as SparkKind) ||
+                x.criterion.groupId - y.criterion.groupId
+              );
+            })
+            .map(({ criterion, c }) => {
             const [starsA, starsB] = row.stars[c] as readonly [number, number];
+            // Still summed here: the band states the pair's total, the halves
+            // state who holds it.
             return (
               <span key={criterion.groupId} className={styles.want}>
                 <span
@@ -336,36 +374,101 @@ const PairRow = memo(function PairRow({
                   {catalogue.get(criterion.groupId)?.name ?? `spark ${criterion.groupId}`}
                 </span>
                 <span className={styles.wantStars}>{starsA + starsB}★</span>
-                {/* Real, and the reason the band exists. */}
-                <span className={styles.wantSplit}>
-                  A{starsA}+B{starsB}
-                </span>
                 {/* FAKE. */}
                 <span className={styles.wantOdds}>{percent(row.perSpark[c] as number)}</span>
               </span>
-            );
-          })}
+              );
+            })}
         </div>
       )}
     </article>
   );
 });
 
-/** One veteran of the pair, identified without relying on its name. */
+/** One spark on one half. No percentage: the odds belong to the PAIR. */
+function Chip({
+  row,
+  asked = false,
+}: {
+  row: { groupId: number; stars: number; name?: string; kind?: SparkKind };
+  asked?: boolean;
+}) {
+  const kind = row.kind as SparkKind;
+  return (
+    <span
+      className={asked ? `${styles.chip} ${styles.chipAsked}` : styles.chip}
+      title={`${row.name} ${row.stars}★`}
+    >
+      <span
+        className={styles.tick}
+        style={
+          isWhite(kind)
+            ? { boxShadow: `inset 0 0 0 1px ${SPARK_COLOR[kind]}` }
+            : { background: SPARK_COLOR[kind] }
+        }
+      />
+      <span className={styles.chipName}>{row.name}</span>
+      <span className={styles.chipStars}>{row.stars}★</span>
+    </span>
+  );
+}
+
 function Half({
   veteran,
   slot,
   catalogue,
+  asked,
 }: {
   veteran: ResolvedVeteran;
   slot: 'A' | 'B';
   catalogue: Catalogue;
+  /** The groupIds the reader filtered for, lit up in place. */
+  asked: ReadonlySet<number>;
 }) {
-  // The veteran's OWN green: `stars[0]` non-zero means it carries the spark
-  // itself rather than inheriting it from one of its parents. Same rule the
-  // roster card reads by, off the same list, so the two cannot disagree.
-  const green = veteran.sparks.find(
-    (s) => (s.stars[0] ?? 0) > 0 && catalogue.get(s.groupId)?.kind === 'green',
+  // EVERY SPARK THIS HALF CARRIES, grouped the way the compare pane groups
+  // them, with the reader's own filters lit.
+  //
+  // The earlier cut showed one identity spark per half -- the green, because a
+  // costume's unique skill is the only named spark that varies between two
+  // entries of the same character. That identified the uma and answered
+  // nothing about whether it was worth picking. Asked for by the builder:
+  // "i'm more zeroed in on giving the user as much information as needed for
+  // them to make the most informed decision".
+  //
+  // The PACKAGE total, summing the veteran and its two parents, because that is
+  // the unit the search filters on. `stars` is [self, slot 10, slot 20].
+  //
+  // This also retires the `A0+B5` notation the band used to carry, which the
+  // builder could not read -- and a notation needing a legend is a puzzle, not
+  // notation. Which half holds a spark is now structural: it appears in that
+  // half's list and not the other's.
+  const all = veteran.sparks
+    .map((s) => ({
+      groupId: s.groupId,
+      stars: s.stars.reduce((sum, n) => sum + (n ?? 0), 0),
+      name: catalogue.get(s.groupId)?.name,
+      kind: catalogue.get(s.groupId)?.kind,
+    }))
+    .filter((s) => s.stars > 0 && s.name !== undefined && s.kind !== undefined);
+
+  // ORDER IS THE SAME WHETHER OR NOT ANYTHING IS FILTERED, and the filter only
+  // changes how a chip LOOKS.
+  //
+  // An earlier cut pulled the asked sparks to a line of their own at the top,
+  // because with ~71 chips in a row the lit ones landed on lines 6 and 9 of a
+  // 10-line block. The builder rejected it on sight: a spark's place in the
+  // list is itself information -- which kind it belongs to, how its stars
+  // compare to its neighbours' -- and moving it to answer one question destroys
+  // that while making the row rearrange itself every time a filter changes.
+  //
+  // Same rule as the compare pane and the audit trail, both of which highlight
+  // in place and reorder nothing.
+  const ordered = SPARK_KIND_ORDER.flatMap((kind) =>
+    all
+      .filter((s) => s.kind === kind)
+      // Loudest first inside a kind: a scan meets the big numbers before the
+      // 1-star noise.
+      .sort((a, b) => b.stars - a.stars || (a.name as string).localeCompare(b.name as string)),
   );
 
   return (
@@ -385,22 +488,22 @@ function Half({
         </span>
         {/* The 166-distinct unit, against the bare name's 29. */}
         <span className={styles.package}>out of {packageLine(veteran)}</span>
-        {green && (
-          <span className={styles.green}>
-            <span className={styles.tick} style={{ background: SPARK_COLOR.green }} />
-            <span className={styles.greenName} title={catalogue.get(green.groupId)?.name}>
-              {catalogue.get(green.groupId)?.name ?? `spark ${green.groupId}`}
-            </span>
-            <span className={styles.wantStars}>{green.stars[0]}★</span>
-          </span>
-        )}
+        <span className={styles.sparks}>
+          {ordered.map((row) => (
+            <Chip key={row.groupId} row={row} asked={asked.has(row.groupId)} />
+          ))}
+        </span>
       </span>
-      {/* Score, and the rank it bands into, as TEXT. The roster card uses the
-          game's own badge art at 36px; eighty rows would need 160 of them and
-          the badge is taller than the line it would sit on. The label carries
-          the same fact. */}
+      {/* Score, and the rank it bands into, as the game's OWN BADGE.
+          An earlier cut used `rankLabel` text, reasoning that eighty rows want
+          160 badges and the badge is taller than its line. Both halves of that
+          are true and neither is a reason for text: `RankBadge` takes a size,
+          so 20px fits the line, and the atlas is ONE image cropped in CSS, so
+          160 of them cost no extra request. It also falls back to the text
+          label by itself when the optional art cache is cold, which is the
+          behaviour the roster card already relies on. */}
       <span className={styles.score}>
-        <span className={styles.scoreRank}>{rankLabel(veteran.score) ?? '—'}</span>
+        <RankBadge score={veteran.score} size={20} />
         <span className={styles.scoreValue}>{veteran.score.toLocaleString()}</span>
       </span>
     </div>

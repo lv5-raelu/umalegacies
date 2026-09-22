@@ -461,3 +461,76 @@
     grid-column: 2 / -1;
   }
 }
+
+
+/*
+ * EVERY SPARK THIS HALF CARRIES.
+ *
+ * Chips, not lines, for the reason the compare pane learned the hard way: a
+ * median package holds 51 distinct sparks, and one per line is 51 lines. The
+ * pane's own list measured 1,644px in a 132px window before this treatment and
+ * a real reader declined to scroll it. Wrapping costs the height the chips
+ * actually fill.
+ *
+ * No percentage on these chips, unlike the pane's. The odds belong to the PAIR
+ * and are stated once per row; a per-half figure would be a number this screen
+ * cannot compute. That also makes these chips narrower than the pane's 157px
+ * median, which is the whole reason the density works here.
+ */
+.sparks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-hair);
+  align-items: baseline;
+  margin-top: var(--space-hair);
+}
+
+/* A kind stays contiguous, so the eye can still find the blues, but the group
+   does not force its own line: with two halves per row the vertical budget is
+   half what the pane has. */
+
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: var(--text-3xs);
+  line-height: 1.5;
+  padding: 0 var(--space-hair);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/*
+ * The sparks the reader filtered for.
+ *
+ * Achromatic, as on the pane and the audit trail. DESIGN.md: "Don't add a
+ * second accent. Amber means added; that is the whole accent budget", and red
+ * already means unresolved. With 100-odd chips in a row the contrast is doing
+ * more work here than anywhere else in the product: the lit ones are the row's
+ * actual answer and the rest are the context you drop into once a row looks
+ * worth it.
+ */
+.chipAsked {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--rule-strong);
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 20ch;
+}
+
+.chipStars {
+  font-family: var(--font-data);
+  flex: none;
+}
+
+.chipAsked .chipStars {
+  color: var(--ink);
+}

@@ -9,7 +9,14 @@ import type {
 } from '@umalegacies/types';
 import { jointOdds } from '../lineage/joint';
 import { pairTotalOf, rankGlyph } from '../lineage/pair-total';
-import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER, isWhite, percent } from '../lineage/sparks';
+import {
+  SPARK_COLOR,
+  SPARK_GROUP_LABEL,
+  SPARK_KIND_ORDER,
+  isWhite,
+  percent,
+  percentPrecise,
+} from '../lineage/sparks';
 import { resolutionText } from '../lineage/resolution';
 import styles from './ComparePane.module.css';
 
@@ -279,7 +286,12 @@ function Result({
             <span className={styles.jointLabel}>
               {wanted.length === 2 ? 'both together' : `all ${wanted.length} together`}
             </span>
-            <span className={styles.jointValue}>{percent(joint)}</span>
+            {/* The digits, not the rounding. Same figure the pair search ranks
+                by, and it collapses the same way: four sparks at 40% each is
+                2.6%, and two pairs a long way apart both read "2%". Comparing
+                here means picking one, reading, picking another -- the same
+                discrimination problem a list has, spread over time. */}
+            <span className={styles.jointValue}>{percentPrecise(joint)}</span>
           </div>
         )}
         {missing.length > 0 && (
