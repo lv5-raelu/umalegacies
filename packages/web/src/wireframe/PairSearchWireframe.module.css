@@ -220,6 +220,12 @@
   text-align: right;
   padding-top: var(--space-hair);
   padding-right: var(--space-sm);
+  /* Both rows, so the rule runs the card's full height and the band's rule
+     tees off it partway down rather than stopping where it starts.
+     `span 2`, NOT `1 / -1`: this grid declares no explicit rows, so `-1`
+     resolves to the end of the EXPLICIT grid -- line 1 -- and the span
+     silently collapses to the first row. */
+  grid-row: 1 / span 2;
   align-self: stretch;
   border-right: 1px solid var(--rule);
 }
@@ -274,17 +280,9 @@
 }
 
 /* One veteran of the pair. */
-/*
- * `align-self: stretch` so the half's BOX is the full height of the row track
- * even when its spark list is the shorter of the two. Nothing inside moves --
- * `align-items: flex-start` keeps every child at the top -- but the score's
- * rule now runs the same height as the ordinal's and the pair's, and three
- * rules that stop at three different heights read as an accident.
- */
 .half {
   display: flex;
   align-items: flex-start;
-  align-self: stretch;
   gap: var(--space-sm);
   min-width: 0;
 }
@@ -409,23 +407,16 @@
 }
 
 /*
- * Score and rank, ruled off the sparks.
+ * Score and rank, NOT ruled off the sparks.
  *
- * SAME REASON AS THE ORDINAL: everything to its left is an inventory of what
- * this half carries, and this is a single derived figure about the half as a
- * whole. Without the rule it read as the last item in a list of sparks, which
- * is the one thing it is not -- and the chips wrap, so on a long half the
- * nearest chip can end up directly beside it.
- *
- * `align-self: stretch` against the half's `flex-start`: the rule wants the
- * half's full height, the badge and the number still sit at the top of it.
+ * A rule was tried here and taken out on the builder's call: the rank and the
+ * score are the veteran's own, so fencing them off from the veteran says the
+ * wrong thing. The rules on this row separate one UMA from another, or a half
+ * from the pair -- never an uma from its own figures. Whitespace is enough.
  */
 .score {
   text-align: right;
   flex: none;
-  align-self: stretch;
-  padding-left: var(--space-snug);
-  border-left: 1px solid var(--rule);
 }
 
 /* The rank read first, the score qualifying it -- the order the roster card
@@ -485,12 +476,20 @@
  * not a layout. A SEARCH knows which sparks are wanted, so it can print those
  * instead of all of them -- which is a better answer as well as a shorter one.
  */
+/*
+ * The band starts at column 2, but its rule starts 12px further left, on the
+ * ordinal's. The negative margin eats the row's column gap so the two rules
+ * MEET in a T instead of the horizontal one beginning in mid-air; the matching
+ * padding puts the chips back exactly where they were.
+ */
 .wants {
   grid-column: 2 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs) var(--space-md);
   padding-top: var(--space-sm);
+  margin-left: calc(-1 * var(--space-snug));
+  padding-left: var(--space-snug);
   border-top: 1px solid var(--rule);
 }
 
@@ -586,6 +585,12 @@
 
   .times {
     display: none;
+  }
+
+  /* Three rows here, not two: the halves stack. Without this the rule stops
+     at the second half and the band hangs off its end again. */
+  .ordinal {
+    grid-row: 1 / span 3;
   }
 
   .result {
