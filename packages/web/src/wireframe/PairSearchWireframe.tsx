@@ -183,7 +183,7 @@ export function PairSearchWireframe({
             <span>Half A</span>
             <span />
             <span>Half B</span>
-            <span className={styles.columnRight}>{headline.label(criteria.length)}</span>
+            <span className={styles.columnRight}>Pair total</span>
           </div>
 
           {search.matchingPairs === 0 ? (
@@ -235,23 +235,20 @@ const FIRST_PAGE = 80;
  * for -- and the screen has to say which, because all three are percentages
  * except the one that is not.
  */
-type Headline = { label: (n: number) => string; rubric: (n: number) => string };
+type Headline = { rubric: (n: number) => string };
 
 const HEADLINE: Readonly<Record<0 | 1 | 2, Headline>> = {
   // No requirements: there are no odds to rank by at all, so the list falls
   // back to affinity. Said out loud, because the real search never ranks this
   // way and a silent fallback would teach the wrong thing about the feature.
   0: {
-    label: () => 'Pair total',
     rubric: () =>
       'No sparks requested, so there is nothing to rank by — these are ordered by pair total, which is NOT what the search does.',
   },
   1: {
-    label: () => 'Chance',
     rubric: () => 'Invented chance of inheriting that spark at least once across a career.',
   },
   2: {
-    label: (n) => `All ${n} together`,
     rubric: (n) =>
       `Invented chance that all ${n} arrive at least once across a career, with the per-spark figures beneath each row.`,
   },
@@ -308,18 +305,19 @@ const PairRow = memo(function PairRow({
       </span>
       <Half veteran={row.b} slot="B" catalogue={catalogue} asked={asked} />
 
+      {/*
+        THE PAIR TOTAL, ALWAYS. The joint used to live here and changed meaning
+        three times -- pair total with no filter, one spark's odds with one
+        filter, the joint with more -- which is a column that cannot be read
+        without first checking the filter. It moved to the end of the band, next
+        to the sparks it is computed from, where it is also long enough to need
+        the room. What stays is the one fact that means the same thing however
+        the filter is set.
+      */}
       <div className={styles.result}>
-        {/* FAKE. The aggregate, with its addends beneath, in the shape
-            DESIGN.md fixes for every aggregate in this product. Here the
-            addends are the pair total and the rank it bands into, because the
-            per-spark addends of the JOINT need a row of their own. */}
-        <span className={styles.headline}>
-          {criteria.length === 0 ? row.pairTotal : percentPrecise(row.joint ?? (row.perSpark[0] as number))}
-        </span>
+        <span className={styles.headline}>{row.pairTotal}</span>
         <span className={styles.addends}>
-          {criteria.length === 0
-            ? `${rankGlyph(row.relationRank)} rank ${row.relationRank}`
-            : `${rankGlyph(row.relationRank)} ${row.pairTotal}`}
+          {rankGlyph(row.relationRank)} rank {row.relationRank}
         </span>
       </div>
 
@@ -379,6 +377,26 @@ const PairRow = memo(function PairRow({
               </span>
               );
             })}
+          {/*
+            THE JOINT, at the end of the sparks it is the product of.
+            Aggregate-then-addends is this product's shape everywhere else, and
+            here the addends are the band itself -- so the figure sits after
+            them rather than above, which a horizontal band has no room for.
+
+            Absent with a single criterion, because `jointOdds` returns null
+            there: the joint IS that spark's figure and it is already two inches
+            to the left. Printing it twice under two labels invites a hunt for a
+            difference that is not there.
+          */}
+          {row.joint !== null && (
+            <span className={styles.joint}>
+              <span className={styles.jointLabel}>
+                {criteria.length === 2 ? 'both' : `all ${criteria.length}`}
+              </span>
+              {/* FAKE. */}
+              <span className={styles.jointValue}>{percentPrecise(row.joint)}</span>
+            </span>
+          )}
         </div>
       )}
     </article>
