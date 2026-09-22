@@ -49,16 +49,3 @@ export type SweepReply =
   | { type: 'progress'; id: number; considered: number; total: number }
   | { type: 'done'; id: number; sweep: PairSweep }
   | { type: 'error'; id: number; message: string };
-
-/** Where the generated game data is served from. See T13. */
-export const MASTER_JSON_URL = '/master.json';
-
-export class StaleMasterError extends Error {
-  constructor(rosterHash: string, dataHash: string) {
-    super(
-      `The game data this page loaded (${dataHash.slice(0, 8)}) is not the one your roster ` +
-        `was read with (${rosterHash.slice(0, 8)}). Reload to pick up the new data.`,
-    );
-    this.name = 'StaleMasterError';
-  }
-}

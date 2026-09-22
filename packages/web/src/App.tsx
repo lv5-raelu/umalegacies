@@ -9,7 +9,6 @@ import type {
 } from '@umalegacies/types';
 import {
   ApiError,
-  explainPair,
   fetchMasterMeta,
   fetchTrainees,
   resolveRoster,
@@ -23,6 +22,8 @@ import { catalogueOf } from './roster/catalogue';
 import { VeteranList } from './roster/VeteranList';
 import { filterVeterans, pickBlock } from '@umalegacies/core';
 import { explainPairRequest, isOwnPickOf, ownPick, ownVeterans } from './roster/picks';
+import { explainPairLocally } from './lineage/explain-local';
+import { StaleMasterError } from './lineage/master-source';
 import { SaveError, slimSave, type SkippedEntry } from './roster/save';
 import { CACHE_VERSION, explainDiscard, inspectCache } from './roster/cache-policy';
 import {
@@ -442,7 +443,12 @@ export function App() {
     let cancelled = false;
     setPairLoading(true);
     setPairError(null);
-    explainPair(request, seenMasterHash.current)
+    // LOCALLY, since T16. The same `packages/core` functions the route runs,
+    // over the game data this page already downloaded for the search, at 0.375
+    // ms against the route's measured 35.3 ms -- and byte-identical output.
+    // `explain-pair` still exists as the tested reference; nothing calls it
+    // from here any more.
+    explainPairLocally(request, roster.masterHash)
       .then((result) => {
         if (cancelled) return;
         seenMasterHash.current = result.masterHash;
@@ -450,11 +456,13 @@ export function App() {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        if (error instanceof ApiError && error.code === 'STALE_MASTER_HASH') {
+        // Same banner, different messenger: the server used to answer 409
+        // STALE_MASTER_HASH, and now the page notices the disagreement itself.
+        if (error instanceof StaleMasterError) {
           seenMasterHash.current = undefined;
           setMasterChanged(true);
         }
-        setPairError(error instanceof ApiError ? error.message : String(error));
+        setPairError(error instanceof Error ? error.message : String(error));
       })
       .finally(() => {
         if (!cancelled) setPairLoading(false);
