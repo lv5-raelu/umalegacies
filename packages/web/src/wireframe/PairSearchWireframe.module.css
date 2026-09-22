@@ -171,17 +171,21 @@
  * with it exactly, and two copies of a five-column track list is two chances
  * to drift.
  *
- * THE LAST TRACK IS 56px BECAUSE THAT IS WHAT IT HOLDS. It was 132px while the
+ * THE LAST TRACK IS 69px BECAUSE THAT IS WHAT IT HOLDS. It was 132px while the
  * joint lived there; the joint moved into the band and the track kept the width,
  * which right-aligned a two-digit total against the card edge and left ~90px of
  * nothing between it and half B's score. Measured over all 80 rows, the widest
  * ink in the column is `〇 rank 2` at 52px. The header wraps to two lines to
  * stay inside that, rather than the column widening to fit the header -- the
  * label describes the data, so the data sizes the track.
+ *
+ * 52 + 4 slack + 12 padding + 1 border. `box-sizing` is border-box here, so
+ * the rule and its padding come OUT of the track: the first cut of this left
+ * the track at 56 and silently wrapped `〇 rank 2` onto two lines.
  */
 .list,
 .columns {
-  --pair-grid: 26px minmax(0, 1fr) 14px minmax(0, 1fr) 56px;
+  --pair-grid: 34px minmax(0, 1fr) 14px minmax(0, 1fr) 69px;
 }
 
 .row {
@@ -200,13 +204,24 @@
   border-color: var(--rule-strong);
 }
 
-/* The position in the ranking. Faint: it is an index, not a score. */
+/*
+ * The position in the ranking. Faint: it is an index, not a score.
+ *
+ * RULED OFF THE PAIR, because it is the one thing on the row that is not about
+ * these two umas -- it is about where they landed in a list, and it changes
+ * when the filter changes while nothing else in the row does. The track went
+ * 26px -> 34px to give two digits room to sit clear of the rule rather than
+ * against it.
+ */
 .ordinal {
   font-family: var(--font-data);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
   text-align: right;
   padding-top: var(--space-hair);
+  padding-right: var(--space-sm);
+  align-self: stretch;
+  border-right: 1px solid var(--rule);
 }
 
 /*
@@ -259,9 +274,17 @@
 }
 
 /* One veteran of the pair. */
+/*
+ * `align-self: stretch` so the half's BOX is the full height of the row track
+ * even when its spark list is the shorter of the two. Nothing inside moves --
+ * `align-items: flex-start` keeps every child at the top -- but the score's
+ * rule now runs the same height as the ordinal's and the pair's, and three
+ * rules that stop at three different heights read as an accident.
+ */
 .half {
   display: flex;
   align-items: flex-start;
+  align-self: stretch;
   gap: var(--space-sm);
   min-width: 0;
 }
@@ -385,9 +408,24 @@
   flex: none;
 }
 
+/*
+ * Score and rank, ruled off the sparks.
+ *
+ * SAME REASON AS THE ORDINAL: everything to its left is an inventory of what
+ * this half carries, and this is a single derived figure about the half as a
+ * whole. Without the rule it read as the last item in a list of sparks, which
+ * is the one thing it is not -- and the chips wrap, so on a long half the
+ * nearest chip can end up directly beside it.
+ *
+ * `align-self: stretch` against the half's `flex-start`: the rule wants the
+ * half's full height, the badge and the number still sit at the top of it.
+ */
 .score {
   text-align: right;
   flex: none;
+  align-self: stretch;
+  padding-left: var(--space-snug);
+  border-left: 1px solid var(--rule);
 }
 
 /* The rank read first, the score qualifying it -- the order the roster card
@@ -407,9 +445,21 @@
   display: block;
 }
 
-/* The aggregate, with its addends permanently beneath it. */
+/*
+ * The aggregate, with its addends permanently beneath it.
+ *
+ * RULED OFF TOO, once the ordinal and the two scores were. This is the only
+ * boundary on the row where the rule changes what a number MEANS rather than
+ * just tidying the edge: `18,945` is half B's score and `97` is the PAIR's,
+ * they sit 56px apart, and with every other boundary ruled an unruled one here
+ * would read as "another figure about half B". It is the one column that
+ * belongs to neither half.
+ */
 .result {
   text-align: right;
+  align-self: stretch;
+  padding-left: var(--space-snug);
+  border-left: 1px solid var(--rule);
 }
 
 .headline {
@@ -518,7 +568,7 @@
 @media (max-width: 1100px) {
   .list,
   .columns {
-    --pair-grid: 26px minmax(0, 1fr) 96px;
+    --pair-grid: 34px minmax(0, 1fr) 96px;
   }
 
   .columns > :nth-child(3),
@@ -527,7 +577,7 @@
   }
 
   .row {
-    grid-template-columns: 26px minmax(0, 1fr) 96px;
+    grid-template-columns: 34px minmax(0, 1fr) 96px;
   }
 
   .half {
