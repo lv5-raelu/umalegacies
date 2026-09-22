@@ -7,6 +7,7 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "npm run build && { tsc -p tsconfig.json --watch --preserveWatchOutput & TSC=$!; trap 'kill $TSC 2>/dev/null' EXIT; node --watch dist/main.js; }",
+    "prebuild": "npm run build --workspace @umalegacies/core --prefix ../..",
     "build": "tsc -p tsconfig.json && node scripts/stamp-dist-esm.mjs",
     "start": "node dist/main.js",
     "test": "vitest run",
