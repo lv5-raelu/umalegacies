@@ -282,10 +282,16 @@
 /*
  * THE PACKAGE AS A LITTLE TREE: the veteran, a connector, its two parents.
  *
- * The whole cluster is 44px wide, which is the width of two 20px parent discs
- * and the 4px between them, and the fork above is 24px so its two uprights
+ * The whole cluster is 60px wide, which is the width of two 28px parent discs
+ * and the 4px between them, and the fork above is 32px so its two uprights
  * land on those discs' centres rather than near them. Change one of the three
  * and the bracket stops pointing at anything.
+ *
+ * SIZED UP FROM 32/20 ON THE BUILDER'S EYE: the parents read as too small to
+ * be faces. 40/28 holds uma.moe's own ratio between the two ranks (they draw
+ * roughly 100 and 70) where 32/20 was flatter than it at 0.63, and 28px is
+ * where a portrait stops being a token and starts being recognisable, which is
+ * the entire job these two discs have.
  *
  * It is TALLER than the 32px portrait it replaces and costs no row height,
  * because the sparks beside it already make the half four times this tall. It
@@ -296,13 +302,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 44px;
+  width: 60px;
 }
 
-/* 32px, down from the roster card's 44px. The portrait is the fastest way to
-   tell two entries of one character apart, so it shrinks last and least. */
+/* 40px, between the roster card's 44px and the tree node's 48px. The portrait
+   is the fastest way to tell two entries of one character apart, so it shrinks
+   last and least. */
 .lineageSelf {
-  --portrait-size: 32px;
+  --portrait-size: 40px;
 }
 
 /* The drop out of the veteran, and the bracket that splits it in two. Borders
@@ -314,7 +321,7 @@
 }
 
 .fork {
-  width: 24px;
+  width: 32px;
   height: 5px;
   border: 1px solid var(--rule-strong);
   border-bottom: 0;
@@ -328,7 +335,7 @@
 /* Smaller than the veteran, because the hierarchy is the point: these two are
    how you tell one Oguri Cap from the next, not what you picked. */
 .parentDisc {
-  --portrait-size: 20px;
+  --portrait-size: 28px;
 }
 
 .identity {
@@ -556,12 +563,19 @@
  * cannot compute. That also makes these chips narrower than the pane's 157px
  * median, which is the whole reason the density works here.
  */
+/*
+ * `sm` above, `hair` inside. The 2px here was the gap the `out of A x B` line
+ * used to sit in, and with that line gone the name sat straight on top of a
+ * dense block of chips with nothing separating the one thing you read first
+ * from the twenty you scan after. The chips keep their 2px: they are one list
+ * and should read as one.
+ */
 .sparks {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-hair);
   align-items: baseline;
-  margin-top: var(--space-hair);
+  margin-top: var(--space-sm);
 }
 
 /* A kind stays contiguous, so the eye can still find the blues, but the group
