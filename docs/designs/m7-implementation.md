@@ -17,9 +17,9 @@ argument for the file.
 |---|---|---|---|
 | T1 | Spike the sweep on Vercel, cold and warm | infra | **done** — and its result reversed the architecture, see below |
 | T2 | Create `packages/core`, move both predicates | workspace | **partly done** — see T2b |
-| T2b | Move `filter.ts` and `joint.ts` into core | core | **TODO — next** |
-| T3 | `maxStarsFor(scope, subject)` + pair ceilings | core | TODO **[REGRESSION]** |
-| T4 | `isLegalPair`, `pickBlock` re-expressed over it | core | TODO |
+| T2b | Move `filter.ts` and `joint.ts` into core | core | done (#25) |
+| T3 | `maxStarsFor(scope, subject)` + pair ceilings | core | done **[REGRESSION]** — guard is the required arg |
+| T4 | `isLegalPair`, `pickBlock` re-expressed over it | core | **TODO — next** |
 | T5 | `matchesPair` over two packages | core | TODO |
 | T6 | Per-criterion must-have flag | core | TODO |
 | T7 | The sweep: generate, prune, score, rank | **web** (was api) | TODO |
@@ -52,15 +52,21 @@ rather than tidying. It is tracked here as T2b.
 ## Order
 
 ```
-  T2b  move filter.ts + joint.ts into core
-   │   (T3, T4 and T6 all edit filter.ts -- forced sequential, one file)
-   ├─→ T3 ─→ T4 ─→ T6 ─→ T5 ─→ T7 sweep ─→ T15 worker ─→ T10 surface
-   │                                 ↑
-  T13  master JSON build step ───────┘   (T7 needs game data in the browser)
+  T2b ─→ T3 ─→ T4 ─→ T6 ─→ T5 ─→ T7 sweep ─→ T15 worker ─→ T10 surface
+  done  done   ^^^                     ↑
+               (T4 and T6 still edit filter.ts -- one file, sequential)
+  T13  master JSON build step ─────────┘   (T7 needs game data in the browser)
 
   independent of the chain:
    T16  explain-pair decision
 ```
+
+**T3 left one thing for T10.** `maxStarsFor` answers `'pair'` now (6 and 18), but
+`SparkFilter` still asks it for `'package'`, because threading a subject through
+that component is surface work. The gap is one prop rather than a missing
+function. `restoreCriteria` in `selection.ts` carries the same note: a stored
+criterion has no field saying which surface wrote it, so a pair's `12 across the
+lineage` would be dropped as out of range today. Both are commented in place.
 
 `packages/core` gates everything in the chain, and `filter.ts` is claimed by three tasks at
 once, so the chain is genuinely sequential. T13 is the only thing that can run beside it.

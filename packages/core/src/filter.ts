@@ -24,12 +24,45 @@ const SCOPE_MEMBERS: Readonly<Record<FilterScope, readonly number[]>> = {
 };
 
 /**
- * The most stars a scope can possibly hold: three per uma, and the lineage scope
- * spans three umas. It is the ceiling the star selector offers, which is how a
- * requirement nobody can meet stops being expressible at all.
+ * What a criterion is being asked about: ONE veteran's package, or a PAIR of
+ * them. A package is three umas and a pair is six, so every ceiling doubles.
+ *
+ * Two axes, and they are not the same one. `scope` says which members of a half
+ * are counted -- the direct parent only, or all three. `subject` says how many
+ * halves there are. `scope: 'package'` and `subject: 'package'` share a word and
+ * mean different things: `maxStarsFor('package', 'package')` is "the lineage
+ * scope, on one veteran" and reads 9.
  */
-export const maxStarsFor = (scope: FilterScope): number =>
-  SCOPE_MEMBERS[scope].length * MAX_STARS_PER_UMA;
+export type StarSubject = 'package' | 'pair';
+
+const SUBJECT_HALVES: Readonly<Record<StarSubject, number>> = {
+  package: 1,
+  pair: 2,
+};
+
+/**
+ * The most stars a criterion can possibly ask for: three per uma, times the
+ * members the scope counts, times the halves the subject has.
+ *
+ * ```
+ *                 subject: package   subject: pair
+ *   scope parent               3               6
+ *   scope package              9              18
+ * ```
+ *
+ * It is the ceiling the star selector offers, which is how a requirement nobody
+ * can meet stops being expressible at all rather than being warned about after
+ * the fact.
+ *
+ * `subject` IS REQUIRED ON PURPOSE. One `SparkCriterion` type drives both the
+ * roster list and the pair search, so the same stored `minStars` means different
+ * things depending on which surface reads it -- and a caller that forgot which
+ * one it was would silently read a ceiling half or double the right size, with
+ * nothing on screen to say so. A default would make that a runtime bug; a
+ * required argument makes it `TS2554` at the call site.
+ */
+export const maxStarsFor = (scope: FilterScope, subject: StarSubject): number =>
+  SCOPE_MEMBERS[scope].length * MAX_STARS_PER_UMA * SUBJECT_HALVES[subject];
 
 /** Stars this package carries for one spark, within one scope. */
 export function starsInScope(spark: PackageSpark, scope: FilterScope): number[] {

@@ -150,9 +150,13 @@ export function PairSearchWireframe({
                pair count is stated below, where there is room for it.
             2. Its star ceilings are a PACKAGE's: 3 on the parent, 9 across the
                lineage. A pair is six umas, so the real ceilings are 6 and 18.
-               `maxStarsFor(scope)` becomes `maxStarsFor(scope, subject)` in M7;
-               until then this filter cannot express half the requirements the
-               search is for.
+               `maxStarsFor(scope, subject)` can answer that since T3 -- it
+               returns 6 and 18 for `'pair'` today -- but this control still asks
+               it for `'package'`, because threading the subject through
+               `SparkFilter` is the search surface's job (T10). So the gap is now
+               one prop rather than a missing function, and until T10 closes it
+               this filter cannot express half the requirements the search is
+               for.
           */}
           <SparkFilter
             options={roster.sparkOptions}
