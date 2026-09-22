@@ -39,24 +39,32 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { explain } from '../dist/affinity/engine.js';
-import { MasterData } from '../dist/master/master-data.js';
+// The engine lives in @umalegacies/core since PR #22; these used to point at
+// `../dist/affinity/engine.js` and `../dist/master/master-data.js` and silently
+// rotted there, because this script needs both user files and so never runs in
+// CI. `scripts-resolve.test.ts` now fails if either specifier stops resolving.
+import { explain, MasterData } from '@umalegacies/core';
+// Still the API's, because reading the SQL extract is a node:sqlite job and
+// nothing in core may name a Node API.
+import { readTables } from '../dist/master/master-extract.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
 const masterPath = resolve(repoRoot, 'master.mdb');
 const dataPath = resolve(repoRoot, 'data.json');
 
-for (const p of [masterPath, dataPath, resolve(here, '../dist/affinity/engine.js')]) {
+for (const p of [masterPath, dataPath, resolve(here, '../dist/master/master-extract.js')]) {
   if (!existsSync(p)) {
     console.error(`missing ${p}`);
-    if (p.endsWith('engine.js')) console.error('run: npm run build --workspace @umalegacies/api');
+    if (p.endsWith('.js')) console.error('run: npm run build --workspace @umalegacies/api');
     process.exit(1);
   }
 }
 
 const db = new DatabaseSync(masterPath, { readOnly: true });
-const master = new MasterData(db);
+// `MasterData` takes plain rows rather than a database handle since T14, so that
+// the same class can run in the browser where node:sqlite does not exist.
+const master = new MasterData(readTables(db));
 const roster = JSON.parse(readFileSync(dataPath, 'utf8'));
 
 // ------------------------------------------------- the oracle (see notice above)

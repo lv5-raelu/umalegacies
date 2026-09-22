@@ -21,7 +21,12 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { lineageFromPair } from '../src/affinity/pair.js';
+// Was `../src/affinity/pair.js` until PR #22 moved the engine into
+// `packages/core`. Broken from that merge until 2026-09-22, alongside
+// `check-roster.mjs`, because neither script is imported, compiled or run by
+// anything in CI -- both need the builder's own files. `scripts-resolve.test.ts`
+// is the guard that would have caught it.
+import { lineageFromPair } from '@umalegacies/core';
 import type { AncestorRef, ExplainPairRequest, VeteranPackage } from '@umalegacies/types';
 
 // TypeScript, run through ts-node, so it can import the SAME lineageFromPair the
