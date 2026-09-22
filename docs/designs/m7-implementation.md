@@ -19,9 +19,9 @@ argument for the file.
 | T2 | Create `packages/core`, move both predicates | workspace | **partly done** — see T2b |
 | T2b | Move `filter.ts` and `joint.ts` into core | core | done (#25) |
 | T3 | `maxStarsFor(scope, subject)` + pair ceilings | core | done **[REGRESSION]** — guard is the required arg |
-| T4 | `isLegalPair`, `pickBlock` re-expressed over it | core | **TODO — next** |
+| T4 | `isLegalPair`, `pickBlock` re-expressed over it | core | done |
 | T5 | `matchesPair` over two packages | core | TODO |
-| T6 | Per-criterion must-have flag | core | TODO |
+| T6 | Per-criterion must-have flag | core | **TODO — next** |
 | T7 | The sweep: generate, prune, score, rank | **web** (was api) | TODO |
 | T8 | `POST /search/pairs` + its own body limit | api | **dead** — see below |
 | T9 | Widen `Pick` to a union | web | done (#19) |
@@ -53,8 +53,8 @@ rather than tidying. It is tracked here as T2b.
 
 ```
   T2b ─→ T3 ─→ T4 ─→ T6 ─→ T5 ─→ T7 sweep ─→ T15 worker ─→ T10 surface
-  done  done   ^^^                     ↑
-               (T4 and T6 still edit filter.ts -- one file, sequential)
+  done  done  done   ^^^               ↑
+                     (T6 and T5 still edit filter.ts -- one file, sequential)
   T13  master JSON build step ─────────┘   (T7 needs game data in the browser)
 
   independent of the chain:
@@ -70,6 +70,15 @@ lineage` would be dropped as out of range today. Both are commented in place.
 
 `packages/core` gates everything in the chain, and `filter.ts` is claimed by three tasks at
 once, so the chain is genuinely sequential. T13 is the only thing that can run beside it.
+
+**T4 pinned a boundary between two questions.** `pickBlock` gates a CLICK and
+`isLegalPair` judges a PAIR, and they are not interchangeable: `pickBlock`
+validates only the card being clicked, trusting that whatever is already picked
+was checked when it went in. Switch the trainee to an already-picked uma and that
+invariant breaks — the pair is illegal, `isLegalPair` says so, and `pickBlock`
+still reports the other card as clickable. The app handles it downstream (the
+lineage goes null and the tree closes), so it is a boundary rather than a bug,
+and `filter.test.ts` now asserts both the agreement and the exception.
 
 ## Open design questions, from the wireframe
 
