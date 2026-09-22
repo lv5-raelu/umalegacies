@@ -22,13 +22,13 @@ argument for the file.
 | T4 | `isLegalPair`, `pickBlock` re-expressed over it | core | done |
 | T5 | `matchesPair` over two packages | core | done — verified against the real roster |
 | T6 | Per-criterion must-have flag | core | done |
-| T7 | The sweep: generate, prune, score, rank | **web** (was api) | **TODO — next** |
+| T7 | The sweep: generate, prune, score, rank | core | done — measured on the real roster |
 | T8 | `POST /search/pairs` + its own body limit | api | **dead** — see below |
 | T9 | Widen `Pick` to a union | web | done (#19) |
 | T10 | The search surface | web | TODO |
 | T11 | Settle the own-twice question empirically | domain | done — `TODOS.md` #4 |
 | T12 | Wireframe for the design review | web | done (#23) |
-| T13 | Generate the master JSON from the SQL extract, as a build step | build | TODO |
+| T13 | Generate the master JSON from the SQL extract, as a build step | build | **TODO — next** |
 | T14 | `MasterData` takes plain rows, not a `DatabaseSync` | core | done, shipped inside #22 |
 | T15 | Run the sweep in a web worker | web | TODO |
 | T16 | Decide what `explain-pair` is for once the sweep is local | api | TODO |
@@ -53,9 +53,9 @@ rather than tidying. It is tracked here as T2b.
 
 ```
   T2b ─→ T3 ─→ T4 ─→ T6 ─→ T5 ─→ T7 sweep ─→ T15 worker ─→ T10 surface
-  done  done  done  done  done   ^^^   ↑
-                     (filter.ts is finished; T7 composes what it exports)
-  T13  master JSON build step ─────────┘   (T7 needs game data in the browser)
+  done  done  done  done  done    done      ^^^
+  T13  master JSON build step ──→ the sweep cannot RUN in a browser without it
+  ^^^                             (it runs in Node today, which is how T7 was measured)
 
   independent of the chain:
    T16  explain-pair decision
@@ -117,6 +117,35 @@ expected values are exactly reproducible from the current engine.
 seconds of being written. It does NOT catch type-level drift — `MasterData`'s
 constructor also changed shape, and a `.mjs` file gets no typechecking from any
 config here.
+
+**T7's measurement, on the real roster (259 veterans, Gold Ship as trainee, Node).**
+`sweepPairs` lives in `packages/core`; it runs in Node today, which is how these
+were taken. T13 and T15 are what let it run in a browser.
+
+```
+  no criteria (worst case)      legal 24,958   scored 24,958   1,534 ms
+  4 filters, whites soft        legal 24,958   scored 18,996   1,128 ms
+  4 filters, whites PROMOTED    legal 24,958   scored  2,930     205 ms
+  Stamina >=12 AND Medium >=4   legal 24,958   scored     13       7 ms
+```
+
+**0.061 ms per scored pair**, against the 0.066 ms/pair the 2026-09-18 spike
+measured for Node — so the composition costs nothing over the engine it wraps.
+
+**The prune is ~240x cheaper than the score, which is the number T6 was built
+for.** The last row prunes 24,958 pairs and scores 13 in 7 ms total, so the
+prune pass is roughly 0.25 microseconds per pair against 61 for a score.
+Promoting four whites from preferences to requirements cuts the work 6.5x
+(18,996 scored to 2,930) and the wall time 5.5x.
+
+**Promotion changes what is scored, not how it ranks.** The top result is
+identical (joint 0.17070613) whether the four whites prune or merely rank, which
+is the correctness property that makes the lever safe to offer: the best pair
+already met the requirement, so it survives either way.
+
+One row is not what it looks like: "4 filters, whites soft" scores 18,996 rather
+than all 24,958, because one of those four is Medium, which is PINK and so a
+requirement whatever the flag says.
 
 ## Open design questions, from the wireframe
 

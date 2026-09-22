@@ -20,6 +20,8 @@ export * from './engine.js';
 // fact about the code rather than a hope about two copies.
 export * from './filter.js';
 export * from './joint.js';
+// M7's sweep: the inverse query, composed entirely from the above.
+export * from './sweep.js';
 export * from './lineage.js';
 export * from './pair.js';
 export * from './master-data.js';
