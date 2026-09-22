@@ -1247,7 +1247,12 @@ raise them exist.
   - Blue, pink and green filters are **requirements**. Unmet means no match, and the user
     is told so plainly and expected to relax them. That loop is the main path, not an
     error state: on the builder's roster, "Stamina >= 12 AND Medium >= 4" is satisfied by
-    **25 of 33,411** own-pairs, 0.07%.
+    **22 of 30,808** legal own-pairs, 0.07%.
+
+    *Corrected 2026-09-22, when T4 and T5 made the claim checkable.* The review's
+    original figure was 25, and it reproduces exactly when pair legality is ignored --
+    three of those 25 put two cards of one character together, which the game refuses.
+    The predicate now excludes them.
   - White filters **rank by default and may be promoted to requirements** with a
     per-criterion "must have" toggle. This reverses the original rule that whites are
     never requirements. The reason is latency with a user-facing cause: hard constraints
@@ -1267,10 +1272,26 @@ raise them exist.
   that scored identically. The ranked figure is the same `jointOdds` the compare pane
   shows after a result is picked, computed by the same function.
 
-  **Search space.** 259 veterans give 33,411 unordered own-by-own pairs. The borrowable
-  case is 259 x P where P is uma.moe's pool, which reports `total: "over 10000"`, and P is
-  the part that decides the architecture. Own-only is therefore a first-class mode, not a
-  degraded one.
+  **Search space, MEASURED 2026-09-22 with `isLegalPair`.** 259 veterans give 33,411
+  unordered own-by-own combinations, and that figure appears throughout this section as
+  the size of the sweep. It is the size of the SPACE, not of the search: 2,603 of those
+  combinations pair two cards of one character and are illegal before anything is scored,
+  leaving **30,808**. Choosing a trainee prunes further, and by much more than the
+  same-character rule does, because every card of that character leaves the pool:
+
+  ```
+    no trainee                      30,808 legal   (22 meet "Stamina >=12 AND Medium >=4")
+    trainee Gold Ship               24,958 legal   (13 meet it)
+    trainee Oguri Cap               19,738 legal   (11 meet it)   <- 21 cards in this roster
+  ```
+
+  So the sweep's real worst case on this roster is 30,808 rather than 33,411, and a
+  typical one is nearer 20,000. Every latency number in this section was measured against
+  33,411 and is therefore conservative, which is the right direction to be wrong in.
+
+  The borrowable case is 259 x P where P is uma.moe's pool, which reports
+  `total: "over 10000"`, and P is the part that decides the architecture. Own-only is
+  therefore a first-class mode, not a degraded one.
 
   **THE SWEEP RUNS IN THE BROWSER. Decided 2026-09-21, and it replaces a server endpoint
   that was designed and never built.** The engine, the spark math and a JSON form of the

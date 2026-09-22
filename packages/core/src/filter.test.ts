@@ -4,6 +4,8 @@ import {
   filterVeterans,
   isLegalPair,
   isRequirement,
+  matchesPair,
+  starsInPair,
   matchesCriterion,
   maxStarsFor,
   pickBlock,
@@ -199,6 +201,84 @@ describe('several criteria at once', () => {
     const loose = criterion({ groupId: STAMINA, minStars: 1 });
     const strict = criterion({ groupId: STAMINA, minStars: 9 });
     expect(filterVeterans(roster, [loose, strict]).map((v) => v.index)).toEqual([0, 1]);
+  });
+});
+
+describe('matchesPair: what the six ancestors carry between them', () => {
+  // [the veteran itself, its slot 10, its slot 20].
+  const half = (stars: [number, number, number], index: number) => veteran(stars, { index });
+  const none = (index: number): ResolvedVeteran => ({
+    ...veteran([0, 0, 0], { index }),
+    sparks: [],
+  });
+
+  describe('the two halves sum', () => {
+    it('adds a pair holding 6 as 3+3', () => {
+      expect(starsInPair(half([3, 0, 0], 0), half([3, 0, 0], 1), STAMINA, 'package')).toBe(6);
+    });
+
+    it('adds a pair holding 6 as 6+0 to the same total', () => {
+      // Different propositions, identical total. The search ranks them apart by
+      // odds, not by refusing one of them here.
+      expect(starsInPair(half([3, 3, 0], 0), none(1), STAMINA, 'package')).toBe(6);
+    });
+
+    it('counts every member of both packages under the lineage scope', () => {
+      expect(starsInPair(half([3, 2, 1], 0), half([1, 2, 3], 1), STAMINA, 'package')).toBe(12);
+    });
+
+    it('counts only the two direct parents under the parent scope', () => {
+      // Slots 10 and 20. The grandparents' stars are real and simply not asked
+      // about here.
+      expect(starsInPair(half([3, 2, 1], 0), half([1, 2, 3], 1), STAMINA, 'parent')).toBe(4);
+    });
+  });
+
+  describe('a half that lacks the spark is a zero, not a failure', () => {
+    // The bug a pair predicate built out of `matchesCriterion` would have had.
+    it('accepts a threshold one half meets alone', () => {
+      expect(matchesPair(half([3, 3, 0], 0), none(1), criterion({ minStars: 6 }))).toBe(true);
+    });
+
+    it('accepts a threshold NEITHER half meets alone', () => {
+      const a = half([3, 0, 0], 0);
+      const b = half([3, 0, 0], 1);
+      const asked = criterion({ minStars: 6 });
+      expect(matchesCriterion(a, asked)).toBe(false);
+      expect(matchesCriterion(b, asked)).toBe(false);
+      // AND would have refused this pair; OR would have accepted a 3+0 one.
+      expect(matchesPair(a, b, asked)).toBe(true);
+    });
+
+    it('still refuses a pair where the spark is absent from both', () => {
+      expect(matchesPair(none(0), none(1), criterion({ minStars: 1 }))).toBe(false);
+    });
+  });
+
+  it('meets a threshold exactly, and misses it by one', () => {
+    const a = half([2, 1, 0], 0);
+    const b = half([1, 0, 0], 1);
+    expect(matchesPair(a, b, criterion({ minStars: 4 }))).toBe(true);
+    expect(matchesPair(a, b, criterion({ minStars: 5 }))).toBe(false);
+  });
+
+  it('is symmetric: a pair is unordered', () => {
+    const a = half([3, 1, 0], 0);
+    const b = half([0, 2, 1], 1);
+    const asked = criterion({ minStars: 7 });
+    expect(starsInPair(a, b, STAMINA, 'package')).toBe(starsInPair(b, a, STAMINA, 'package'));
+    expect(matchesPair(a, b, asked)).toBe(matchesPair(b, a, asked));
+  });
+
+  it('never reports more than the ceiling T3 offers for a pair', () => {
+    // Ties the predicate to the selector: the star control cannot express a
+    // threshold above `maxStarsFor(scope, 'pair')`, and this is why that is the
+    // right ceiling rather than a guess.
+    const maxed = half([3, 3, 3], 0);
+    const other = half([3, 3, 3], 1);
+    for (const scope of ['parent', 'package'] as const) {
+      expect(starsInPair(maxed, other, STAMINA, scope)).toBe(maxStarsFor(scope, 'pair'));
+    }
   });
 });
 

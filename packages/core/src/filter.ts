@@ -118,6 +118,55 @@ export function matchesCriterion(veteran: ResolvedVeteran, criterion: SparkCrite
 }
 
 /**
+ * Stars a PAIR carries for one spark, within one scope.
+ *
+ * The two halves SUM. That is the whole difference from `starsInScope`, and it
+ * is the difference the search exists for: a pair holding 6 Stamina as 3+3 has
+ * six of them, even though neither half alone has more than three.
+ *
+ * A HALF THAT LACKS THE SPARK CONTRIBUTES ZERO, NOT A FAILURE. This is where a
+ * pair predicate built out of `matchesCriterion` would have gone wrong in a way
+ * no type could catch: that function answers "does this ONE package meet the
+ * whole requirement" and returns false the moment the spark is absent. `&&` over
+ * two halves would demand each half meet the full threshold; `||` would accept a
+ * pair on one half's strength while ignoring the other's. Neither is the
+ * question. The question is what the six ancestors carry between them.
+ *
+ * Scope still decides which members of each half count, so on a pair `parent`
+ * reads slots 10 and 20 -- the two veterans themselves -- and `package` reads
+ * all six ancestors.
+ */
+export function starsInPair(
+  a: ResolvedVeteran,
+  b: ResolvedVeteran,
+  groupId: number,
+  scope: FilterScope,
+): number {
+  return starsInHalf(a, groupId, scope) + starsInHalf(b, groupId, scope);
+}
+
+const starsInHalf = (veteran: ResolvedVeteran, groupId: number, scope: FilterScope): number => {
+  const spark = veteran.sparks.find((s) => s.groupId === groupId);
+  return spark === undefined ? 0 : sum(starsInScope(spark, scope));
+};
+
+/**
+ * Does this PAIR satisfy one criterion?
+ *
+ * The sweep's per-criterion test, and the pair-shaped twin of
+ * `matchesCriterion`. Which criteria are even asked this question is
+ * `isRequirement`'s call, not this one's: a white that only ranks is still
+ * measured, it just does not exclude.
+ */
+export function matchesPair(
+  a: ResolvedVeteran,
+  b: ResolvedVeteran,
+  criterion: SparkCriterion,
+): boolean {
+  return starsInPair(a, b, criterion.groupId, criterion.scope) >= criterion.minStars;
+}
+
+/**
  * Every criterion must hold. AND, not OR, and that is the question people
  * actually ask: "who can give me the blue I need AND a decent pink". An OR over
  * the same rows is the weaker query you can already run by filtering one spark
