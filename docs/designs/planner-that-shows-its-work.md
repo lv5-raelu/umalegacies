@@ -1373,9 +1373,19 @@ raise them exist.
   the obstacle as "the difficulty in comparing and evaluating potential parent units"
   among their own units.
 
+  **The execution order lives in `m7-implementation.md`**, next to this file: what is built,
+  what is next, and the two places where that list has drifted from this design. This section
+  stays the source of truth for *what* and *why*; that one carries *when*.
+
   Still unresolved, and moved to `TODOS.md` rather than left here: uma.moe's rate limit
-  under real load, whether a veteran the user owns twice can fill both halves, per-veteran
-  affinity memoisation in the sweep, and a no-target "what should I breed" mode.
+  under real load, per-veteran affinity memoisation in the sweep, and a no-target "what
+  should I breed" mode.
+
+  **Whether a veteran the user owns twice can fill both halves was on that list and is now
+  answered: no.** 2,500 real inheritance records across 66 characters contain zero pairs
+  sharing a character and zero umas parented by their own character, against ~38 and ~75
+  expected under random pairing. `pickBlock`'s existing `charaId` comparison is correct and
+  the sweep's legality is unchanged. Working in `TODOS.md` #4.
 
 ## Open Questions
 
