@@ -212,6 +212,27 @@
   scrollbar-width: thin;
 }
 
+/*
+ * INSIDE A DIALOG THE LIST DOES NOT SCROLL ITSELF.
+ *
+ * `.oddsScroll` exists because the roster pane is a fixed-height column beside
+ * a moving list, and a pair's ~53 sparks would otherwise push the pair total
+ * off the top of the very thing the pane exists to hold still. A dialog has no
+ * such problem: it scrolls as one piece, and nothing in it is pinned.
+ *
+ * Nested scrollers here were actively harmful, not merely redundant.
+ * `overscroll-behavior: contain` stops the wheel chaining to the parent BY
+ * DESIGN, so once the inner list reached its top the dialog would not scroll
+ * back up -- and with 53 sparks that list covers the whole dialog, leaving
+ * nowhere else to put the pointer. Reported by the builder.
+ */
+.embedded .oddsScroll {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow-y: visible;
+  overscroll-behavior: auto;
+}
+
 .group {
   display: flex;
   flex-wrap: wrap;
