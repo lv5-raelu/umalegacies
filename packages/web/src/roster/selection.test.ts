@@ -74,6 +74,7 @@ describe('a selection restored from this browser', () => {
       traineeCardId: null,
       criteria: [{ groupId: STAMINA, minStars: 4, scope: 'package' }],
       searchCriteria: [],
+      pairFrom: 'list',
       picks: [own(1, 101401), own(2, 100901)],
     });
   });
@@ -307,6 +308,7 @@ describe('what gets written', () => {
       traineeCardId: 100601,
       criteria: [],
       searchCriteria: [],
+      pairFrom: 'list',
       picks: [own(1, 101401), own(2, 100901)],
     });
   });
@@ -358,6 +360,39 @@ describe('the two requirement lists are kept apart', () => {
     const asked = [{ groupId: STAMINA, minStars: 14, scope: 'package' }];
     const restored = restoreSelection(withBoth(asked, []), roster(), trainees);
     expect(restored.criteria).toEqual([]);
+  });
+
+  describe('the pair remembers which list found it', () => {
+    /*
+     * The tree and the compare pane highlight the requirements that produced
+     * the pair, not the roster list's. Without this a reload would switch the
+     * highlight underneath a reader sitting on "Show the working" after a
+     * search.
+     */
+    const withFrom = (pairFrom: unknown): CachedSelection =>
+      ({
+        version: CACHE_VERSION,
+        traineeCardId: null,
+        criteria: [],
+        searchCriteria: [],
+        pairFrom,
+        picks: [own(1, 101401), own(2, 100901)],
+      }) as unknown as CachedSelection;
+
+    it('keeps a pair found by searching', () => {
+      expect(restoreSelection(withFrom('search'), roster(), trainees).pairFrom).toBe('search');
+    });
+
+    it('keeps a pair picked from the list', () => {
+      expect(restoreSelection(withFrom('list'), roster(), trainees).pairFrom).toBe('list');
+    });
+
+    it.each([['missing', undefined], ['nonsense', 'tree'], ['not a string', 7]])(
+      'reads %s as the list, which is the screen a reload lands on',
+      (_label, stored) => {
+        expect(restoreSelection(withFrom(stored), roster(), trainees).pairFrom).toBe('list');
+      },
+    );
   });
 
   it('restores an empty search list from a record written before it existed', () => {

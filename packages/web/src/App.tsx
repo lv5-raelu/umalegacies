@@ -83,6 +83,21 @@ export function App() {
    */
   const [criteria, setCriteria] = useState<SparkCriterion[]>([]);
   const [searchCriteria, setSearchCriteria] = useState<SparkCriterion[]>([]);
+  /**
+   * WHICH LIST PRODUCED THE PAIR ON SCREEN.
+   *
+   * The two lists were separated because a pair-scoped requirement applied to
+   * single veterans emptied the roster list. That fixed the list and left the
+   * screens that EXPLAIN a pair reading the wrong one: the tree, reached by
+   * "Show the working" straight out of a search, highlighted the roster's
+   * requirements rather than the ones that found the pair.
+   *
+   * A discriminator rather than a third copy of the criteria. The highlight
+   * then follows the list it names, so editing the search's requirements
+   * updates a pair found by searching -- which is right, because the highlight
+   * says "what you are looking for", and the reader has just changed it.
+   */
+  const [pairFrom, setPairFrom] = useState<'list' | 'search'>('list');
   /** The pair, oldest first, at most two. See `ParentPick`. */
   const [picks, setPicks] = useState<ParentPick[]>([]);
   const [lineage, setLineage] = useState<LineageResponse | null>(null);
@@ -242,6 +257,7 @@ export function App() {
       setTraineeCardId(selection.traineeCardId);
       setCriteria(selection.criteria);
       setSearchCriteria(selection.searchCriteria);
+      setPairFrom(selection.pairFrom);
       setPicks(selection.picks);
       setRestoring(false);
 
@@ -337,6 +353,15 @@ export function App() {
     }
   }, []);
 
+  /**
+   * The requirements a pair is EXPLAINED against, wherever it is explained.
+   *
+   * The roster list keeps using `criteria` directly: it filters veterans, and
+   * that is the only list whose scope is a single package. Everything that
+   * shows a PAIR -- the compare pane, the tree -- reads this instead.
+   */
+  const pairCriteria = pairFrom === 'search' ? searchCriteria : criteria;
+
   const shown = useMemo(() => {
     if (!roster) return [];
     // Sorted HERE, not on the server: `index` joins a row back to the slimmed
@@ -389,6 +414,7 @@ export function App() {
       // card refusing its own click: a keyboard or a stale render must not be
       // able to compose a pair the game does not allow.
       if (pickBlock(veteran, pickedVeterans, trainee?.charaId ?? null) !== null) return;
+      setPairFrom('list');
       setPicks((current) => {
         if (current.some((p) => isOwnPickOf(p, index)))
           return current.filter((p) => !isOwnPickOf(p, index));
@@ -444,9 +470,10 @@ export function App() {
       traineeCardId,
       criteria: [...criteria],
       searchCriteria: [...searchCriteria],
+      pairFrom,
       picks: picksToCache(picks, roster),
     });
-  }, [restoring, roster, traineeCardId, criteria, searchCriteria, picks]);
+  }, [restoring, roster, traineeCardId, criteria, searchCriteria, pairFrom, picks]);
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
@@ -527,6 +554,7 @@ export function App() {
           const picked = [roster.veterans[a], roster.veterans[b]];
           if (picked[0] === undefined || picked[1] === undefined) return;
           setPicks([ownPick(picked[0]), ownPick(picked[1])]);
+          setPairFrom('search');
           /*
            * THE LINEAGE ARRIVES WITH THE PICK, which matters for the tree.
            *
@@ -555,7 +583,7 @@ export function App() {
     return (
       <TreePage
         lineage={lineage}
-        criteria={criteria}
+        criteria={pairCriteria}
         nav={<SiteNav current="#tree" targets={navTargets({ hasRoster: true, hasLineage: true })} />}
       />
     );
@@ -677,7 +705,7 @@ export function App() {
             <div className={styles.paneColumn}>
               <ComparePane
                 state={paneState(traineeCardId, picks, pairLoading, pairError, lineage)}
-                criteria={criteria}
+                criteria={pairCriteria}
                 sparkOptions={roster.sparkOptions}
                 pickedCount={picks.length}
                 onClearPicks={() => setPicks([])}

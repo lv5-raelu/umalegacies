@@ -47,6 +47,15 @@ export interface CachedSelection {
    */
   searchCriteria?: SparkCriterion[];
   /**
+   * WHICH list produced the pair, so the tree and the compare pane keep
+   * highlighting the requirements that found it across a reload.
+   *
+   * Absent on a record written before this existed, which restores as `list` --
+   * the roster is where a pair is picked by hand, and it is the screen a reload
+   * lands on.
+   */
+  pairFrom?: 'list' | 'search';
+  /**
    * The pair, in the SAME shape the app holds it in.
    *
    * There used to be a separate `CachedPick { index, cardId }`, because the
@@ -63,6 +72,7 @@ export interface Selection {
   traineeCardId: number | null;
   criteria: SparkCriterion[];
   searchCriteria: SparkCriterion[];
+  pairFrom: 'list' | 'search';
   /** The pair, oldest first, at most two. */
   picks: ParentPick[];
 }
@@ -71,6 +81,7 @@ export const EMPTY_SELECTION: Selection = {
   traineeCardId: null,
   criteria: [],
   searchCriteria: [],
+  pairFrom: 'list',
   picks: [],
 };
 
@@ -114,7 +125,10 @@ export function restoreSelection(
   const searchCriteria = restoreCriteria(record.searchCriteria, roster, 'pair');
   const picks = restorePicks(record.picks, roster, trainee?.charaId ?? null);
 
-  return { traineeCardId: trainee?.cardId ?? null, criteria, searchCriteria, picks };
+  // Anything but the one stored value restores as `list`, which is the safe
+  // reading: it highlights the requirements of the screen a reload lands on.
+  const pairFrom = record.pairFrom === 'search' ? 'search' : 'list';
+  return { traineeCardId: trainee?.cardId ?? null, criteria, searchCriteria, pairFrom, picks };
 }
 
 /**
