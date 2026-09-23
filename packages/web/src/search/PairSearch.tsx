@@ -496,6 +496,13 @@ const PairRow = memo(function PairRow({
  * be inherited: measured on this roster, parent Individual Affinity has median
  * 138 against a grandparent's 36.
  *
+ * ONE TREATMENT, NOT TWO. An earlier cut had a second, lighter style for the
+ * case where the parent holds the whole spark, and it made the mark look like
+ * it was saying different KINDS of thing on different chips -- especially
+ * beside `asked`, whose own lift changed the ground underneath it. A mark
+ * whose colour varies is read as a category; this is a quantity, so it gets one
+ * appearance and the number carries the difference.
+ *
  * Both marks can land on one chip, which is the common case for a filtered
  * spark, so neither may use the other's channel.
  */
@@ -508,14 +515,13 @@ function Chip({
 }) {
   const kind = row.kind as SparkKind;
   const onParent = row.onParent ?? 0;
-  const whole = onParent === row.stars;
   return (
     <span
       className={asked ? `${styles.chip} ${styles.chipAsked}` : styles.chip}
       title={
         onParent === 0
           ? `${row.name} ${row.stars}★, all of it on the grandparents`
-          : `${row.name} ${row.stars}★, ${whole ? 'all' : onParent} of it on the parent itself`
+          : `${row.name} ${row.stars}★, ${onParent}★ of it on the parent itself`
       }
     >
       <span
@@ -529,11 +535,8 @@ function Chip({
       <span className={styles.chipName}>{row.name}</span>
       <span className={styles.chipStars}>{row.stars}★</span>
       {onParent > 0 && (
-        <span
-          className={whole ? `${styles.onParent} ${styles.onParentWhole}` : styles.onParent}
-          aria-hidden="true"
-        >
-          {onParent}
+        <span className={styles.onParent} aria-hidden="true">
+          {onParent}★
         </span>
       )}
     </span>

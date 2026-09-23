@@ -737,44 +737,37 @@
  *
  * A SEPARATE CHANNEL FROM `.chipAsked`, because the two answer different
  * questions and land on the same chip constantly. "Asked" lifts the chip's
- * whole ground, since it is a fact about the chip. This is a fact about part of
- * the NUMBER, so it is a segment attached to the number: a small square sharing
- * the chip's right edge, reading as a footnote to the star count rather than as
- * a second star count.
+ * whole ground, being a fact about the chip. This is a fact about part of the
+ * NUMBER, so it is a segment attached to the number.
  *
- * Achromatic on purpose. DESIGN.md spends colour on category -- a spark's hue
- * is its kind and nothing else -- and this is a quantity, not a kind. It
- * separates by weight and by having a box at all.
+ * ONE APPEARANCE, FIXED, whatever the chip around it is doing. It first had a
+ * second style for "the parent holds all of it" and took its ground from the
+ * chip, so the same mark looked like two different marks depending on whether
+ * the spark was filtered. A mark that changes colour is read as changing
+ * CATEGORY, and this is a quantity: the number already says how much, so the
+ * styling must not also try to.
+ *
+ * ACHROMATIC, AND THAT IS NOT A COMPROMISE. DESIGN.md: "Don't add a second
+ * accent. Amber means added; that is the whole accent budget." So loudness
+ * comes from contrast instead -- full ink on `rule-strong`, which separates
+ * from both the row's surface and a lifted chip's, rather than from a hue that
+ * would claim to be a category.
+ *
+ * It carries its own star, because the number beside it does: `8★` then `3★`
+ * reads as two measurements of one spark, where `8★` then a bare `3` invites
+ * the reader to work out what the second number counts.
+ *
+ * Round, to rhyme with the portraits: the head of each half is a round parent
+ * above two smaller round grandparents, so a round mark beside a star count
+ * reads as "on the big one" without needing a legend.
  */
 .onParent {
   font-family: var(--font-data);
   font-size: var(--text-3xs);
   line-height: 1;
-  color: var(--ink-muted);
-  background: var(--paper);
-  /*
-   * ROUND, TO RHYME WITH THE FACE IT IS ABOUT.
-   *
-   * DESIGN.md reserves `radius-full` for portraits, and that is the point: the
-   * head of each half is a round portrait of the parent with two smaller round
-   * grandparents beneath it, so a round mark beside a star count reads as "on
-   * the big one" rather than needing a legend. A rounded RECTANGLE would just
-   * be a second kind of chip.
-   */
-  border-radius: var(--radius-full);
-  min-width: 14px;
-  text-align: center;
-  padding: 1px 4px;
-  margin-left: 2px;
-}
-
-/*
- * The parent holds ALL of them, which is the strongest version of this fact:
- * nothing is hiding a generation away, and what the player selects in the game
- * carries the whole thing. Ink rather than muted, and no more than that -- it
- * is emphasis inside an achromatic mark, not a third colour.
- */
-.onParentWhole {
   color: var(--ink);
-  background: var(--rule);
+  background: var(--rule-strong);
+  border-radius: var(--radius-full);
+  padding: 1px 5px;
+  margin-left: 2px;
 }
