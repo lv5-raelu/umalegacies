@@ -40,31 +40,46 @@ export function TreePage({
   const [spark, setSpark] = useState<SparkSummaryRow | null>(null);
 
   /*
-   * CLICKING A SPARK SCROLLS TO WHAT IT OPENED.
+   * OPENING SOMETHING SCROLLS TO WHAT IT OPENED.
    *
-   * The provenance sits ABOVE the audit trail, and the trail is ~50 rows deep,
-   * so choosing a spark two thirds of the way down put its explanation off the
-   * top of the screen. The click looked like it had done nothing.
+   * One region shows the explanation for whatever was last clicked, and it sits
+   * between the tree and the audit trail -- so both things that fill it can
+   * leave it off screen. A spark two thirds down a ~50-row trail puts it off the
+   * top; a node low in the tree puts it below the fold. Either way the click
+   * looked like it had done nothing.
    *
-   * `block: 'nearest'` rather than `'start'`: it moves the least it can, which
-   * means it does nothing at all when the provenance is already on screen. A
-   * reader comparing two sparks near the top of the table should not have the
-   * page jump under them for a change they can already see.
+   * NODES WERE LEFT OUT OF THIS AT FIRST, on the reasoning that the node is
+   * right above the region it fills. The tree is tall enough that it often is
+   * not, which is why they are here now.
    *
-   * ONLY ON SELECTING. Clicking the open spark again closes it, and yanking the
-   * page somewhere on the way out would punish the reader for undoing
-   * something. Selecting a tree NODE also fills this region, and is left alone
-   * for the same reason: the node they clicked is right there above it.
+   * `block: 'nearest'` rather than `'start'`: it moves the least it can, so it
+   * does nothing at all when the region is already on screen. A reader
+   * comparing two sparks near the top of the table should not have the page
+   * jump under them for a change they can already see.
+   *
+   * CLOSING IS NOT OPENING. Clicking the open spark again closes it and falls
+   * back to whatever the tree has selected, which is a change of content but
+   * not a request to go and look at anything. Yanking the page there would
+   * punish the reader for undoing something.
    */
   const provenance = useRef<HTMLDivElement>(null);
+  const shown = useRef<{ spark: number | null; selection: Selection } | null>(null);
   useEffect(() => {
-    if (spark === null) return;
+    const previous = shown.current;
+    shown.current = { spark: spark?.groupId ?? null, selection };
+    // Nothing was clicked to get here; this is the first paint.
+    if (previous === null) return;
+
+    const openedSpark = spark !== null && spark.groupId !== previous.spark;
+    const movedInTree = selection !== previous.selection;
+    if (!openedSpark && !movedInTree) return;
+
     // `prefers-reduced-motion` is honoured in JS because it has to be: the
     // stylesheet's blanket rule covers CSS animation and transition, and a
     // smooth scroll is neither.
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     provenance.current?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'nearest' });
-  }, [spark]);
+  }, [spark, selection]);
 
   const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
 
