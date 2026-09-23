@@ -23,7 +23,28 @@ export const MAX_STARS_PER_UMA = 3;
 const SCOPE_MEMBERS: Readonly<Record<FilterScope, readonly number[]>> = {
   package: [0, 1, 2],
   parent: [0],
+  'one-parent': [0],
 };
+
+/**
+ * How a scope's members combine, and how the two halves of a pair combine.
+ *
+ * ONE ANSWER FOR BOTH, deliberately. `package` and `parent` add up, within a
+ * half and across the pair. `one-parent` takes the better, within a half and
+ * across the pair -- which on a pair means the better of the two direct
+ * parents, and is the whole reason the scope exists: summing cannot ask for
+ * three stars on a SINGLE uma, because 3+0 and 2+1 look identical to it.
+ */
+const SCOPE_COMBINE: Readonly<Record<FilterScope, 'sum' | 'max'>> = {
+  package: 'sum',
+  parent: 'sum',
+  'one-parent': 'max',
+};
+
+const combine = (scope: FilterScope, values: readonly number[]): number =>
+  SCOPE_COMBINE[scope] === 'max'
+    ? values.reduce((best, n) => (n > best ? n : best), 0)
+    : values.reduce((total, n) => total + n, 0);
 
 /**
  * What a criterion is being asked about: ONE veteran's package, or a PAIR of
@@ -63,8 +84,13 @@ const SUBJECT_HALVES: Readonly<Record<StarSubject, number>> = {
  * nothing on screen to say so. A default would make that a runtime bug; a
  * required argument makes it `TS2554` at the call site.
  */
-export const maxStarsFor = (scope: FilterScope, subject: StarSubject): number =>
-  SCOPE_MEMBERS[scope].length * MAX_STARS_PER_UMA * SUBJECT_HALVES[subject];
+export const maxStarsFor = (scope: FilterScope, subject: StarSubject): number => {
+  const perHalf = SCOPE_MEMBERS[scope].length * MAX_STARS_PER_UMA;
+  // A `max` scope does not grow with the subject: the better of two parents is
+  // still one uma, and one uma carries three stars of a spark at most. Only a
+  // summing scope doubles when the subject is a pair.
+  return SCOPE_COMBINE[scope] === 'max' ? perHalf : perHalf * SUBJECT_HALVES[subject];
+};
 
 /**
  * Does this criterion have to be MET, or does it only rank?
@@ -114,7 +140,7 @@ export function starsInScope(spark: PackageSpark, scope: FilterScope): number[] 
 export function matchesCriterion(veteran: ResolvedVeteran, criterion: SparkCriterion): boolean {
   const spark = veteran.sparks.find((s) => s.groupId === criterion.groupId);
   if (!spark) return false;
-  return sum(starsInScope(spark, criterion.scope)) >= criterion.minStars;
+  return combine(criterion.scope, starsInScope(spark, criterion.scope)) >= criterion.minStars;
 }
 
 /**
@@ -142,12 +168,12 @@ export function starsInPair(
   groupId: number,
   scope: FilterScope,
 ): number {
-  return starsInHalf(a, groupId, scope) + starsInHalf(b, groupId, scope);
+  return combine(scope, [starsInHalf(a, groupId, scope), starsInHalf(b, groupId, scope)]);
 }
 
 const starsInHalf = (veteran: ResolvedVeteran, groupId: number, scope: FilterScope): number => {
   const spark = veteran.sparks.find((s) => s.groupId === groupId);
-  return spark === undefined ? 0 : sum(starsInScope(spark, scope));
+  return spark === undefined ? 0 : combine(scope, starsInScope(spark, scope));
 };
 
 /**
@@ -203,7 +229,6 @@ export const filterVeterans = (
     ? [...veterans]
     : veterans.filter((v) => criteria.every((c) => matchesCriterion(v, c)));
 
-const sum = (ns: readonly number[]): number => ns.reduce((total, n) => total + n, 0);
 
 /**
  * WHAT THE PAIR WILL NOT ACCEPT, in one place.

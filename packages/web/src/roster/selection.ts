@@ -74,7 +74,16 @@ export const EMPTY_SELECTION: Selection = {
   picks: [],
 };
 
-const SCOPES: readonly FilterScope[] = ['package', 'parent'];
+/**
+ * Every scope a stored criterion may name.
+ *
+ * `one-parent` is offered only by the SEARCH's control, but it is accepted from
+ * either list here: refusing it on the roster list would silently drop a
+ * criterion rather than answer it, and on a package it is simply equal to
+ * `parent` -- the direct-parent scope is one uma, so the better of them and the
+ * sum of them are the same number.
+ */
+const SCOPES: readonly FilterScope[] = ['package', 'parent', 'one-parent'];
 
 /**
  * Whatever was stored, reduced to the part that is still true.

@@ -716,58 +716,65 @@
 }
 
 /*
- * THE PICK CONTROL, WHICH IS THE ORDINAL'S CELL.
+ * THE WHOLE ROW IS THE CONTROL.
  *
- * The whole row is the thing you choose, so the control has to feel like the
- * whole row rather than a button parked in it. It occupies the ordinal's grid
- * cell and keeps that cell's rule, so nothing moves when it appears; the word
- * "pick" replaces the number on hover and focus, which is the only moment the
- * reader is asking "how do I take this one".
+ * The card already reads as one thing; this only makes it say so on hover and
+ * answer a keyboard. `:focus-visible` rather than `:focus`, so choosing with
+ * the mouse does not leave a ring behind on the row you just left.
  */
-.pick {
-  grid-row: 1 / span 2;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: flex-start;
-  gap: var(--space-hair);
-  padding: var(--space-hair) var(--space-sm) 0 0;
-  border: 0;
-  border-right: 1px solid var(--rule);
-  background: none;
+.row[role='button'] {
   cursor: pointer;
-  font: inherit;
-  color: inherit;
 }
 
-/* `.ordinal` keeps its own type; the button only positions it. */
-.pick .ordinal {
-  padding: 0;
-  border: 0;
-  grid-row: auto;
+.row[role='button']:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  border-color: var(--rule-strong);
 }
 
-.pickLabel {
+/*
+ * HOW MANY OF THESE STARS ARE ON THE PARENT ITSELF.
+ *
+ * A SEPARATE CHANNEL FROM `.chipAsked`, because the two answer different
+ * questions and land on the same chip constantly. "Asked" lifts the chip's
+ * whole ground, since it is a fact about the chip. This is a fact about part of
+ * the NUMBER, so it is a segment attached to the number: a small square sharing
+ * the chip's right edge, reading as a footnote to the star count rather than as
+ * a second star count.
+ *
+ * Achromatic on purpose. DESIGN.md spends colour on category -- a spark's hue
+ * is its kind and nothing else -- and this is a quantity, not a kind. It
+ * separates by weight and by having a box at all.
+ */
+.onParent {
   font-family: var(--font-data);
   font-size: var(--text-3xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--primary);
-  opacity: 0;
+  line-height: 1;
+  color: var(--ink-muted);
+  background: var(--paper);
+  /*
+   * ROUND, TO RHYME WITH THE FACE IT IS ABOUT.
+   *
+   * DESIGN.md reserves `radius-full` for portraits, and that is the point: the
+   * head of each half is a round portrait of the parent with two smaller round
+   * grandparents beneath it, so a round mark beside a star count reads as "on
+   * the big one" rather than needing a legend. A rounded RECTANGLE would just
+   * be a second kind of chip.
+   */
+  border-radius: var(--radius-full);
+  min-width: 14px;
+  text-align: center;
+  padding: 1px 4px;
+  margin-left: 2px;
 }
 
-.pick:hover .pickLabel,
-.pick:focus-visible .pickLabel {
-  opacity: 1;
-}
-
-.pick:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-}
-
-.row:has(.pick:hover),
-.row:has(.pick:focus-visible) {
-  border-color: var(--rule-strong);
+/*
+ * The parent holds ALL of them, which is the strongest version of this fact:
+ * nothing is hiding a generation away, and what the player selects in the game
+ * carries the whole thing. Ink rather than muted, and no more than that -- it
+ * is emphasis inside an achromatic mark, not a third colour.
+ */
+.onParentWhole {
+  color: var(--ink);
+  background: var(--rule);
 }

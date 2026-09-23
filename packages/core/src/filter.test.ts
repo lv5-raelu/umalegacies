@@ -89,6 +89,10 @@ describe('the ceiling a scope can hold', () => {
     ['package', 'package', 9],
     ['parent', 'pair', 6],
     ['package', 'pair', 18],
+    // A `max` scope does not double for a pair: the better of two parents is
+    // still one uma, and one uma carries three stars of a spark at most.
+    ['one-parent', 'package', 3],
+    ['one-parent', 'pair', 3],
   ] as const)('%s scope on a %s caps at %i stars', (scope, subject, expected) => {
     expect(maxStarsFor(scope, subject)).toBe(expected);
   });
@@ -99,9 +103,14 @@ describe('the ceiling a scope can hold', () => {
     expect(maxStarsFor(scope, 'pair')).toBe(maxStarsFor(scope, 'package') * 2);
   });
 
+  it('does not double the one-parent scope, because it is a maximum', () => {
+    expect(maxStarsFor('one-parent', 'pair')).toBe(maxStarsFor('one-parent', 'package'));
+  });
+
   // The design doc calls conflating the two a correctness trap, so the trap is
   // pinned: these must never be the same number.
   it('never reads the same ceiling for a package and a pair', () => {
+    // Summing scopes only: `one-parent` is the same number on both by design.
     for (const scope of ['parent', 'package'] as const) {
       expect(maxStarsFor(scope, 'package')).not.toBe(maxStarsFor(scope, 'pair'));
     }
@@ -279,6 +288,59 @@ describe('matchesPair: what the six ancestors carry between them', () => {
     for (const scope of ['parent', 'package'] as const) {
       expect(starsInPair(maxed, other, STAMINA, scope)).toBe(maxStarsFor(scope, 'pair'));
     }
+  });
+});
+
+describe('one-parent: the scope a sum cannot express', () => {
+  const half = (stars: [number, number, number], index: number) => veteran(stars, { index });
+  const asked = (minStars: number): SparkCriterion =>
+    criterion({ minStars, scope: 'one-parent' });
+
+  it('reads the BETTER parent, not the two added together', () => {
+    // THE WHOLE POINT. `parent` sees 3+0 and 2+1 as the same six-uma answer.
+    // They are not: one pair has a parent carrying three stars and the other
+    // has neither parent carrying more than two.
+    const lopsided = starsInPair(half([3, 0, 0], 0), half([0, 0, 0], 1), STAMINA, 'one-parent');
+    const even = starsInPair(half([2, 0, 0], 0), half([1, 0, 0], 1), STAMINA, 'one-parent');
+    expect(lopsided).toBe(3);
+    expect(even).toBe(2);
+    // `parent` cannot tell them apart.
+    expect(starsInPair(half([3, 0, 0], 0), half([0, 0, 0], 1), STAMINA, 'parent')).toBe(3);
+    expect(starsInPair(half([2, 0, 0], 0), half([1, 0, 0], 1), STAMINA, 'parent')).toBe(3);
+  });
+
+  it('accepts a pair where one parent carries the lot', () => {
+    expect(matchesPair(half([3, 0, 0], 0), half([0, 0, 0], 1), asked(3))).toBe(true);
+  });
+
+  it('refuses a pair that only reaches the threshold by adding them up', () => {
+    // The builder's case in miniature: "3 End Closer on ONE parent" must not be
+    // satisfied by two parents carrying two and one.
+    expect(matchesPair(half([2, 0, 0], 0), half([1, 0, 0], 1), asked(3))).toBe(false);
+    expect(matchesPair(half([2, 0, 0], 0), half([1, 0, 0], 1), criterion({ minStars: 3 }))).toBe(
+      true,
+    );
+  });
+
+  it('ignores the grandparents entirely', () => {
+    // Six stars sit on this pair, all of them one generation too far away.
+    expect(matchesPair(half([0, 3, 3], 0), half([0, 3, 3], 1), asked(1))).toBe(false);
+  });
+
+  it('is symmetric, because a pair is unordered', () => {
+    const a = half([3, 0, 0], 0);
+    const b = half([1, 0, 0], 1);
+    expect(starsInPair(a, b, STAMINA, 'one-parent')).toBe(starsInPair(b, a, STAMINA, 'one-parent'));
+  });
+
+  it('means the same as `parent` on a single package', () => {
+    // A package has ONE direct parent, so the better of them and the sum of
+    // them are the same uma. The control does not offer the choice there.
+    const one = veteran([2, 3, 3], { index: 0 });
+    expect(matchesCriterion(one, asked(2))).toBe(true);
+    expect(matchesCriterion(one, asked(3))).toBe(false);
+    expect(matchesCriterion(one, criterion({ minStars: 2, scope: 'parent' }))).toBe(true);
+    expect(matchesCriterion(one, criterion({ minStars: 3, scope: 'parent' }))).toBe(false);
   });
 });
 

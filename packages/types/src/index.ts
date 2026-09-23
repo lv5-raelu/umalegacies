@@ -413,19 +413,34 @@ export interface RosterResolveResponse {
 }
 
 /**
- * Which members of a package a criterion looks at.
+ * Which members a criterion looks at, and how their stars combine.
  *
- * TWO SCOPES, not three. A grandparents-only scope existed and was removed:
- * with several criteria available, "3 on the parent AND 5 across the lineage"
- * already pins two stars onto the grandparents, so the third scope only
- * duplicated what a pair of rows says more precisely.
+ * Why the direct parents are worth their own scopes: a parent's spark is far
+ * likelier to be inherited than a grandparent's. Measured across the builder's
+ * roster, parent Individual Affinity has median 138 against a grandparent
+ * median of 36, and the activation rate is base x (1 + IA/100).
  *
- * Why the direct parent is worth its own scope: a parent's spark is far likelier
- * to be inherited than a grandparent's. Measured across the builder's roster,
- * parent Individual Affinity has median 138 against a grandparent median of 36,
- * and the activation rate is base x (1 + IA/100).
+ * - `package` -- every member, SUMMED. Three umas for a veteran, six for a
+ *   pair, so it caps at 9 and 18.
+ * - `parent` -- the direct parents, SUMMED. One uma for a veteran and two for
+ *   a pair, so it caps at 3 and 6. On a pair this is "across BOTH parents":
+ *   4 stars of Medium is satisfied by 2 + 2 as readily as by 4 + 0.
+ * - `one-parent` -- the direct parents, and the BETTER of them. Caps at 3
+ *   whatever the subject, because one uma can carry three stars of a spark and
+ *   no more.
+ *
+ * `one-parent` IS NOT A SUM, AND THAT IS WHY IT EXISTS. Every other scope adds
+ * its members up, so none of them can ask "at least 3 of these on a SINGLE
+ * uma" -- `parent` reads 3+0 and 2+1 as the same answer and they are not. The
+ * builder's case: three stars of End Closer on one parent and three of Medium
+ * on the other, which a pair of summing criteria cannot express.
+ *
+ * A grandparents-only scope existed once and was removed, because "3 on the
+ * parent AND 5 across the lineage" already pins two stars onto the
+ * grandparents. That reasoning does not reach this one: no combination of
+ * summing rows says "on one uma".
  */
-export type FilterScope = 'package' | 'parent';
+export type FilterScope = 'package' | 'parent' | 'one-parent';
 
 export interface SparkCriterion {
   groupId: number;

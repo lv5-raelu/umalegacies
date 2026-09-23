@@ -3,9 +3,28 @@ import { isWhite, isRequirement, maxStarsFor, type StarSubject } from '@umalegac
 import { SparkPicker } from './SparkPicker';
 import styles from './Controls.module.css';
 
-const SCOPE_LABEL: Readonly<Record<FilterScope, string>> = {
-  package: 'across the lineage',
-  parent: 'on the parent',
+/**
+ * WHAT A SCOPE IS CALLED DEPENDS ON WHAT IT IS ABOUT.
+ *
+ * `parent` reads one uma on the roster list and BOTH direct parents in the
+ * search, so one label cannot be honest on both screens: "on the parent" in a
+ * pair search describes a sum over two umas and reads like a claim about one.
+ *
+ * `one-parent` is offered in the search ONLY. On a package the direct-parent
+ * scope is a single uma, so "the better of them" and "the sum of them" are the
+ * same number, and a control offering two options that cannot differ is a
+ * control that lies.
+ */
+const SCOPE_LABEL: Readonly<Record<StarSubject, Readonly<Partial<Record<FilterScope, string>>>>> = {
+  package: {
+    package: 'across the lineage',
+    parent: 'on the parent',
+  },
+  pair: {
+    package: 'across the lineage',
+    parent: 'across both parents',
+    'one-parent': 'on one parent',
+  },
 };
 
 /**
@@ -133,9 +152,9 @@ export function SparkFilter({
             aria-label="where the stars must be"
             onChange={(e) => rescope(at, e.target.value as FilterScope)}
           >
-            {(Object.keys(SCOPE_LABEL) as FilterScope[]).map((scope) => (
+            {(Object.keys(SCOPE_LABEL[subject]) as FilterScope[]).map((scope) => (
               <option key={scope} value={scope}>
-                {SCOPE_LABEL[scope]}
+                {SCOPE_LABEL[subject][scope]}
               </option>
             ))}
           </select>

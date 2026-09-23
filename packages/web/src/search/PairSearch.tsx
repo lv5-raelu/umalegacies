@@ -341,27 +341,36 @@ const PairRow = memo(function PairRow({
 
   /*
    * THE WHOLE ROW IS THE CONTROL, because the whole row is the thing you pick.
-   * A "choose" button in a corner would make the card look like a container of
-   * one actionable thing rather than one actionable thing, and it is already
-   * established here that the PAIR is the entity you point at.
    *
-   * A `button` rather than a click handler on the article: this has to be
-   * reachable and operable from a keyboard, and the eighty of them have to be
-   * tabbable in reading order. `display: contents` keeps the grid intact --
-   * the button is the card, so it must not introduce a box between the card and
-   * its columns.
+   * An earlier cut put a `button` in the ordinal's cell, which made the card
+   * look like a container holding one actionable thing rather than being the
+   * actionable thing. It is already settled here that the PAIR is the entity
+   * you point at, so the pair is what you click.
+   *
+   * `role="button"` and a key handler on the article rather than wrapping it in
+   * a real `<button>`: the row is a five-column grid holding portraits, chips
+   * and two more grids, and a button element cannot contain that markup
+   * legally. What a button gives for free is added back by hand -- `tabIndex`
+   * so all eighty are reachable in reading order, Enter and Space because a
+   * button responds to both, and `preventDefault` on Space so the page does not
+   * scroll out from under the row being chosen.
    */
+  const choose = (): void => onPick(row.a.index, row.b.index);
+
   return (
-    <article className={styles.row}>
-      <button
-        type="button"
-        className={styles.pick}
-        onClick={() => onPick(row.a.index, row.b.index)}
-        title={`Pick ${row.a.self.name} and ${row.b.self.name} as the parents`}
-      >
-        <span className={styles.ordinal}>{at}</span>
-        <span className={styles.pickLabel}>pick</span>
-      </button>
+    <article
+      className={styles.row}
+      role="button"
+      tabIndex={0}
+      aria-label={`Pick ${row.a.self.name} and ${row.b.self.name} as the parents`}
+      onClick={choose}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        choose();
+      }}
+    >
+      <span className={styles.ordinal}>{at}</span>
 
       <Half veteran={row.a} slot="A" catalogue={catalogue} asked={asked} />
       <span className={styles.times} aria-hidden="true">
@@ -468,18 +477,46 @@ const PairRow = memo(function PairRow({
 });
 
 /** One spark on one half. No percentage: the odds belong to the PAIR. */
+/**
+ * TWO MARKS, AND THEY MEAN DIFFERENT THINGS.
+ *
+ * `asked` says the reader ASKED for this spark: it is one of the criteria, and
+ * the mark is the chip's own ground lifting, because it is a statement about
+ * the whole chip.
+ *
+ * `onParent` says how many of these stars sit on the direct parent rather than
+ * on a grandparent, and it is a statement about part of the number -- so it is
+ * a separate segment inside the chip, not a treatment of the chip.
+ *
+ * Why it is worth the room. A player reading a result has to go and pick this
+ * uma in the game, and what they select is the PARENT; the grandparents come
+ * with it. "6 stars of Medium" where the parent holds 2 and "3 stars of Uma
+ * Stan" where the parent holds all 3 are different propositions, and the total
+ * alone cannot tell them apart. The parent's share is also the likelier half to
+ * be inherited: measured on this roster, parent Individual Affinity has median
+ * 138 against a grandparent's 36.
+ *
+ * Both marks can land on one chip, which is the common case for a filtered
+ * spark, so neither may use the other's channel.
+ */
 function Chip({
   row,
   asked = false,
 }: {
-  row: { groupId: number; stars: number; name?: string; kind?: SparkKind };
+  row: { groupId: number; stars: number; onParent?: number; name?: string; kind?: SparkKind };
   asked?: boolean;
 }) {
   const kind = row.kind as SparkKind;
+  const onParent = row.onParent ?? 0;
+  const whole = onParent === row.stars;
   return (
     <span
       className={asked ? `${styles.chip} ${styles.chipAsked}` : styles.chip}
-      title={`${row.name} ${row.stars}★`}
+      title={
+        onParent === 0
+          ? `${row.name} ${row.stars}★, all of it on the grandparents`
+          : `${row.name} ${row.stars}★, ${whole ? 'all' : onParent} of it on the parent itself`
+      }
     >
       <span
         className={styles.tick}
@@ -491,6 +528,14 @@ function Chip({
       />
       <span className={styles.chipName}>{row.name}</span>
       <span className={styles.chipStars}>{row.stars}★</span>
+      {onParent > 0 && (
+        <span
+          className={whole ? `${styles.onParent} ${styles.onParentWhole}` : styles.onParent}
+          aria-hidden="true"
+        >
+          {onParent}
+        </span>
+      )}
     </span>
   );
 }
@@ -528,6 +573,13 @@ function Half({
     .map((s) => ({
       groupId: s.groupId,
       stars: s.stars.reduce((sum, n) => sum + (n ?? 0), 0),
+      // `stars` is [self, slot 10, slot 20], and in a PAIR this veteran IS the
+      // direct parent. So index 0 is the share that sits one generation closer
+      // than the rest, which is the share that matters most twice over: it is
+      // far likelier to be inherited (parent IA median 138 against a
+      // grandparent's 36) and it is the uma the player actually has to select
+      // in the game.
+      onParent: s.stars[0] ?? 0,
       name: catalogue.get(s.groupId)?.name,
       kind: catalogue.get(s.groupId)?.kind,
     }))
