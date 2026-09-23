@@ -180,6 +180,7 @@ export function ComparePane({
           sparkOptions={sparkOptions}
           view={view}
           onView={setView}
+          embedded={embedded}
           onOpenTree={onOpenTree}
         />
       )}
@@ -193,6 +194,7 @@ function Result({
   sparkOptions,
   view,
   onView,
+  embedded,
   onOpenTree,
 }: {
   lineage: LineageResponse;
@@ -200,6 +202,8 @@ function Result({
   sparkOptions: readonly RosterSparkOption[];
   view: OddsView;
   onView: (view: OddsView) => void;
+  /** The dialog puts this button in its own action bar; see below. */
+  embedded: boolean;
   onOpenTree: () => void;
 }) {
   const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
@@ -343,9 +347,15 @@ function Result({
         </div>
       </div>
 
-      <button type="button" className={styles.open} onClick={onOpenTree}>
-        Show breakdown
-      </button>
+      {/* NOT INSIDE THE DIALOG, which carries this as its own action, pinned
+          below the scrolling content. Rendering it here as well put the same
+          button twice on one surface, once halfway down a scroll and once at
+          the bottom. */}
+      {!embedded && (
+        <button type="button" className={styles.open} onClick={onOpenTree}>
+          Show breakdown
+        </button>
+      )}
     </>
   );
 }

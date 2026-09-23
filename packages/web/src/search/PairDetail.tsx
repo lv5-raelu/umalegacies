@@ -94,15 +94,16 @@ export function PairDetail({
   sparkOptions: readonly RosterSparkOption[];
   onClose: () => void;
   /**
-   * Take this pair, and go where the reader asked.
+   * Take this pair and open its breakdown.
    *
-   * ONE CALLBACK, TWO DESTINATIONS, because the two buttons differ only in
-   * where you land -- both commit the pair. They were briefly the SAME
-   * callback, which is how "Show breakdown" came to open the roster: it was
-   * wired to the use-this-pair handler while the layout was being chosen, and
-   * never given its own destination.
+   * ONE ACTION, NOT TWO. There was a "Use this pair" beside this that committed
+   * the pair and returned to the roster. It went on the builder's call: the
+   * reason to open a result is to read it, and the breakdown is where it is
+   * read. The pair is still committed either way, so the roster has it -- with
+   * both halves pinned to the top of the list -- whenever the reader goes
+   * there.
    */
-  onChoose: (destination: 'roster' | 'tree') => void;
+  onChoose: () => void;
 }) {
   const shell = useRef<HTMLDivElement>(null);
 
@@ -149,13 +150,13 @@ export function PairDetail({
           pickedCount={2}
           embedded
           onClearPicks={onClose}
-          onOpenTree={() => onChoose('tree')}
+          onOpenTree={onChoose}
         />
       </div>
 
       <div className={styles.actions}>
-        <button type="button" className={styles.use} onClick={() => onChoose('roster')}>
-          Use this pair
+        <button type="button" className={styles.use} onClick={onChoose}>
+          Show breakdown
         </button>
       </div>
     </div>

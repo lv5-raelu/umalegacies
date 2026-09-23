@@ -760,3 +760,60 @@
   padding: 1px 5px;
   margin-left: 2px;
 }
+
+/*
+ * WHERE A SEARCH IS ASKED FOR.
+ *
+ * Under the requirements rather than over the results, because it acts on the
+ * former and replaces the latter. The hint only appears while the two disagree,
+ * so the row is one button wide in the state it spends most of its time in.
+ */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-snug);
+  margin-top: var(--space-snug);
+}
+
+/*
+ * DESIGN.md: interaction is achromatic, and primary is ink on paper. The two
+ * states differ by WEIGHT, not hue -- offering a search the reader has not run
+ * is the primary act on this screen, running the same one again is not.
+ */
+.searchNow,
+.searchAgain {
+  font: inherit;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.searchNow {
+  border: 0;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.searchNow:hover,
+.searchNow:focus-visible {
+  background: var(--primary-hover);
+}
+
+.searchAgain {
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--ink-muted);
+}
+
+.searchAgain:hover,
+.searchAgain:focus-visible {
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+/* Says what the stale results below are, so the disagreement is stated rather
+   than left for the reader to notice. */
+.searchHint {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+}

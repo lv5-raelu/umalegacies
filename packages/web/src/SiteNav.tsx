@@ -9,8 +9,8 @@ import styles from './SiteNav.module.css';
  * roster but not the search, and nothing told the reader how many screens there
  * were or which one they were on. Three ad-hoc exits are not navigation.
  *
- * A ROUTE THE READER CANNOT USE IS SHOWN, NOT HIDDEN, and says why. "Find a
- * pair" before a roster is loaded and "Breakdown" before a pair is picked are
+ * A ROUTE THE READER CANNOT USE IS SHOWN, NOT HIDDEN, and says why. "Optimize
+ * Parents" before a roster is loaded and "Breakdown" before a pair is picked are
  * both preconditions rather than absences, and a menu that grows items as you
  * go gives no sense of the whole. They are `aria-disabled` and titled with what
  * is missing -- the same treatment the roster list already gives a veteran that
@@ -74,7 +74,7 @@ export function navTargets({
     { hash: '', label: 'Roster', blocked: null },
     {
       hash: '#search',
-      label: 'Find a pair',
+      label: 'Optimize Parents',
       blocked: hasRoster ? null : 'Load your veteran data first',
     },
     {

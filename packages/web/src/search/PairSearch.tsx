@@ -82,13 +82,8 @@ export function PairSearch({
   onTrainee: (cardId: number) => void;
   onCriteria: (next: SparkCriterion[]) => void;
   onShowMore: () => void;
-  /** Take this pair, picked, to whichever screen was asked for. */
-  onPick: (
-    a: number,
-    b: number,
-    lineage: LineageResponse | null,
-    destination: 'roster' | 'tree',
-  ) => void;
+  /** Take this pair, picked, to its breakdown. */
+  onPick: (a: number, b: number, lineage: LineageResponse | null) => void;
   /**
    * Rendered by `App`, which is the only place that knows whether the OTHER
    * screens are reachable. A screen that worked out its own navigation could
@@ -103,6 +98,24 @@ export function PairSearch({
 
   /** The row being inspected, or null. Inspecting does NOT change the app's pair. */
   const [inspecting, setInspecting] = useState<PairRowData | null>(null);
+
+  /*
+   * THE REQUIREMENTS THE RESULTS BELOW ARE ABOUT, which is not the same list as
+   * the one in the control above.
+   *
+   * The sweep used to re-run on every edit. Adding four requirements meant four
+   * sweeps, three of them about a question nobody had finished asking -- and on
+   * a whites-only filter each is over a second of a worker's time. Worse, the
+   * intermediate answers are misleading rather than merely wasteful: a reader
+   * part-way through building "Stamina AND Medium" is shown the far larger
+   * result for Stamina alone.
+   *
+   * So editing is free and searching is deliberate. Seeded from the persisted
+   * list, so returning to this screen shows the results it last had rather than
+   * an empty page with a button on it.
+   */
+  const [applied, setApplied] = useState<readonly SparkCriterion[]>(criteria);
+  const dirty = !sameCriteria(applied, criteria);
   const detail = usePairDetail(
     packages,
     trainee?.charaId ?? null,
@@ -124,7 +137,7 @@ export function PairSearch({
     packages,
     trainee?.charaId ?? null,
     traineeCardId,
-    criteria,
+    applied,
   );
 
   /*
@@ -136,11 +149,11 @@ export function PairSearch({
    * would be identical either way.
    */
   const view = useMemo(
-    () => (status.kind === 'done' ? viewOf(status.sweep, roster.veterans, criteria, shown) : null),
-    [status, roster, criteria, shown],
+    () => (status.kind === 'done' ? viewOf(status.sweep, roster.veterans, applied, shown) : null),
+    [status, roster, applied, shown],
   );
 
-  const headline = HEADLINE[Math.min(criteria.length, 2) as 0 | 1 | 2];
+  const headline = HEADLINE[Math.min(applied.length, 2) as 0 | 1 | 2];
 
   return (
     <main className={styles.shell}>
@@ -189,6 +202,37 @@ export function PairSearch({
             onChange={onCriteria}
           />
 
+          {/*
+            SEARCHING IS A DELIBERATE ACT, and this is where it is asked for --
+            attached to the requirements it will run, rather than floating over
+            the results it will replace.
+
+            It stays clickable when nothing has changed, because a reader who
+            wants the same search again should get it rather than a dead
+            control they have to work out. What changes is what it SAYS: it
+            offers to search while the requirements differ from the ones below,
+            and to run it again once they match.
+          */}
+          <div className={styles.searchRow}>
+            <button
+              type="button"
+              className={dirty ? styles.searchNow : styles.searchAgain}
+              // Paging needs no reset here: `onCriteria` already returns the
+              // list to its first page on every edit, so it is there by the
+              // time this is reachable.
+              onClick={() => setApplied(criteria)}
+            >
+              {dirty ? 'Search' : 'Search again'}
+            </button>
+            {dirty && (
+              <span className={styles.searchHint}>
+                {applied.length === 0 && criteria.length > 0
+                  ? 'The results below are for every legal pair.'
+                  : 'The results below are for the previous requirements.'}
+              </span>
+            )}
+          </div>
+
           {status.kind === 'failed' ? (
             <p className={styles.empty}>{status.message}</p>
           ) : status.kind !== 'done' || view === null ? (
@@ -198,13 +242,13 @@ export function PairSearch({
               <div className={styles.listHead}>
                 <h2 className={styles.rubric}>Pairs for {trainee.name}</h2>
                 <span className={styles.count}>
-                  {criteria.length === 0
+                  {applied.length === 0
                     ? `${view.legalPairs.toLocaleString()} legal pairs`
                     : `${view.matchingPairs.toLocaleString()} of ${view.legalPairs.toLocaleString()} pairs`}
                 </span>
               </div>
 
-              <p className={styles.headlineRubric}>{headline.rubric(criteria.length)}</p>
+              <p className={styles.headlineRubric}>{headline.rubric(applied.length)}</p>
 
               {/* Column rubrics, on the page ground. A header ROW inside the
                   list would make the first card look like a different kind of
@@ -219,7 +263,7 @@ export function PairSearch({
 
               {view.matchingPairs === 0 ? (
                 <p className={styles.empty}>
-                  No legal pair of your veterans meets all {criteria.length} requirements. Relax
+                  No legal pair of your veterans meets all {applied.length} requirements. Relax
                   one and search again — on the builder&rsquo;s roster, &ldquo;Stamina ≥ 12 AND
                   Medium ≥ 4&rdquo; is met by 22 of 30,808 legal pairs, so this is the ordinary
                   path rather than an error.
@@ -232,7 +276,7 @@ export function PairSearch({
                         <PairRow
                           row={row}
                           at={at + 1}
-                          criteria={criteria}
+                          criteria={applied}
                           catalogue={catalogue}
                           onPick={() => setInspecting(row)}
                         />
@@ -249,19 +293,18 @@ export function PairSearch({
                     <PairDetail
                       state={detail}
                       row={inspecting}
-                      criteria={criteria}
+                      criteria={applied}
                       sparkOptions={roster.sparkOptions}
                       onClose={() => setInspecting(null)}
-                      onChoose={(destination) => {
+                      onChoose={() => {
                         // The detail already explained this pair locally, so
-                        // hand the lineage over rather than make the next
-                        // screen recompute it -- and, for the tree, rather than
-                        // let it arrive with nothing to draw.
+                        // hand the lineage over rather than make the breakdown
+                        // recompute it -- and rather than let it arrive with
+                        // nothing to draw, which the tree guard bounces.
                         onPick(
                           inspecting.a.index,
                           inspecting.b.index,
                           detail.kind === 'ok' ? detail.lineage : null,
-                          destination,
                         );
                         setInspecting(null);
                       }}
@@ -275,6 +318,27 @@ export function PairSearch({
       )}
     </main>
   );
+}
+
+/**
+ * Are these the requirements the results below were computed from?
+ *
+ * Compared FIELD BY FIELD rather than by reference: the control rebuilds its
+ * array on every edit, so identity would say "changed" the moment anything was
+ * touched and never say "the same" again -- including after a search, which
+ * would leave the button permanently lit.
+ */
+function sameCriteria(a: readonly SparkCriterion[], b: readonly SparkCriterion[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((x, i) => {
+    const y = b[i] as SparkCriterion;
+    return (
+      x.groupId === y.groupId &&
+      x.minStars === y.minStars &&
+      x.scope === y.scope &&
+      (x.mustHave ?? false) === (y.mustHave ?? false)
+    );
+  });
 }
 
 /**

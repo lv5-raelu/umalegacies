@@ -563,7 +563,7 @@ export function App() {
           setShownResults(PAGE);
         }}
         onShowMore={() => setShownResults((n) => n + PAGE)}
-        onPick={(a, b, explained, destination) => {
+        onPick={(a, b, explained) => {
           // Both halves at once, because a search result IS a pair -- unlike a
           // click in the roster list, which can only ever add one. `ownPick`
           // stamps each with the card it was made against, exactly as a click
@@ -584,7 +584,7 @@ export function App() {
            * window rather than racing it.
            */
           if (explained !== null) setLineage(explained);
-          location.hash = destination === 'tree' ? '#tree' : '';
+          location.hash = '#tree';
         }}
         nav={
           <SiteNav
