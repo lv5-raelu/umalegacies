@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { LineageResponse, SparkCriterion, SparkSummaryRow } from '@umalegacies/types';
 import { AuditTrail } from './AuditTrail';
@@ -38,6 +38,33 @@ export function TreePage({
   // A Set because the table asks this once per row, ~50 times.
   const askedGroupIds = new Set(criteria.map((c) => c.groupId));
   const [spark, setSpark] = useState<SparkSummaryRow | null>(null);
+
+  /*
+   * CLICKING A SPARK SCROLLS TO WHAT IT OPENED.
+   *
+   * The provenance sits ABOVE the audit trail, and the trail is ~50 rows deep,
+   * so choosing a spark two thirds of the way down put its explanation off the
+   * top of the screen. The click looked like it had done nothing.
+   *
+   * `block: 'nearest'` rather than `'start'`: it moves the least it can, which
+   * means it does nothing at all when the provenance is already on screen. A
+   * reader comparing two sparks near the top of the table should not have the
+   * page jump under them for a change they can already see.
+   *
+   * ONLY ON SELECTING. Clicking the open spark again closes it, and yanking the
+   * page somewhere on the way out would punish the reader for undoing
+   * something. Selecting a tree NODE also fills this region, and is left alone
+   * for the same reason: the node they clicked is right there above it.
+   */
+  const provenance = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (spark === null) return;
+    // `prefers-reduced-motion` is honoured in JS because it has to be: the
+    // stylesheet's blanket rule covers CSS animation and transition, and a
+    // smooth scroll is neither.
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    provenance.current?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'nearest' });
+  }, [spark]);
 
   const { total, base, bonus, addendsAgree, traineeUnresolved } = pairTotalOf(lineage);
 
@@ -92,15 +119,19 @@ export function TreePage({
         }}
       />
 
-      {spark ? (
-        <SparkProvenance row={spark} />
-      ) : selection.kind === 'link' ? (
-        <LinkProvenance link={selection.node} />
-      ) : selection.kind === 'member' && selection.position !== 'T' ? (
-        <MemberProvenanceOrEmpty lineage={lineage} position={selection.position} />
-      ) : (
-        <TotalProvenance lineage={lineage} />
-      )}
+      {/* The ref lives on a wrapper that is always here, so the effect above has
+          something to scroll to on the render where the spark first appears. */}
+      <div ref={provenance}>
+        {spark ? (
+          <SparkProvenance row={spark} />
+        ) : selection.kind === 'link' ? (
+          <LinkProvenance link={selection.node} />
+        ) : selection.kind === 'member' && selection.position !== 'T' ? (
+          <MemberProvenanceOrEmpty lineage={lineage} position={selection.position} />
+        ) : (
+          <TotalProvenance lineage={lineage} />
+        )}
+      </div>
 
       <h2 className={styles.rubric}>Audit trail — every spark this lineage can pass down</h2>
       <AuditTrail
