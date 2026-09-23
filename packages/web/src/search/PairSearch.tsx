@@ -1,5 +1,6 @@
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import type {
+  LineageResponse,
   ResolvedMember,
   ResolvedVeteran,
   RosterResolveResponse,
@@ -81,8 +82,13 @@ export function PairSearch({
   onTrainee: (cardId: number) => void;
   onCriteria: (next: SparkCriterion[]) => void;
   onShowMore: () => void;
-  /** Take this pair back to the roster screen, picked. */
-  onPick: (a: number, b: number) => void;
+  /** Take this pair, picked, to whichever screen was asked for. */
+  onPick: (
+    a: number,
+    b: number,
+    lineage: LineageResponse | null,
+    destination: 'roster' | 'tree',
+  ) => void;
   /**
    * Rendered by `App`, which is the only place that knows whether the OTHER
    * screens are reachable. A screen that worked out its own navigation could
@@ -246,8 +252,17 @@ export function PairSearch({
                       criteria={criteria}
                       sparkOptions={roster.sparkOptions}
                       onClose={() => setInspecting(null)}
-                      onUse={() => {
-                        onPick(inspecting.a.index, inspecting.b.index);
+                      onChoose={(destination) => {
+                        // The detail already explained this pair locally, so
+                        // hand the lineage over rather than make the next
+                        // screen recompute it -- and, for the tree, rather than
+                        // let it arrive with nothing to draw.
+                        onPick(
+                          inspecting.a.index,
+                          inspecting.b.index,
+                          detail.kind === 'ok' ? detail.lineage : null,
+                          destination,
+                        );
                         setInspecting(null);
                       }}
                     />

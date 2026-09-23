@@ -519,7 +519,7 @@ export function App() {
           setShownResults(PAGE);
         }}
         onShowMore={() => setShownResults((n) => n + PAGE)}
-        onPick={(a, b) => {
+        onPick={(a, b, explained, destination) => {
           // Both halves at once, because a search result IS a pair -- unlike a
           // click in the roster list, which can only ever add one. `ownPick`
           // stamps each with the card it was made against, exactly as a click
@@ -527,7 +527,19 @@ export function App() {
           const picked = [roster.veterans[a], roster.veterans[b]];
           if (picked[0] === undefined || picked[1] === undefined) return;
           setPicks([ownPick(picked[0]), ownPick(picked[1])]);
-          location.hash = '';
+          /*
+           * THE LINEAGE ARRIVES WITH THE PICK, which matters for the tree.
+           *
+           * The effect below explains a new pair asynchronously, so `lineage`
+           * is null for a moment after the picks change -- and the tree guard
+           * bounces anyone who lands on `#tree` with no lineage to draw. A
+           * first-ever "Show the working" would therefore have come out on the
+           * roster, which is the symptom this arrived as. The detail already
+           * explained this exact pair locally, so handing it over closes the
+           * window rather than racing it.
+           */
+          if (explained !== null) setLineage(explained);
+          location.hash = destination === 'tree' ? '#tree' : '';
         }}
         nav={
           <SiteNav

@@ -86,14 +86,23 @@ export function PairDetail({
   criteria,
   sparkOptions,
   onClose,
-  onUse,
+  onChoose,
 }: {
   state: PaneState;
   row: PairRowData;
   criteria: readonly SparkCriterion[];
   sparkOptions: readonly RosterSparkOption[];
   onClose: () => void;
-  onUse: () => void;
+  /**
+   * Take this pair, and go where the reader asked.
+   *
+   * ONE CALLBACK, TWO DESTINATIONS, because the two buttons differ only in
+   * where you land -- both commit the pair. They were briefly the SAME
+   * callback, which is how "Show the working" came to open the roster: it was
+   * wired to the use-this-pair handler while the layout was being chosen, and
+   * never given its own destination.
+   */
+  onChoose: (destination: 'roster' | 'tree') => void;
 }) {
   const shell = useRef<HTMLDivElement>(null);
 
@@ -140,12 +149,12 @@ export function PairDetail({
           pickedCount={2}
           embedded
           onClearPicks={onClose}
-          onOpenTree={onUse}
+          onOpenTree={() => onChoose('tree')}
         />
       </div>
 
       <div className={styles.actions}>
-        <button type="button" className={styles.use} onClick={onUse}>
+        <button type="button" className={styles.use} onClick={() => onChoose('roster')}>
           Use this pair
         </button>
       </div>
