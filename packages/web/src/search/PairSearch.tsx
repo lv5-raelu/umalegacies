@@ -115,7 +115,6 @@ export function PairSearch({
    * an empty page with a button on it.
    */
   const [applied, setApplied] = useState<readonly SparkCriterion[]>(criteria);
-  const dirty = !sameCriteria(applied, criteria);
   const detail = usePairDetail(
     packages,
     trainee?.charaId ?? null,
@@ -207,13 +206,10 @@ export function PairSearch({
             attached to the requirements it will run, rather than floating over
             the results it will replace.
 
+            One label, one appearance, and nothing explaining itself beside it.
             It stays clickable when nothing has changed, because a reader who
             wants the same search again should get it rather than a dead control
-            they have to work out. ONE LABEL AND ONE APPEARANCE, though: it said
-            "Search again" when nothing was pending, and a button that changes
-            its own wording for a state the reader cannot see reads as a glitch.
-            The hint beside it is what says the results are stale, which is the
-            fact worth stating.
+            they have to work out.
           */}
           <div className={styles.searchRow}>
             <button
@@ -226,13 +222,6 @@ export function PairSearch({
             >
               Search
             </button>
-            {dirty && (
-              <span className={styles.searchHint}>
-                {applied.length === 0 && criteria.length > 0
-                  ? 'The results below are for every legal pair.'
-                  : 'The results below are for the previous requirements.'}
-              </span>
-            )}
           </div>
 
           {status.kind === 'failed' ? (
@@ -320,27 +309,6 @@ export function PairSearch({
       )}
     </main>
   );
-}
-
-/**
- * Are these the requirements the results below were computed from?
- *
- * Compared FIELD BY FIELD rather than by reference: the control rebuilds its
- * array on every edit, so identity would say "changed" the moment anything was
- * touched and never say "the same" again -- including after a search, which
- * would leave the button permanently lit.
- */
-function sameCriteria(a: readonly SparkCriterion[], b: readonly SparkCriterion[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((x, i) => {
-    const y = b[i] as SparkCriterion;
-    return (
-      x.groupId === y.groupId &&
-      x.minStars === y.minStars &&
-      x.scope === y.scope &&
-      (x.mustHave ?? false) === (y.mustHave ?? false)
-    );
-  });
 }
 
 /**

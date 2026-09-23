@@ -171,9 +171,21 @@
   width: 110px;
 }
 
+/*
+ * THE BAR'S GROUND IS RELATIVE, NOT A FIXED GREY.
+ *
+ * It was `var(--track)` -- the same token the ASKED row now uses for its own
+ * ground, so on a filtered row the bar's track vanished into the row, and on an
+ * open row it was darker than the row and read as a notch cut out of it.
+ *
+ * Translucent white instead, so it composites over whatever ground it happens
+ * to be sitting on and stays one consistent step lighter than it. Three row
+ * states, one rule, and no token to keep in sync with a ladder it is not part
+ * of.
+ */
 .track {
   height: 4px;
-  background: var(--track);
+  background: rgb(255 255 255 / 8%);
 }
 
 .bar {

@@ -801,9 +801,3 @@
 
 
 
-/* Says what the stale results below are, so the disagreement is stated rather
-   than left for the reader to notice. */
-.searchHint {
-  font-size: var(--text-2xs);
-  color: var(--ink-faint);
-}
