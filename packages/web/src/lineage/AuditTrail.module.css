@@ -46,32 +46,67 @@
   outline-offset: -2px;
 }
 
+/*
+ * THE ROW WHOSE PROVENANCE IS OPEN BELOW.
+ *
+ * NO LEFT BAR. It used to carry `inset 2px 0 0 var(--ink)`, which put a white
+ * bar hard against the 3px COLOUR tick that DESIGN.md gives every spark row --
+ * two marks in the same three millimetres, one of them a category and one a
+ * cursor, reading as a rendering fault rather than as two facts. The left edge
+ * is the tick's; a cursor mark there was always going to lose.
+ *
+ * So the cursor moves to the ground instead, one step up the achromatic ladder
+ * from `asked`: transparent, then `track` for asked, then `rule` for open. A
+ * row that is BOTH keeps the open ground and the asked name, so neither fact is
+ * lost -- `.asked td.name` is ink at 600 whatever the row's ground.
+ *
+ * The rule the file used to state, "a fill marks a class, a bar marks a
+ * cursor", is retired rather than quietly broken: there is no bar left to mark
+ * anything with, and two weights of one fill do the job the bar was invented to
+ * avoid doing badly.
+ */
 .selected {
-  background: var(--surface);
-  box-shadow: inset 2px 0 0 var(--ink);
+  background: var(--rule);
 }
 
 /*
  * A spark the reader filtered for.
  *
- * A FILL MARKS A CLASS, A BAR MARKS A CURSOR. `asked` is a set the reader
- * chose and it persists while they read; `selected` is one transient row whose
- * provenance is open below. So the fill goes here, where it can be scanned as
- * a band down a table of ~50 near-identical rows, and the ink bar stays with
- * `selected`, where it points. A row that is both gets both, and they do not
- * fight because they are different marks rather than two weights of one.
+ * TWO WEIGHTS OF ONE FILL. `asked` is a set the reader chose and it persists
+ * while they read; `selected` is one transient row whose provenance is open
+ * below. Both are grounds now, a step apart, because the only other channel a
+ * table row has on its left is the 3px colour tick DESIGN.md already spends on
+ * the spark's kind -- and a cursor bar parked next to it read as a fault.
  *
  * Achromatic on purpose. DESIGN.md: "Don't add a second accent. Amber means
  * added; that is the whole accent budget", and red already means unresolved.
  * A filter is also not a fact about the game -- it is a choice the reader made.
+ *
+ * `track` RATHER THAN `surface`, because surface was too quiet to find. It sits
+ * at 1.10:1 against paper -- DESIGN.md says so itself, and says that is why a
+ * card's 1px border is load-bearing rather than decorative -- so a band of it
+ * down a table of ~50 rows was nearly invisible. `track` is the next step up
+ * and still achromatic, which keeps the loudness in contrast where the accent
+ * budget cannot be spent.
+ *
+ * The name gets the rest: full ink at 600 against the muted 400 of every row
+ * that was not asked for, so the band is findable by weight as well as ground.
  */
 .asked {
-  background: var(--surface);
+  background: var(--track);
 }
 
 .asked td.name {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
+}
+
+/*
+ * Asked AND open. The open ground wins, because it is the transient state the
+ * reader is acting on; the asked-ness is still said by the name's weight.
+ */
+.asked.selected {
+  background: var(--rule);
 }
 
 .table tbody td {
@@ -136,9 +171,21 @@
   width: 110px;
 }
 
+/*
+ * THE BAR'S GROUND IS RELATIVE, NOT A FIXED GREY.
+ *
+ * It was `var(--track)` -- the same token the ASKED row now uses for its own
+ * ground, so on a filtered row the bar's track vanished into the row, and on an
+ * open row it was darker than the row and read as a notch cut out of it.
+ *
+ * Translucent white instead, so it composites over whatever ground it happens
+ * to be sitting on and stays one consistent step lighter than it. Three row
+ * states, one rule, and no token to keep in sync with a ladder it is not part
+ * of.
+ */
 .track {
   height: 4px;
-  background: var(--track);
+  background: rgb(255 255 255 / 8%);
 }
 
 .bar {

@@ -117,7 +117,7 @@ describe('the pane reads a pair of own picks', () => {
     expect(html).toContain('◎');
     expect(html).toContain('Oguri Cap');
     expect(html).toContain('Gold Ship');
-    expect(html).toContain('Show the working');
+    expect(html).toContain('Show breakdown');
   });
 
   it('says choose a trainee first, whatever is picked', () => {

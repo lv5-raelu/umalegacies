@@ -15,6 +15,7 @@ import {
 } from './api/client';
 import { TreePage } from './lineage/TreePage';
 import { ComparePane, paneState } from './roster/ComparePane';
+import { SiteNav, navTargets } from './SiteNav';
 import { DropZone } from './roster/DropZone';
 import { SparkFilter } from './roster/SparkFilter';
 import { TraineePicker } from './roster/TraineePicker';
@@ -35,7 +36,7 @@ import {
   writeSelection,
 } from './roster/cache';
 import { picksToCache, restoreSelection } from './roster/selection';
-import { PairSearchWireframe } from './wireframe/PairSearchWireframe';
+import { PairSearch, PAGE } from './search/PairSearch';
 import styles from './App.module.css';
 
 /**
@@ -45,7 +46,8 @@ import styles from './App.module.css';
  * touch the persisted selection, and nothing links to it outside development.
  * Both the hash and the link go when the real results screen lands.
  */
-const WIREFRAME_HASH = '#wireframe/pair-search';
+/** The pair search, a whole-screen route like the tree. */
+const SEARCH_HASH = '#search';
 
 /**
  * M3: your own roster, on screen, with two veterans compared.
@@ -64,16 +66,49 @@ export function App() {
   const [roster, setRoster] = useState<RosterResolveResponse | null>(null);
   const [trainees, setTrainees] = useState<TraineeOption[]>([]);
   const [traineeCardId, setTraineeCardId] = useState<number | null>(null);
+  /**
+   * TWO REQUIREMENT LISTS, NOT ONE, and the separation is load-bearing.
+   *
+   * `criteria` belongs to the roster LIST, where a row is one veteran and
+   * `matchesCriterion` asks whether that veteran meets the whole requirement.
+   * `searchCriteria` belongs to the pair SEARCH, where `matchesPair` asks what
+   * six ancestors carry between them.
+   *
+   * They were briefly one list. A requirement authored for a pair then landed
+   * on the roster list as if a single veteran had to satisfy it: on the
+   * builder's roster, "End Closer >= 7 across the lineage" found 103 pairs
+   * while the list behind it showed 0 of 259, because the best pair held 8
+   * stars as 3 + 5 and neither half cleared 7 on its own. Picking that pair and
+   * going back left a populated compare pane over an empty roster.
+   */
   const [criteria, setCriteria] = useState<SparkCriterion[]>([]);
+  const [searchCriteria, setSearchCriteria] = useState<SparkCriterion[]>([]);
+  /**
+   * WHICH LIST PRODUCED THE PAIR ON SCREEN.
+   *
+   * The two lists were separated because a pair-scoped requirement applied to
+   * single veterans emptied the roster list. That fixed the list and left the
+   * screens that EXPLAIN a pair reading the wrong one: the tree, reached by
+   * "Show breakdown" straight out of a search, highlighted the roster's
+   * requirements rather than the ones that found the pair.
+   *
+   * A discriminator rather than a third copy of the criteria. The highlight
+   * then follows the list it names, so editing the search's requirements
+   * updates a pair found by searching -- which is right, because the highlight
+   * says "what you are looking for", and the reader has just changed it.
+   */
+  const [pairFrom, setPairFrom] = useState<'list' | 'search'>('list');
   /** The pair, oldest first, at most two. See `ParentPick`. */
   const [picks, setPicks] = useState<ParentPick[]>([]);
   const [lineage, setLineage] = useState<LineageResponse | null>(null);
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
   const [onTreePage, setOnTreePage] = useState(() => location.hash === '#tree');
-  const [onWireframe, setOnWireframe] = useState(() => location.hash === WIREFRAME_HASH);
+  const [onSearch, setOnSearch] = useState(() => location.hash === SEARCH_HASH);
   const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
+  /** How many result rows are rendered. The sweep is complete; the LIST is paged. */
+  const [shownResults, setShownResults] = useState(PAGE);
   /**
    * True until the stored roster has been looked for.
    *
@@ -145,7 +180,7 @@ export function App() {
    * something to draw.
    */
   useEffect(() => {
-    const sync = (): void => setOnWireframe(location.hash === WIREFRAME_HASH);
+    const sync = (): void => setOnSearch(location.hash === SEARCH_HASH);
     addEventListener('hashchange', sync);
     return () => removeEventListener('hashchange', sync);
   }, []);
@@ -221,6 +256,8 @@ export function App() {
       const selection = restoreSelection(storedSelection, record.resolved, record.trainees);
       setTraineeCardId(selection.traineeCardId);
       setCriteria(selection.criteria);
+      setSearchCriteria(selection.searchCriteria);
+      setPairFrom(selection.pairFrom);
       setPicks(selection.picks);
       setRestoring(false);
 
@@ -316,18 +353,44 @@ export function App() {
     }
   }, []);
 
+  /**
+   * The requirements a pair is EXPLAINED against, wherever it is explained.
+   *
+   * The roster list keeps using `criteria` directly: it filters veterans, and
+   * that is the only list whose scope is a single package. Everything that
+   * shows a PAIR -- the compare pane, the tree -- reads this instead.
+   */
+  const pairCriteria = pairFrom === 'search' ? searchCriteria : criteria;
+
   const shown = useMemo(() => {
     if (!roster) return [];
-    // Sorted HERE, not on the server: `index` joins a row back to the slimmed
-    // package the browser still holds, so the response stays in request order.
-    // A PICK NEVER MOVES A CARD. Selecting is not a sort key: the list holds
-    // still so the card you just clicked stays under the cursor and the one you
-    // were about to compare it against stays where you last saw it. An earlier
-    // cut pinned picks to the top and it made the list jump under the pointer.
-    return filterVeterans(roster.veterans, criteria).sort(
-      (a, b) => b.score - a.score || a.self.name.localeCompare(b.self.name),
+    /*
+     * Sorted HERE, not on the server: `index` joins a row back to the slimmed
+     * package the browser still holds, so the response stays in request order.
+     *
+     * A PICK GOES TO THE TOP, REINSTATED ON THE BUILDER'S CALL.
+     *
+     * This was tried once and taken out, because clicking a card in the middle
+     * of 259 made the list jump and left a different card under the pointer.
+     * That reasoning still holds for a click and is knowingly re-accepted,
+     * because it never applied to the case that brought it back: arriving from
+     * the pair search, the two picks are ALREADY set, nothing moves under
+     * anyone's cursor, and without this they sit wherever their scores put them
+     * in a list of 259 with nothing to say where.
+     *
+     * Picked first, then the existing order among themselves, so the pair reads
+     * in the same order the compare pane names it rather than in click order.
+     */
+    const pinned = new Set(
+      picks.flatMap((pick) => (pick.kind === 'own' ? [pick.index] : [])),
     );
-  }, [roster, criteria]);
+    return filterVeterans(roster.veterans, criteria).sort(
+      (a, b) =>
+        Number(pinned.has(b.index)) - Number(pinned.has(a.index)) ||
+        b.score - a.score ||
+        a.self.name.localeCompare(b.self.name),
+    );
+  }, [roster, criteria, picks]);
 
   const trainee = useMemo(
     () => trainees.find((t) => t.cardId === traineeCardId) ?? null,
@@ -368,6 +431,7 @@ export function App() {
       // card refusing its own click: a keyboard or a stale render must not be
       // able to compose a pair the game does not allow.
       if (pickBlock(veteran, pickedVeterans, trainee?.charaId ?? null) !== null) return;
+      setPairFrom('list');
       setPicks((current) => {
         if (current.some((p) => isOwnPickOf(p, index)))
           return current.filter((p) => !isOwnPickOf(p, index));
@@ -422,9 +486,11 @@ export function App() {
       version: CACHE_VERSION,
       traineeCardId,
       criteria: [...criteria],
+      searchCriteria: [...searchCriteria],
+      pairFrom,
       picks: picksToCache(picks, roster),
     });
-  }, [restoring, roster, traineeCardId, criteria, picks]);
+  }, [restoring, roster, traineeCardId, criteria, searchCriteria, pairFrom, picks]);
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
@@ -473,16 +539,59 @@ export function App() {
     };
   }, [save, roster, trainee, picks]);
 
-  // The wireframe, which replaces the whole screen the way the tree page does.
-  // Needs only a roster: it composes its own pairs and holds its own trainee.
-  if (onWireframe && roster) {
+  /*
+   * THE PAIR SEARCH, a whole-screen route like the tree.
+   *
+   * It shares this component's trainee and criteria rather than holding its
+   * own, which is what makes a filter set here still set when the user goes
+   * back, and what makes the pair it returns the pair the compare pane
+   * explains. The wireframe it grew out of deliberately kept its own copies,
+   * because a throwaway surface must not rewrite a persisted selection.
+   */
+  if (onSearch && roster && save) {
     return (
-      <PairSearchWireframe
+      <PairSearch
         roster={roster}
+        packages={save.veterans}
         trainees={trainees}
-        onBack={() => {
-          location.hash = '';
+        traineeCardId={traineeCardId}
+        criteria={searchCriteria}
+        shown={shownResults}
+        onTrainee={setTraineeCardId}
+        onCriteria={(next) => {
+          setSearchCriteria(next);
+          setShownResults(PAGE);
         }}
+        onShowMore={() => setShownResults((n) => n + PAGE)}
+        onPick={(a, b, explained) => {
+          // Both halves at once, because a search result IS a pair -- unlike a
+          // click in the roster list, which can only ever add one. `ownPick`
+          // stamps each with the card it was made against, exactly as a click
+          // does, so a restore checks them the same way.
+          const picked = [roster.veterans[a], roster.veterans[b]];
+          if (picked[0] === undefined || picked[1] === undefined) return;
+          setPicks([ownPick(picked[0]), ownPick(picked[1])]);
+          setPairFrom('search');
+          /*
+           * THE LINEAGE ARRIVES WITH THE PICK, which matters for the tree.
+           *
+           * The effect below explains a new pair asynchronously, so `lineage`
+           * is null for a moment after the picks change -- and the tree guard
+           * bounces anyone who lands on `#tree` with no lineage to draw. A
+           * first-ever "Show breakdown" would therefore have come out on the
+           * roster, which is the symptom this arrived as. The detail already
+           * explained this exact pair locally, so handing it over closes the
+           * window rather than racing it.
+           */
+          if (explained !== null) setLineage(explained);
+          location.hash = '#tree';
+        }}
+        nav={
+          <SiteNav
+            current={SEARCH_HASH}
+            targets={navTargets({ hasRoster: true, hasLineage: lineage !== null })}
+          />
+        }
       />
     );
   }
@@ -491,10 +600,8 @@ export function App() {
     return (
       <TreePage
         lineage={lineage}
-        criteria={criteria}
-        onBack={() => {
-          location.hash = '';
-        }}
+        criteria={pairCriteria}
+        nav={<SiteNav current="#tree" targets={navTargets({ hasRoster: true, hasLineage: true })} />}
       />
     );
   }
@@ -520,15 +627,7 @@ export function App() {
     <main className={`${styles.shell} ${roster ? styles.wide : styles.landing}`}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
-        {/* DEV ONLY, and `import.meta.env.DEV` is a compile-time constant, so
-            the production bundle does not contain this element. A wireframe
-            nobody can find is a wireframe nobody reviews; it still has no
-            place in the shipped header. */}
-        {import.meta.env.DEV && roster && (
-          <a className={styles.quiet} href={WIREFRAME_HASH}>
-            pair search wireframe →
-          </a>
-        )}
+        <SiteNav current="" targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null })} />
       </header>
 
       {masterChanged && (
@@ -623,7 +722,7 @@ export function App() {
             <div className={styles.paneColumn}>
               <ComparePane
                 state={paneState(traineeCardId, picks, pairLoading, pairError, lineage)}
-                criteria={criteria}
+                criteria={pairCriteria}
                 sparkOptions={roster.sparkOptions}
                 pickedCount={picks.length}
                 onClearPicks={() => setPicks([])}

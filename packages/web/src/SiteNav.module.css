@@ -1,0 +1,52 @@
+/*
+ * Screen navigation, in the header of all three screens.
+ *
+ * Achromatic, because DESIGN.md gives the interface no brand colour and a
+ * coloured control would read as a datum. The current screen separates by INK
+ * and a rule beneath it; the others are faint; an unreachable one is fainter
+ * still and keeps the cursor it deserves.
+ */
+.nav {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-md);
+  margin-left: var(--space-md);
+}
+
+.link,
+.here,
+.blocked {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-decoration: none;
+  padding-bottom: var(--space-hair);
+  border-bottom: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.link {
+  color: var(--ink-faint);
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--ink);
+  border-bottom-color: var(--rule-strong);
+}
+
+/* Where you are. The rule is what says it, so the label need not shout. */
+.here {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+/*
+ * Shown rather than hidden, and it says why in its tooltip. A menu that grows
+ * items as you go never tells the reader how many screens exist.
+ */
+.blocked {
+  color: var(--rule-strong);
+  cursor: not-allowed;
+}

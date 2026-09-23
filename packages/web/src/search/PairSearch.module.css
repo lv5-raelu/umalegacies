@@ -36,17 +36,6 @@
   margin: 0;
 }
 
-.back {
-  font-family: var(--font-ui);
-  font-size: var(--text-xs);
-  color: var(--ink-muted);
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  padding: var(--space-xs) var(--space-snug);
-  cursor: pointer;
-}
-
 .back:hover {
   color: var(--ink);
   background: var(--surface);
@@ -714,3 +703,101 @@
   font-size: var(--text-xs);
   color: var(--ink);
 }
+
+/*
+ * THE WHOLE ROW IS THE CONTROL.
+ *
+ * The card already reads as one thing; this only makes it say so on hover and
+ * answer a keyboard. `:focus-visible` rather than `:focus`, so choosing with
+ * the mouse does not leave a ring behind on the row you just left.
+ */
+.row[role='button'] {
+  cursor: pointer;
+}
+
+.row[role='button']:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  border-color: var(--rule-strong);
+}
+
+/*
+ * HOW MANY OF THESE STARS ARE ON THE PARENT ITSELF.
+ *
+ * A SEPARATE CHANNEL FROM `.chipAsked`, because the two answer different
+ * questions and land on the same chip constantly. "Asked" lifts the chip's
+ * whole ground, being a fact about the chip. This is a fact about part of the
+ * NUMBER, so it is a segment attached to the number.
+ *
+ * ONE APPEARANCE, FIXED, whatever the chip around it is doing. It first had a
+ * second style for "the parent holds all of it" and took its ground from the
+ * chip, so the same mark looked like two different marks depending on whether
+ * the spark was filtered. A mark that changes colour is read as changing
+ * CATEGORY, and this is a quantity: the number already says how much, so the
+ * styling must not also try to.
+ *
+ * ACHROMATIC, AND THAT IS NOT A COMPROMISE. DESIGN.md: "Don't add a second
+ * accent. Amber means added; that is the whole accent budget." So loudness
+ * comes from contrast instead -- full ink on `rule-strong`, which separates
+ * from both the row's surface and a lifted chip's, rather than from a hue that
+ * would claim to be a category.
+ *
+ * It carries its own star, because the number beside it does: `8★` then `3★`
+ * reads as two measurements of one spark, where `8★` then a bare `3` invites
+ * the reader to work out what the second number counts.
+ *
+ * Round, to rhyme with the portraits: the head of each half is a round parent
+ * above two smaller round grandparents, so a round mark beside a star count
+ * reads as "on the big one" without needing a legend.
+ */
+.onParent {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  line-height: 1;
+  color: var(--ink);
+  background: var(--rule-strong);
+  border-radius: var(--radius-full);
+  padding: 1px 5px;
+  margin-left: 2px;
+}
+
+/*
+ * WHERE A SEARCH IS ASKED FOR.
+ *
+ * Under the requirements rather than over the results, because it acts on the
+ * former and replaces the latter. The hint only appears while the two disagree,
+ * so the row is one button wide in the state it spends most of its time in.
+ */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-snug);
+  margin-top: var(--space-snug);
+}
+
+/*
+ * DESIGN.md: interaction is achromatic, and primary is ink on paper. ONE
+ * appearance, because there is one label: a button that restyled itself for a
+ * state the reader could not otherwise see read as a glitch rather than as
+ * information, and the hint beside it carries that fact in words.
+ */
+.searchNow {
+  font: inherit;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.searchNow {
+  border: 0;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.searchNow:hover,
+.searchNow:focus-visible {
+  background: var(--primary-hover);
+}
+
+
+

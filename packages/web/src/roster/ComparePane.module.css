@@ -16,6 +16,20 @@
   min-height: 0;
 }
 
+/*
+ * The same content with someone else's frame around it.
+ *
+ * `height: 100%` is what differs, and it matters: as a standing region the pane
+ * fills its column, but inside a dialog the DIALOG decides the height and
+ * scrolls, so stretching to 100% of a scrolling box makes it fight the box.
+ */
+.embedded {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 var(--space-snug) var(--space-snug);
+}
+
 .rubric {
   font-family: var(--font-data);
   font-size: var(--text-3xs);
@@ -99,7 +113,7 @@
 }
 
 /* Achromatic and secondary: clearing is a way back, not the thing to do. The
-   primary control on this pane is still "Show the working". */
+   primary control on this pane is still "Show breakdown". */
 .clearPicks {
   align-self: flex-start;
   font-family: var(--font-ui);
@@ -149,7 +163,7 @@
  * Reads as an aggregate rather than as another row: it sits on the rule that
  * the per-spark lines hang under, and its number is a step larger. It is the
  * figure being chosen against when a filter names more than one spark, and the
- * lines below it are the working -- the same shape as the pair total and its
+ * lines below it are its breakdown -- the same shape as the pair total and its
  * addends at the top of the pane.
  */
 .joint {
@@ -196,6 +210,27 @@
   /* Themed rather than left to the platform, like every other browser surface. */
   scrollbar-color: var(--rule-strong) var(--paper);
   scrollbar-width: thin;
+}
+
+/*
+ * INSIDE A DIALOG THE LIST DOES NOT SCROLL ITSELF.
+ *
+ * `.oddsScroll` exists because the roster pane is a fixed-height column beside
+ * a moving list, and a pair's ~53 sparks would otherwise push the pair total
+ * off the top of the very thing the pane exists to hold still. A dialog has no
+ * such problem: it scrolls as one piece, and nothing in it is pinned.
+ *
+ * Nested scrollers here were actively harmful, not merely redundant.
+ * `overscroll-behavior: contain` stops the wheel chaining to the parent BY
+ * DESIGN, so once the inner list reached its top the dialog would not scroll
+ * back up -- and with 53 sparks that list covers the whole dialog, leaving
+ * nowhere else to put the pointer. Reported by the builder.
+ */
+.embedded .oddsScroll {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow-y: visible;
+  overscroll-behavior: auto;
 }
 
 .group {

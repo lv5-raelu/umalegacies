@@ -116,3 +116,31 @@
   font-size: var(--text-xs);
   color: var(--ink-muted);
 }
+
+/*
+ * "must have", the toggle that promotes a white from a preference to a
+ * requirement.
+ *
+ * THIS HAD NO RULE AT ALL. The markup named a class that was never written, so
+ * the label laid out as a plain inline box: the checkbox sat on the text
+ * baseline rather than beside it, and both sat off-centre against the selects
+ * either side of them. The row centres its children; the LABEL has to centre
+ * its own two.
+ *
+ * `margin: 0` on the box because a checkbox carries user-agent margins that
+ * differ per platform, which is enough on its own to push it off centre.
+ */
+.mustHave {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mustHave input {
+  margin: 0;
+  cursor: pointer;
+}

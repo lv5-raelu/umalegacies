@@ -1,0 +1,106 @@
+/*
+ * ONE DETAIL, TWO SHELLS.
+ *
+ * Everything inside is identical; only how it sits on the page differs. Built
+ * this way on purpose, because the choice between them is about placement and
+ * nothing else, and two copies of the content would have made the comparison
+ * about whichever copy got more attention.
+ */
+
+.shell {
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shell:focus {
+  outline: none;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-snug) var(--space-snug) var(--space-sm);
+  border-bottom: 1px solid var(--rule);
+}
+
+.heading {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.times {
+  color: var(--ink-faint);
+}
+
+.close {
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--space-xs);
+}
+
+.close:hover,
+.close:focus-visible {
+  color: var(--ink);
+}
+
+/* The pane's own list is long; this is the part that scrolls. */
+.body {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.actions {
+  padding: var(--space-snug);
+  border-top: 1px solid var(--rule);
+}
+
+/* DESIGN.md: interaction is achromatic, primary is ink on paper. */
+.use {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--on-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.use:hover,
+.use:focus-visible {
+  background: var(--primary-hover);
+}
+
+/* ---------------------------------------------------------------- modal --- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 55%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  z-index: 10;
+}
+
+.centred {
+  width: min(560px, 100%);
+  max-height: min(80vh, 900px);
+  display: flex;
+}
+
+.centred .shell {
+  width: 100%;
+}

@@ -1,8 +1,10 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, type ReactNode } from 'react';
 import type {
+  LineageResponse,
   ResolvedMember,
   ResolvedVeteran,
   RosterResolveResponse,
+  RosterVeteranInput,
   SparkCriterion,
   SparkKind,
   TraineeOption,
@@ -20,32 +22,27 @@ import { catalogueOf, type Catalogue } from '../roster/catalogue';
 import { RankBadge } from '../roster/RankBadge';
 import { SparkFilter } from '../roster/SparkFilter';
 import { TraineePicker } from '../roster/TraineePicker';
-import { fakePairSearch, type FakePairRow } from './fake-scores';
-import styles from './PairSearchWireframe.module.css';
+import { usePairSearch, type SearchStatus } from './usePairSearch';
+import { viewOf, type PairRowData } from './search-rows';
+import { PairDetail, usePairDetail } from './PairDetail';
+import styles from './PairSearch.module.css';
 
 /**
- * ============================================================================
- * WIREFRAME, FOR DESIGN REVIEW ONLY. NOT THE M7 RESULTS SCREEN.
- * Reached at `#wireframe/pair-search`; nothing in the app links to it outside
- * development. Every odds figure, pair total and rank glyph below is invented
- * (see fake-scores.ts). Delete this directory when M7's real results UI lands.
- * ============================================================================
+ * THE INVERSE QUERY, AS A SCREEN. "Given what I want, which pair gets it?"
  *
- * WHAT IT IS FOR. One question, and it is not "is this pretty": can a reader
- * tell WHICH two umas a ranked row names? The roster list already had to solve
- * this once -- 255 of the builder's 259 veterans share a character name with
- * another, there are 29 distinct names across 259 rows and one character
- * appears 54 times -- and it solved it with a card that leads on the portrait
- * of the exact costume, the score, the sparks and the veteran's own two
- * parents, which is a 166-distinct package. A ranked PAIR row has to do that
- * TWICE in roughly half the width each, fifty rows deep, and the two halves are
- * always different characters (`isLegalPair` excludes a same-character pair),
- * so the problem is "which Oguri Cap is this" twice per row rather than two
- * identical umas in one row.
+ * Grew out of the wireframe this replaces, which existed to answer one
+ * question: can a reader tell WHICH two umas a ranked row names? The roster
+ * list had to solve that once -- 255 of the builder's 259 veterans share a
+ * character name with another, 29 distinct names cover 259 rows, one character
+ * appears 54 times -- and solved it with a card leading on the portrait of the
+ * exact costume, the score, the sparks and the veteran's own two parents, a
+ * 166-distinct package. A ranked PAIR row does that TWICE in half the width
+ * each, eighty rows deep. The layout below is what survived that review.
  *
- * WHAT IS REAL: the veterans, their costumes, their parents, their sparks, the
- * star counts, and which pairs the game allows. WHAT IS FAKE: every
- * probability, every pair total, every rank glyph.
+ * EVERY NUMBER IS REAL NOW. The wireframe invented the probabilities, the pair
+ * totals and the rank glyphs; `sweepPairs` computes them from the same
+ * `packages/core` functions the compare pane uses, so a figure does not change
+ * because it was reached by searching rather than by clicking.
  *
  * THE ROW IS THE CARD, and the two halves inside it are not. DESIGN.md allows a
  * card only for "a discrete entity you can point at", and in a search the thing
@@ -53,85 +50,129 @@ import styles from './PairSearchWireframe.module.css';
  * veteran cards inside a result card would invent a second meaning for the
  * border and a nesting level the product does not have anywhere else.
  */
-export function PairSearchWireframe({
+export function PairSearch({
   roster,
+  packages,
   trainees,
-  onBack,
+  traineeCardId,
+  criteria,
+  shown,
+  onTrainee,
+  onCriteria,
+  onShowMore,
+  onPick,
+  nav,
 }: {
   roster: RosterResolveResponse;
+  /** The slimmed save the engine reads. Index-aligned with `roster.veterans`. */
+  packages: readonly RosterVeteranInput[];
   trainees: readonly TraineeOption[];
-  onBack: () => void;
-}) {
-  /*
-   * ITS OWN TRAINEE AND ITS OWN CRITERIA, not the app's.
+  /**
+   * THE APP'S TRAINEE AND THE APP'S CRITERIA, not this screen's.
    *
-   * The real screen would share them. This one must not: App persists the
-   * trainee, the filters and the pair to IndexedDB on every change, and a
-   * throwaway surface that rewrites the user's saved selection while they poke
-   * at it is a wireframe with side effects.
+   * The wireframe kept its own on purpose, because App persists all three to
+   * IndexedDB on every change and a throwaway surface must not rewrite the
+   * user's saved selection while they poke at it. This one IS the surface, so
+   * sharing is the point: a filter set here is the filter set on the roster
+   * screen, and going back does not lose it.
    */
-  const [traineeCardId, setTraineeCardId] = useState<number | null>(null);
-  const [criteria, setCriteria] = useState<SparkCriterion[]>([]);
-  /** How many rows are rendered. The sweep is complete; the LIST is paged. */
-  const [shown, setShown] = useState(FIRST_PAGE);
-
+  traineeCardId: number | null;
+  criteria: readonly SparkCriterion[];
+  shown: number;
+  onTrainee: (cardId: number) => void;
+  onCriteria: (next: SparkCriterion[]) => void;
+  onShowMore: () => void;
+  /** Take this pair, picked, to its breakdown. */
+  onPick: (a: number, b: number, lineage: LineageResponse | null) => void;
+  /**
+   * Rendered by `App`, which is the only place that knows whether the OTHER
+   * screens are reachable. A screen that worked out its own navigation could
+   * disagree with its neighbours about what exists.
+   */
+  nav: ReactNode;
+}) {
   const trainee = useMemo(
     () => trainees.find((t) => t.cardId === traineeCardId) ?? null,
     [trainees, traineeCardId],
   );
 
-  const catalogue = useMemo(() => catalogueOf(roster.sparkOptions), [roster]);
+  /** The row being inspected, or null. Inspecting does NOT change the app's pair. */
+  const [inspecting, setInspecting] = useState<PairRowData | null>(null);
 
-  // 33,411 pairs on the builder's roster. Memoised on the three things that
-  // change it, because it runs synchronously on the render thread -- which the
-  // real search deliberately does not do: M7 puts the sweep in a web worker,
-  // measured at 1.5s unthrottled and 13.4s at 8x CPU throttle. Here there is no
-  // engine behind it, so the loop is arithmetic and lands in single-digit ms.
-  const search = useMemo(
-    () => fakePairSearch(roster.veterans, trainee?.charaId ?? null, criteria),
-    [roster, trainee, criteria],
+  /*
+   * THE REQUIREMENTS THE RESULTS BELOW ARE ABOUT, which is not the same list as
+   * the one in the control above.
+   *
+   * The sweep used to re-run on every edit. Adding four requirements meant four
+   * sweeps, three of them about a question nobody had finished asking -- and on
+   * a whites-only filter each is over a second of a worker's time. Worse, the
+   * intermediate answers are misleading rather than merely wasteful: a reader
+   * part-way through building "Stamina AND Medium" is shown the far larger
+   * result for Stamina alone.
+   *
+   * So editing is free and searching is deliberate. Seeded from the persisted
+   * list, so returning to this screen shows the results it last had rather than
+   * an empty page with a button on it.
+   */
+  const [applied, setApplied] = useState<readonly SparkCriterion[]>(criteria);
+  const detail = usePairDetail(
+    packages,
+    trainee?.charaId ?? null,
+    traineeCardId,
+    roster.masterHash,
+    inspecting,
   );
 
-  const headline = HEADLINE[Math.min(criteria.length, 2) as 0 | 1 | 2];
+  const catalogue = useMemo(() => catalogueOf(roster.sparkOptions), [roster]);
+
+  /*
+   * THE SWEEP RUNS IN A WORKER, and this is the only place that waits on it.
+   * Measured on the real roster: 1,179 ms worst case with the main thread still
+   * turning over 141 animation frames, longest gap 9.4 ms. On this thread the
+   * same work is a 1.2-second freeze.
+   */
+  const status = usePairSearch(
+    roster,
+    packages,
+    trainee?.charaId ?? null,
+    traineeCardId,
+    applied,
+  );
+
+  /*
+   * Rows are built for the PAGE, counts come from the whole sweep.
+   *
+   * All 30,808 pairs are scored and ranked before anything renders; only the
+   * list is paged. Building a row object for every one of them to show eighty
+   * would be 30,000 allocations nobody reads, and the counts beside the list
+   * would be identical either way.
+   */
+  const view = useMemo(
+    () => (status.kind === 'done' ? viewOf(status.sweep, roster.veterans, applied, shown) : null),
+    [status, roster, applied, shown],
+  );
+
+  const headline = HEADLINE[Math.min(applied.length, 2) as 0 | 1 | 2];
 
   return (
     <main className={styles.shell}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
-        <button type="button" className={styles.back} onClick={onBack}>
-          Back to the roster
-        </button>
+        {nav}
       </header>
 
-      {/*
-        SAYS WHAT IT IS, AT THE TOP, IN CHROME COLOUR.
-        `--warning` rather than `--bonus`, though they are the same hex: amber
-        means "added" inside the data surface and this is a banner about the
-        page, which DESIGN.md allows semantic colour for. It is a ruled region
-        rather than a card, because it is not an entity you point at.
-      */}
-      <p className={styles.banner}>
-        <strong className={styles.bannerLead}>WIREFRAME — FOR DESIGN REVIEW</strong>
-        Every percentage, pair total and ◎/〇/△ below is <em>invented</em>. The umas, their
-        costumes, their parents, their sparks and every star count are your real roster, and
-        every pair shown is one the game would allow.
-      </p>
-
-      <TraineePicker trainees={trainees} chosen={traineeCardId} onChoose={setTraineeCardId} />
+      <TraineePicker trainees={trainees} chosen={traineeCardId} onChoose={onTrainee} />
 
       {/*
-        BEFORE A TRAINEE IS CHOSEN THERE IS NO SEARCH, and the screen says so in
-        one line rather than showing an empty or disabled list.
+        BEFORE A TRAINEE THERE IS NO SEARCH, and the screen says so in one line
+        rather than showing an empty or disabled list.
 
-        This is the one place this wireframe departs from the roster screen's
-        precedent, which makes the list simply ABSENT under an unused picker and
-        lets the empty space speak. The reason is that the precondition is
-        harder to see here: on the roster screen the trainee decides which
-        veterans are legal, which the reader can work out; here it decides every
-        NUMBER in the ranking, because the odds run through Individual Affinity
-        and that is computed against the trainee. An absent list would read as
-        "loading". Which of the two treatments is right is a question FOR the
-        review, not a settled matter.
+        The roster screen makes its list simply ABSENT under an unused picker
+        and lets the empty space speak. Here the precondition is harder to see:
+        on the roster screen the trainee decides which veterans are legal, which
+        a reader can work out; here it decides every NUMBER in the ranking,
+        because the odds run through Individual Affinity and that is computed
+        against the trainee. An absent list would read as "loading".
       */}
       {trainee === null ? (
         <p className={styles.precondition}>
@@ -141,80 +182,126 @@ export function PairSearchWireframe({
       ) : (
         <>
           {/*
-            The list filter, reused unchanged, as the statement of what the user
-            wants. TWO THINGS IT CANNOT SAY HERE, both worth the review's time:
+            The same control the roster list uses, told it is asking about a
+            PAIR. That changes the ceilings it offers -- 6 on the parents and 18
+            across the lineage, against a package's 3 and 9 -- so half the
+            requirements this search exists for stop being inexpressible.
 
-            1. It states its result in VETERANS ("31 of 259"), and the result of
-               a pair search is a count of PAIRS. It is given the honest veteran
-               figure -- how many appear in at least one matching pair -- and the
-               pair count is stated below, where there is room for it.
-            2. Its star ceilings are a PACKAGE's: 3 on the parent, 9 across the
-               lineage. A pair is six umas, so the real ceilings are 6 and 18.
-               `maxStarsFor(scope, subject)` can answer that since T3 -- it
-               returns 6 and 18 for `'pair'` today -- but this control still asks
-               it for `'package'`, because threading the subject through
-               `SparkFilter` is the search surface's job (T10). So the gap is now
-               one prop rather than a missing function, and until T10 closes it
-               this filter cannot express half the requirements the search is
-               for.
+            It states its result in VETERANS ("31 of 259") because that is what
+            it can honestly say about a roster; the pair count is the number the
+            search is really about and is stated beside the list, where there is
+            room for it.
           */}
           <SparkFilter
             options={roster.sparkOptions}
             criteria={criteria}
-            matching={search.candidates}
+            subject="pair"
+            matching={view?.candidates ?? roster.veterans.length}
             total={roster.veterans.length}
-            onChange={(next) => {
-              setCriteria(next);
-              setShown(FIRST_PAGE);
-            }}
+            onChange={onCriteria}
           />
 
-          <div className={styles.listHead}>
-            <h2 className={styles.rubric}>Pairs for {trainee.name}</h2>
-            <span className={styles.count}>
-              {criteria.length === 0
-                ? `${search.legalPairs.toLocaleString()} legal pairs`
-                : `${search.matchingPairs.toLocaleString()} of ${search.legalPairs.toLocaleString()} pairs`}
-            </span>
+          {/*
+            SEARCHING IS A DELIBERATE ACT, and this is where it is asked for --
+            attached to the requirements it will run, rather than floating over
+            the results it will replace.
+
+            One label, one appearance, and nothing explaining itself beside it.
+            It stays clickable when nothing has changed, because a reader who
+            wants the same search again should get it rather than a dead control
+            they have to work out.
+          */}
+          <div className={styles.searchRow}>
+            <button
+              type="button"
+              className={styles.searchNow}
+              // Paging needs no reset here: `onCriteria` already returns the
+              // list to its first page on every edit, so it is there by the
+              // time this is reachable.
+              onClick={() => setApplied(criteria)}
+            >
+              Search
+            </button>
           </div>
 
-          <p className={styles.headlineRubric}>{headline.rubric(criteria.length)}</p>
-
-          {/* Column rubrics, on the page ground. A header ROW inside the list
-              would make the first card look like a different kind of card. */}
-          <div className={styles.columns} aria-hidden="true">
-            <span />
-            <span>Half A</span>
-            <span />
-            <span>Half B</span>
-            <span className={styles.columnRight}>Pair total</span>
-          </div>
-
-          {search.matchingPairs === 0 ? (
-            <p className={styles.empty}>
-              No legal pair of your veterans meets all {criteria.length} requirements. Relax one
-              and search again — on the builder&rsquo;s roster, &ldquo;Stamina ≥ 12 AND Medium ≥
-              4&rdquo; is met by 25 of 33,411 pairs, so this is the ordinary path rather than an
-              error.
-            </p>
+          {status.kind === 'failed' ? (
+            <p className={styles.empty}>{status.message}</p>
+          ) : status.kind !== 'done' || view === null ? (
+            <SearchProgress status={status} />
           ) : (
             <>
-              <ol className={styles.list}>
-                {search.rows.slice(0, shown).map((row, at) => (
-                  <li key={`${row.a.index}-${row.b.index}`}>
-                    <PairRow row={row} at={at + 1} criteria={criteria} catalogue={catalogue} />
-                  </li>
-                ))}
-              </ol>
-              {shown < search.matchingPairs && (
-                <button
-                  type="button"
-                  className={styles.more}
-                  onClick={() => setShown((n) => n + FIRST_PAGE)}
-                >
-                  Show {Math.min(FIRST_PAGE, search.matchingPairs - shown)} more of{' '}
-                  {(search.matchingPairs - shown).toLocaleString()}
-                </button>
+              <div className={styles.listHead}>
+                <h2 className={styles.rubric}>Pairs for {trainee.name}</h2>
+                <span className={styles.count}>
+                  {applied.length === 0
+                    ? `${view.legalPairs.toLocaleString()} legal pairs`
+                    : `${view.matchingPairs.toLocaleString()} of ${view.legalPairs.toLocaleString()} pairs`}
+                </span>
+              </div>
+
+              <p className={styles.headlineRubric}>{headline.rubric(applied.length)}</p>
+
+              {/* Column rubrics, on the page ground. A header ROW inside the
+                  list would make the first card look like a different kind of
+                  card. */}
+              <div className={styles.columns} aria-hidden="true">
+                <span />
+                <span>Half A</span>
+                <span />
+                <span>Half B</span>
+                <span className={styles.columnRight}>Pair total</span>
+              </div>
+
+              {view.matchingPairs === 0 ? (
+                <p className={styles.empty}>
+                  No legal pair of your veterans meets all {applied.length} requirements. Relax
+                  one and search again — on the builder&rsquo;s roster, &ldquo;Stamina ≥ 12 AND
+                  Medium ≥ 4&rdquo; is met by 22 of 30,808 legal pairs, so this is the ordinary
+                  path rather than an error.
+                </p>
+              ) : (
+                <>
+                  <ol className={styles.list}>
+                    {view.rows.map((row, at) => (
+                      <li key={`${row.a.index}-${row.b.index}`}>
+                        <PairRow
+                          row={row}
+                          at={at + 1}
+                          criteria={applied}
+                          catalogue={catalogue}
+                          onPick={() => setInspecting(row)}
+                        />
+                      </li>
+                    ))}
+                  </ol>
+                  {view.rows.length < view.matchingPairs && (
+                    <button type="button" className={styles.more} onClick={onShowMore}>
+                      Show {Math.min(PAGE, view.matchingPairs - view.rows.length)} more of{' '}
+                      {(view.matchingPairs - view.rows.length).toLocaleString()}
+                    </button>
+                  )}
+                  {inspecting !== null && (
+                    <PairDetail
+                      state={detail}
+                      row={inspecting}
+                      criteria={applied}
+                      sparkOptions={roster.sparkOptions}
+                      onClose={() => setInspecting(null)}
+                      onChoose={() => {
+                        // The detail already explained this pair locally, so
+                        // hand the lineage over rather than make the breakdown
+                        // recompute it -- and rather than let it arrive with
+                        // nothing to draw, which the tree guard bounces.
+                        onPick(
+                          inspecting.a.index,
+                          inspecting.b.index,
+                          detail.kind === 'ok' ? detail.lineage : null,
+                        );
+                        setInspecting(null);
+                      }}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
@@ -225,14 +312,41 @@ export function PairSearchWireframe({
 }
 
 /**
- * Enough rows to judge scrolling and repetition, and no more.
+ * WHAT A 1.2-SECOND WAIT LOOKS LIKE.
  *
- * 80 rather than everything: at ~110px a row, 33,411 of them is a 3.7km
- * document and the browser's own scroll thumb stops being a usable control long
- * before that. How the real screen pages 33,411 local results is a design
- * question this wireframe raises rather than answers.
+ * The figure is real and it moves: the worker reports every 512 legal pairs,
+ * about 60 times across a full sweep. A spinner would be honest about waiting
+ * and say nothing about progress, and this wait is long enough for the
+ * difference to matter -- it is also the only place in this product where the
+ * user waits on a computation rather than on a network.
+ *
+ * It states PAIRS CONSIDERED, not pairs found. How many will match is unknown
+ * until the sweep ends, so a "found so far" figure would climb and then stop
+ * for reasons the reader cannot see.
  */
-const FIRST_PAGE = 80;
+function SearchProgress({ status }: { status: SearchStatus }) {
+  if (status.kind !== 'running') return <p className={styles.precondition}>Ready to search.</p>;
+  const { progress } = status;
+  return (
+    <p className={styles.precondition}>
+      {progress === null
+        ? 'Searching every legal pair of your roster…'
+        : `Searching… ${progress.considered.toLocaleString()} of ${progress.total.toLocaleString()} pairs considered.`}
+    </p>
+  );
+}
+
+
+/**
+ * How many rows a page adds.
+ *
+ * 80 rather than everything: at ~110px a row, 30,808 of them is a 3.4km
+ * document and the browser's own scroll thumb stops being a usable control long
+ * before that. The SWEEP is complete either way -- every pair is scored and
+ * ranked before a row renders -- so this paces the DOM, not the search, and
+ * "show 80 more" costs a slice rather than a re-sweep.
+ */
+export const PAGE = 80;
 
 /**
  * What the right-hand figure IS, which changes with how many sparks were asked
@@ -289,18 +403,50 @@ const PairRow = memo(function PairRow({
   at,
   criteria,
   catalogue,
+  onPick,
 }: {
-  row: FakePairRow;
+  row: PairRowData;
   at: number;
   criteria: readonly SparkCriterion[];
   catalogue: Catalogue;
+  /** Opens the detail. Inspecting a pair is not choosing it. */
+  onPick: () => void;
 }) {
   // Built per row rather than per list, because PairRow is memoised on its
   // props and a Set rebuilt in the parent would defeat that for all 80 rows.
   const asked = new Set(criteria.map((c) => c.groupId));
 
+  /*
+   * THE WHOLE ROW IS THE CONTROL, because the whole row is the thing you pick.
+   *
+   * An earlier cut put a `button` in the ordinal's cell, which made the card
+   * look like a container holding one actionable thing rather than being the
+   * actionable thing. It is already settled here that the PAIR is the entity
+   * you point at, so the pair is what you click.
+   *
+   * `role="button"` and a key handler on the article rather than wrapping it in
+   * a real `<button>`: the row is a five-column grid holding portraits, chips
+   * and two more grids, and a button element cannot contain that markup
+   * legally. What a button gives for free is added back by hand -- `tabIndex`
+   * so all eighty are reachable in reading order, Enter and Space because a
+   * button responds to both, and `preventDefault` on Space so the page does not
+   * scroll out from under the row being chosen.
+   */
+  const choose = (): void => onPick();
+
   return (
-    <article className={styles.row}>
+    <article
+      className={styles.row}
+      role="button"
+      tabIndex={0}
+      aria-label={`Pick ${row.a.self.name} and ${row.b.self.name} as the parents`}
+      onClick={choose}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        choose();
+      }}
+    >
       <span className={styles.ordinal}>{at}</span>
 
       <Half veteran={row.a} slot="A" catalogue={catalogue} asked={asked} />
@@ -363,9 +509,21 @@ const PairRow = memo(function PairRow({
               );
             })
             .map(({ criterion, c }) => {
-            const [starsA, starsB] = row.stars[c] as readonly [number, number];
-            // Still summed here: the band states the pair's total, the halves
-            // state who holds it.
+            /*
+             * THE WHOLE LINEAGE, ALWAYS -- every ancestor of both halves,
+             * whatever scope this criterion happens to be written in.
+             *
+             * The band answers "what does this pair give me". A criterion's
+             * scope is how the reader FOUND the pair; it is not a claim about
+             * what the pair carries. A cut that printed the scoped figure was
+             * correct arithmetic answering the wrong question, and it read as a
+             * discrepancy: chips saying 4 and 2 beside a band saying 5, because
+             * that criterion counted only the direct parents.
+             *
+             * So this always equals the two chips above it added together, and
+             * a reader can check it by eye. WHO holds the stars is the chips'
+             * job, via their parent-share marks.
+             */
             return (
               <span key={criterion.groupId} className={styles.want}>
                 <span
@@ -375,8 +533,7 @@ const PairRow = memo(function PairRow({
                 <span className={styles.wantName}>
                   {catalogue.get(criterion.groupId)?.name ?? `spark ${criterion.groupId}`}
                 </span>
-                <span className={styles.wantStars}>{starsA + starsB}★</span>
-                {/* FAKE. */}
+                <span className={styles.wantStars}>{row.lineageStars[c]}★</span>
                 <span className={styles.wantOdds}>{percent(row.perSpark[c] as number)}</span>
               </span>
               );
@@ -408,18 +565,52 @@ const PairRow = memo(function PairRow({
 });
 
 /** One spark on one half. No percentage: the odds belong to the PAIR. */
+/**
+ * TWO MARKS, AND THEY MEAN DIFFERENT THINGS.
+ *
+ * `asked` says the reader ASKED for this spark: it is one of the criteria, and
+ * the mark is the chip's own ground lifting, because it is a statement about
+ * the whole chip.
+ *
+ * `onParent` says how many of these stars sit on the direct parent rather than
+ * on a grandparent, and it is a statement about part of the number -- so it is
+ * a separate segment inside the chip, not a treatment of the chip.
+ *
+ * Why it is worth the room. A player reading a result has to go and pick this
+ * uma in the game, and what they select is the PARENT; the grandparents come
+ * with it. "6 stars of Medium" where the parent holds 2 and "3 stars of Uma
+ * Stan" where the parent holds all 3 are different propositions, and the total
+ * alone cannot tell them apart. The parent's share is also the likelier half to
+ * be inherited: measured on this roster, parent Individual Affinity has median
+ * 138 against a grandparent's 36.
+ *
+ * ONE TREATMENT, NOT TWO. An earlier cut had a second, lighter style for the
+ * case where the parent holds the whole spark, and it made the mark look like
+ * it was saying different KINDS of thing on different chips -- especially
+ * beside `asked`, whose own lift changed the ground underneath it. A mark
+ * whose colour varies is read as a category; this is a quantity, so it gets one
+ * appearance and the number carries the difference.
+ *
+ * Both marks can land on one chip, which is the common case for a filtered
+ * spark, so neither may use the other's channel.
+ */
 function Chip({
   row,
   asked = false,
 }: {
-  row: { groupId: number; stars: number; name?: string; kind?: SparkKind };
+  row: { groupId: number; stars: number; onParent?: number; name?: string; kind?: SparkKind };
   asked?: boolean;
 }) {
   const kind = row.kind as SparkKind;
+  const onParent = row.onParent ?? 0;
   return (
     <span
       className={asked ? `${styles.chip} ${styles.chipAsked}` : styles.chip}
-      title={`${row.name} ${row.stars}★`}
+      title={
+        onParent === 0
+          ? `${row.name} ${row.stars}★, all of it on the grandparents`
+          : `${row.name} ${row.stars}★, ${onParent}★ of it on the parent itself`
+      }
     >
       <span
         className={styles.tick}
@@ -431,6 +622,11 @@ function Chip({
       />
       <span className={styles.chipName}>{row.name}</span>
       <span className={styles.chipStars}>{row.stars}★</span>
+      {onParent > 0 && (
+        <span className={styles.onParent} aria-hidden="true">
+          {onParent}★
+        </span>
+      )}
     </span>
   );
 }
@@ -468,6 +664,13 @@ function Half({
     .map((s) => ({
       groupId: s.groupId,
       stars: s.stars.reduce((sum, n) => sum + (n ?? 0), 0),
+      // `stars` is [self, slot 10, slot 20], and in a PAIR this veteran IS the
+      // direct parent. So index 0 is the share that sits one generation closer
+      // than the rest, which is the share that matters most twice over: it is
+      // far likelier to be inherited (parent IA median 138 against a
+      // grandparent's 36) and it is the uma the player actually has to select
+      // in the game.
+      onParent: s.stars[0] ?? 0,
       name: catalogue.get(s.groupId)?.name,
       kind: catalogue.get(s.groupId)?.kind,
     }))
