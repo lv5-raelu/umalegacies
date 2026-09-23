@@ -1,5 +1,5 @@
 import type { PairSearchResult, PairSweep } from '@umalegacies/core';
-import { starsInScope } from '@umalegacies/core';
+import { starsInPair } from '@umalegacies/core';
 import type { ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
 
 /**
@@ -14,14 +14,22 @@ export interface PairRowData {
   a: ResolvedVeteran;
   b: ResolvedVeteran;
   /**
-   * Stars each half contributes to each criterion, in criteria order.
+   * What each criterion actually MEASURES on this pair, in criteria order.
    *
-   * SPLIT, not summed, and the split is the point: a pair holding 6 Stamina as
-   * 6+0 is a different proposition from one holding it as 3+3, and the band
-   * under each row is where that shows. `matchesPair` only had to answer
-   * whether the total cleared the bar.
+   * THE SAME FIGURE `matchesPair` COMPARED TO THE THRESHOLD, from the same
+   * function, rather than one recomposed here. The band used to add the two
+   * halves together, which was right for a summing scope and wrong for a
+   * maximum: under `one-parent` a pair meeting "3 on one parent" was shown
+   * carrying 6, double the number the requirement had tested. Reported by the
+   * builder from the other direction -- a lineage-scoped chip reading 4 and 2
+   * beside a parent-scoped band reading 5.
+   *
+   * It is NOT the same as adding up the two chips above it. A chip states what
+   * a half holds across its whole three-uma package; this states what the
+   * CRITERION looks at, which may be the two direct parents or the better of
+   * them. `scopeNote` is what tells the reader which.
    */
-  stars: Array<readonly [number, number]>;
+  inScope: number[];
   perSpark: (number | null)[];
   joint: number | null;
   pairTotal: number;
@@ -43,13 +51,6 @@ export interface PairSearchView {
    * stated beside the list instead.
    */
   candidates: number;
-}
-
-/** Stars one half carries for one criterion. A half without the spark is a zero. */
-function halfStars(veteran: ResolvedVeteran, criterion: SparkCriterion): number {
-  const spark = veteran.sparks.find((s) => s.groupId === criterion.groupId);
-  if (spark === undefined) return 0;
-  return starsInScope(spark, criterion.scope).reduce((total, n) => total + n, 0);
 }
 
 export function viewOf(
@@ -102,7 +103,7 @@ function rowOf(
   return {
     a,
     b,
-    stars: criteria.map((c) => [halfStars(a, c), halfStars(b, c)] as const),
+    inScope: criteria.map((c) => starsInPair(a, b, c.groupId, c.scope)),
     perSpark: result.perSpark,
     joint: result.joint,
     pairTotal: result.pairTotal,

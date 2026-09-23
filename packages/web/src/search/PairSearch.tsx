@@ -1,5 +1,6 @@
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import type {
+  FilterScope,
   LineageResponse,
   ResolvedMember,
   ResolvedVeteran,
@@ -278,6 +279,23 @@ export function PairSearch({
 }
 
 /**
+ * WHERE A REQUIREMENT'S STARS WERE COUNTED, when it is not the whole lineage.
+ *
+ * Nothing for `package`, which is the default, spans the same six umas the
+ * chips above do, and needs no saying. The other two do: without this the band
+ * prints a number the reader cannot reconcile with the chips, which is exactly
+ * how this was reported -- chips reading 4 and 2 beside a band reading 5.
+ *
+ * The words are the filter control's own, shortened. A reader who set
+ * "across both parents" there should meet the same phrase here rather than a
+ * synonym they have to match up.
+ */
+const SCOPE_NOTE: Readonly<Partial<Record<FilterScope, string>>> = {
+  parent: 'on both parents',
+  'one-parent': 'on one parent',
+};
+
+/**
  * WHAT A 1.2-SECOND WAIT LOOKS LIKE.
  *
  * The figure is real and it moves: the worker reports every 512 legal pairs,
@@ -475,9 +493,20 @@ const PairRow = memo(function PairRow({
               );
             })
             .map(({ criterion, c }) => {
-            const [starsA, starsB] = row.stars[c] as readonly [number, number];
-            // Still summed here: the band states the pair's total, the halves
-            // state who holds it.
+            /*
+             * THE FIGURE THE REQUIREMENT ACTUALLY TESTED, not a sum recomposed
+             * here. It comes from `starsInPair`, the same function
+             * `matchesPair` used to decide this row belongs in the list at all.
+             *
+             * It will not always equal the two chips above it added together,
+             * and that is correct rather than a discrepancy: a chip states what
+             * a half holds across its whole three-uma package, while this
+             * states what the CRITERION looks at. On "across both parents" the
+             * grandparents are not counted; on "on one parent" the halves are
+             * not even added, because that scope is a maximum. `scopeNote` is
+             * what stops the reader having to work that out from the numbers.
+             */
+            const scopeNote = SCOPE_NOTE[criterion.scope];
             return (
               <span key={criterion.groupId} className={styles.want}>
                 <span
@@ -487,8 +516,10 @@ const PairRow = memo(function PairRow({
                 <span className={styles.wantName}>
                   {catalogue.get(criterion.groupId)?.name ?? `spark ${criterion.groupId}`}
                 </span>
-                <span className={styles.wantStars}>{starsA + starsB}★</span>
-                {/* FAKE. */}
+                <span className={styles.wantStars}>{row.inScope[c]}★</span>
+                {scopeNote !== undefined && (
+                  <span className={styles.wantScope}>{scopeNote}</span>
+                )}
                 <span className={styles.wantOdds}>{percent(row.perSpark[c] as number)}</span>
               </span>
               );
