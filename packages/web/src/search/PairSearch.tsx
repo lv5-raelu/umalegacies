@@ -208,21 +208,23 @@ export function PairSearch({
             the results it will replace.
 
             It stays clickable when nothing has changed, because a reader who
-            wants the same search again should get it rather than a dead
-            control they have to work out. What changes is what it SAYS: it
-            offers to search while the requirements differ from the ones below,
-            and to run it again once they match.
+            wants the same search again should get it rather than a dead control
+            they have to work out. ONE LABEL AND ONE APPEARANCE, though: it said
+            "Search again" when nothing was pending, and a button that changes
+            its own wording for a state the reader cannot see reads as a glitch.
+            The hint beside it is what says the results are stale, which is the
+            fact worth stating.
           */}
           <div className={styles.searchRow}>
             <button
               type="button"
-              className={dirty ? styles.searchNow : styles.searchAgain}
+              className={styles.searchNow}
               // Paging needs no reset here: `onCriteria` already returns the
               // list to its first page on every edit, so it is there by the
               // time this is reachable.
               onClick={() => setApplied(criteria)}
             >
-              {dirty ? 'Search' : 'Search again'}
+              Search
             </button>
             {dirty && (
               <span className={styles.searchHint}>

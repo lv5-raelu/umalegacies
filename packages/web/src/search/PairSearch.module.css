@@ -776,12 +776,12 @@
 }
 
 /*
- * DESIGN.md: interaction is achromatic, and primary is ink on paper. The two
- * states differ by WEIGHT, not hue -- offering a search the reader has not run
- * is the primary act on this screen, running the same one again is not.
+ * DESIGN.md: interaction is achromatic, and primary is ink on paper. ONE
+ * appearance, because there is one label: a button that restyled itself for a
+ * state the reader could not otherwise see read as a glitch rather than as
+ * information, and the hint beside it carries that fact in words.
  */
-.searchNow,
-.searchAgain {
+.searchNow {
   font: inherit;
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
@@ -799,17 +799,7 @@
   background: var(--primary-hover);
 }
 
-.searchAgain {
-  border: 1px solid var(--rule);
-  background: none;
-  color: var(--ink-muted);
-}
 
-.searchAgain:hover,
-.searchAgain:focus-visible {
-  border-color: var(--rule-strong);
-  color: var(--ink);
-}
 
 /* Says what the stale results below are, so the disagreement is stated rather
    than left for the reader to notice. */
