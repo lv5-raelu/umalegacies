@@ -364,16 +364,33 @@ export function App() {
 
   const shown = useMemo(() => {
     if (!roster) return [];
-    // Sorted HERE, not on the server: `index` joins a row back to the slimmed
-    // package the browser still holds, so the response stays in request order.
-    // A PICK NEVER MOVES A CARD. Selecting is not a sort key: the list holds
-    // still so the card you just clicked stays under the cursor and the one you
-    // were about to compare it against stays where you last saw it. An earlier
-    // cut pinned picks to the top and it made the list jump under the pointer.
-    return filterVeterans(roster.veterans, criteria).sort(
-      (a, b) => b.score - a.score || a.self.name.localeCompare(b.self.name),
+    /*
+     * Sorted HERE, not on the server: `index` joins a row back to the slimmed
+     * package the browser still holds, so the response stays in request order.
+     *
+     * A PICK GOES TO THE TOP, REINSTATED ON THE BUILDER'S CALL.
+     *
+     * This was tried once and taken out, because clicking a card in the middle
+     * of 259 made the list jump and left a different card under the pointer.
+     * That reasoning still holds for a click and is knowingly re-accepted,
+     * because it never applied to the case that brought it back: arriving from
+     * the pair search, the two picks are ALREADY set, nothing moves under
+     * anyone's cursor, and without this they sit wherever their scores put them
+     * in a list of 259 with nothing to say where.
+     *
+     * Picked first, then the existing order among themselves, so the pair reads
+     * in the same order the compare pane names it rather than in click order.
+     */
+    const pinned = new Set(
+      picks.flatMap((pick) => (pick.kind === 'own' ? [pick.index] : [])),
     );
-  }, [roster, criteria]);
+    return filterVeterans(roster.veterans, criteria).sort(
+      (a, b) =>
+        Number(pinned.has(b.index)) - Number(pinned.has(a.index)) ||
+        b.score - a.score ||
+        a.self.name.localeCompare(b.self.name),
+    );
+  }, [roster, criteria, picks]);
 
   const trainee = useMemo(
     () => trainees.find((t) => t.cardId === traineeCardId) ?? null,
