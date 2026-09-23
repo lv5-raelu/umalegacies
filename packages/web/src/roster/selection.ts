@@ -7,7 +7,7 @@ import type {
   TraineeOption,
 } from '@umalegacies/types';
 import { CACHE_VERSION } from './cache-policy';
-import { maxStarsFor, pickBlock } from '@umalegacies/core';
+import { maxStarsFor, pickBlock, type StarSubject } from '@umalegacies/core';
 import { ownPick } from './picks';
 
 /**
@@ -29,7 +29,23 @@ export interface CachedSelection {
   /** Shares `CACHE_VERSION` with the roster record: they are written together. */
   version: number;
   traineeCardId: number | null;
+  /** The ROSTER LIST's requirements. Package-scoped: one veteran, ceilings 3 and 9. */
   criteria: SparkCriterion[];
+  /**
+   * The PAIR SEARCH's requirements. Pair-scoped: six ancestors, ceilings 6 and 18.
+   *
+   * A SECOND LIST RATHER THAN ONE SHARED ONE, and that is the whole point.
+   * T10 first shared them, and a requirement authored for a pair -- "End Closer
+   * >= 7 across the lineage" -- then got applied to single veterans by the
+   * roster list, which asks whether ONE veteran meets the whole thing. On the
+   * builder's roster that search found 103 pairs while the list behind it
+   * showed 0 of 259, because the best pair held 8 stars as 3 + 5 and neither
+   * half cleared 7 alone. Above 9 it is guaranteed: no single package can hold
+   * more.
+   *
+   * Absent on a record written before this existed, which restores as empty.
+   */
+  searchCriteria?: SparkCriterion[];
   /**
    * The pair, in the SAME shape the app holds it in.
    *
@@ -46,11 +62,17 @@ export interface CachedSelection {
 export interface Selection {
   traineeCardId: number | null;
   criteria: SparkCriterion[];
+  searchCriteria: SparkCriterion[];
   /** The pair, oldest first, at most two. */
   picks: ParentPick[];
 }
 
-export const EMPTY_SELECTION: Selection = { traineeCardId: null, criteria: [], picks: [] };
+export const EMPTY_SELECTION: Selection = {
+  traineeCardId: null,
+  criteria: [],
+  searchCriteria: [],
+  picks: [],
+};
 
 const SCOPES: readonly FilterScope[] = ['package', 'parent'];
 
@@ -79,10 +101,11 @@ export function restoreSelection(
   if (record.version !== CACHE_VERSION) return EMPTY_SELECTION;
 
   const trainee = trainees.find((t) => t.cardId === record.traineeCardId) ?? null;
-  const criteria = restoreCriteria(record.criteria, roster);
+  const criteria = restoreCriteria(record.criteria, roster, 'package');
+  const searchCriteria = restoreCriteria(record.searchCriteria, roster, 'pair');
   const picks = restorePicks(record.picks, roster, trainee?.charaId ?? null);
 
-  return { traineeCardId: trainee?.cardId ?? null, criteria, picks };
+  return { traineeCardId: trainee?.cardId ?? null, criteria, searchCriteria, picks };
 }
 
 /**
@@ -95,7 +118,11 @@ export function restoreSelection(
  * requirement. Rather than clamp it -- which would silently answer a question
  * nobody asked -- a criterion that does not check out is dropped.
  */
-function restoreCriteria(stored: unknown, roster: RosterResolveResponse): SparkCriterion[] {
+function restoreCriteria(
+  stored: unknown,
+  roster: RosterResolveResponse,
+  subject: StarSubject,
+): SparkCriterion[] {
   if (!Array.isArray(stored)) return [];
   const known = new Set(roster.sparkOptions.map((o) => o.groupId));
   const seen = new Set<number>();
@@ -112,16 +139,15 @@ function restoreCriteria(stored: unknown, roster: RosterResolveResponse): SparkC
     if (seen.has(groupId)) continue;
     if (typeof scope !== 'string' || !SCOPES.includes(scope as FilterScope)) continue;
     if (typeof minStars !== 'number' || !Number.isInteger(minStars)) continue;
-    // 'package': every criterion in this store was written by the ROSTER LIST's
-    // filter, where a row is one veteran.
+    // THE CEILING FOLLOWS THE SUBJECT, which T3 left as a note for T10 and this
+    // is it. The two lists are read with the ceiling their own surface offers:
+    // 3 and 9 for the roster list, 6 and 18 for the search. Read with the wrong
+    // one, a perfectly good "12 across the lineage" would be dropped here as
+    // out of range and the user's search would silently widen on reload.
     //
-    // T10 HAS TO REVISIT THIS. When the pair search persists its own criteria,
-    // the same `minStars` will mean a pair's ceiling -- 6 and 18 rather than 3
-    // and 9 -- and a perfectly good "12 across the lineage" would be dropped
-    // here as out of range. The stored record carries no field saying which
-    // surface wrote it, and inventing one is a persisted-format decision that
-    // belongs with the surface that needs it, not guessed at now.
-    if (minStars < 1 || minStars > maxStarsFor(scope as FilterScope, 'package')) continue;
+    // The stored record still carries no field saying which surface wrote a
+    // criterion. It no longer needs one: which KEY it was stored under says so.
+    if (minStars < 1 || minStars > maxStarsFor(scope as FilterScope, subject)) continue;
 
     // Absent is the default and by far the common case. Present-but-not-boolean
     // means the record was not written by this UI, and the rule here is to drop

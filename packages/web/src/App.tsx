@@ -65,7 +65,23 @@ export function App() {
   const [roster, setRoster] = useState<RosterResolveResponse | null>(null);
   const [trainees, setTrainees] = useState<TraineeOption[]>([]);
   const [traineeCardId, setTraineeCardId] = useState<number | null>(null);
+  /**
+   * TWO REQUIREMENT LISTS, NOT ONE, and the separation is load-bearing.
+   *
+   * `criteria` belongs to the roster LIST, where a row is one veteran and
+   * `matchesCriterion` asks whether that veteran meets the whole requirement.
+   * `searchCriteria` belongs to the pair SEARCH, where `matchesPair` asks what
+   * six ancestors carry between them.
+   *
+   * They were briefly one list. A requirement authored for a pair then landed
+   * on the roster list as if a single veteran had to satisfy it: on the
+   * builder's roster, "End Closer >= 7 across the lineage" found 103 pairs
+   * while the list behind it showed 0 of 259, because the best pair held 8
+   * stars as 3 + 5 and neither half cleared 7 on its own. Picking that pair and
+   * going back left a populated compare pane over an empty roster.
+   */
   const [criteria, setCriteria] = useState<SparkCriterion[]>([]);
+  const [searchCriteria, setSearchCriteria] = useState<SparkCriterion[]>([]);
   /** The pair, oldest first, at most two. See `ParentPick`. */
   const [picks, setPicks] = useState<ParentPick[]>([]);
   const [lineage, setLineage] = useState<LineageResponse | null>(null);
@@ -224,6 +240,7 @@ export function App() {
       const selection = restoreSelection(storedSelection, record.resolved, record.trainees);
       setTraineeCardId(selection.traineeCardId);
       setCriteria(selection.criteria);
+      setSearchCriteria(selection.searchCriteria);
       setPicks(selection.picks);
       setRestoring(false);
 
@@ -425,9 +442,10 @@ export function App() {
       version: CACHE_VERSION,
       traineeCardId,
       criteria: [...criteria],
+      searchCriteria: [...searchCriteria],
       picks: picksToCache(picks, roster),
     });
-  }, [restoring, roster, traineeCardId, criteria, picks]);
+  }, [restoring, roster, traineeCardId, criteria, searchCriteria, picks]);
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
@@ -492,11 +510,11 @@ export function App() {
         packages={save.veterans}
         trainees={trainees}
         traineeCardId={traineeCardId}
-        criteria={criteria}
+        criteria={searchCriteria}
         shown={shownResults}
         onTrainee={setTraineeCardId}
         onCriteria={(next) => {
-          setCriteria(next);
+          setSearchCriteria(next);
           setShownResults(PAGE);
         }}
         onShowMore={() => setShownResults((n) => n + PAGE)}

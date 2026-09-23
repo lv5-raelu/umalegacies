@@ -236,6 +236,32 @@ would turn parse-and-discard from a server promise into a structural fact and
 remove a 157 KB roster upload per load. The builder scoped T16 to the pair only;
 the rest is a milestone of its own, not a task.
 
+**THE TWO SURFACES DO NOT SHARE A REQUIREMENT LIST, and the first cut of T10
+did.** Reported by the builder: pick a pair from the search, go back, and the two
+parents are not in the roster list. The cause is a category error --
+`matchesCriterion` asks whether ONE veteran meets the whole requirement,
+`matchesPair` asks what six ancestors carry between them -- so a requirement
+authored for a pair was applied to single veterans. Measured on the real roster:
+
+```
+  "End Closer >= 7 across the lineage"
+    search found                  103 pairs
+    roster list showed              0 of 259 veterans
+    best pair held 8 stars as 3 + 5; neither half cleared 7 alone
+```
+
+Worse than the symptom suggested: the list went entirely EMPTY, not merely
+missing the picked pair, and above 9 stars that is guaranteed because no single
+package can hold more. The builder chose separation over the alternatives, so
+`Selection` now carries `criteria` (the roster list, ceilings 3 and 9) and
+`searchCriteria` (the search, ceilings 6 and 18). Each is restored against its
+own ceiling, which closes the note T3 left in `selection.ts` for T10: a stored
+`12 across the lineage` is kept for the search and refused for the list, and
+which KEY it was stored under is what says which it is.
+
+Verified after the fix: same search, 103 pairs, pick the top row, and the roster
+list behind it holds all 259 cards with both halves present.
+
 **T10 turned the wireframe into the surface, and M7 release 1 is complete.**
 The wireframe was never a mock-up to be re-drawn: its layout survived review, so
 T10 kept it and replaced `fakePairSearch` with the real sweep. `fake-scores.ts`

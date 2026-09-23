@@ -73,6 +73,7 @@ describe('a selection restored from this browser', () => {
     expect(restoreSelection(stored(), roster(), trainees)).toEqual({
       traineeCardId: null,
       criteria: [{ groupId: STAMINA, minStars: 4, scope: 'package' }],
+      searchCriteria: [],
       picks: [own(1, 101401), own(2, 100901)],
     });
   });
@@ -305,7 +306,70 @@ describe('what gets written', () => {
     expect(restoreSelection(written, r, trainees)).toEqual({
       traineeCardId: 100601,
       criteria: [],
+      searchCriteria: [],
       picks: [own(1, 101401), own(2, 100901)],
     });
+  });
+});
+
+describe('the two requirement lists are kept apart', () => {
+  /*
+   * THE BUG THIS EXISTS FOR. The roster list and the pair search briefly shared
+   * one criteria list. The two ask different questions of it -- `matchesCriterion`
+   * asks whether ONE veteran meets the whole requirement, `matchesPair` asks what
+   * six ancestors carry between them -- so a requirement authored for a pair
+   * landed on the roster list as a demand no single veteran could meet.
+   *
+   * Measured on the builder's roster: "End Closer >= 7 across the lineage" found
+   * 103 pairs while the list behind it showed 0 of 259, because the best pair
+   * held 8 stars as 3 + 5. Picking it left a populated compare pane over an
+   * empty roster.
+   */
+  // `stored()` is deliberately typed `unknown` -- `restoreSelection` takes a
+  // record off disk and must not trust its shape -- so it cannot be spread.
+  const withBoth = (criteria: unknown, searchCriteria: unknown): CachedSelection =>
+    ({
+      version: CACHE_VERSION,
+      traineeCardId: null,
+      criteria,
+      searchCriteria,
+      picks: [own(1, 101401), own(2, 100901)],
+    }) as unknown as CachedSelection;
+
+  it('restores each list into its own field', () => {
+    const list = [{ groupId: STAMINA, minStars: 3, scope: 'package' }];
+    const search = [{ groupId: STAMINA, minStars: 14, scope: 'package' }];
+    const restored = restoreSelection(withBoth(list, search), roster(), trainees);
+
+    expect(restored.criteria).toEqual(list);
+    expect(restored.searchCriteria).toEqual(search);
+  });
+
+  it('reads the SEARCH list against a pair\u2019s ceiling, not a package\u2019s', () => {
+    // 14 across the lineage is impossible for one veteran (max 9) and ordinary
+    // for a pair (max 18). Read with the wrong ceiling it would be dropped, and
+    // the user's search would silently widen on reload.
+    const asked = [{ groupId: STAMINA, minStars: 14, scope: 'package' }];
+    const restored = restoreSelection(withBoth([], asked), roster(), trainees);
+    expect(restored.searchCriteria).toEqual(asked);
+  });
+
+  it('still refuses that same threshold on the ROSTER list', () => {
+    const asked = [{ groupId: STAMINA, minStars: 14, scope: 'package' }];
+    const restored = restoreSelection(withBoth(asked, []), roster(), trainees);
+    expect(restored.criteria).toEqual([]);
+  });
+
+  it('restores an empty search list from a record written before it existed', () => {
+    // Every record on a user's disk right now is one of these.
+    const before = {
+      version: CACHE_VERSION,
+      traineeCardId: null,
+      criteria: [{ groupId: STAMINA, minStars: 4, scope: 'package' }],
+      picks: [own(1, 101401), own(2, 100901)],
+    } as unknown as CachedSelection;
+    const restored = restoreSelection(before, roster(), trainees);
+    expect(restored.searchCriteria).toEqual([]);
+    expect(restored.criteria).toHaveLength(1);
   });
 });
