@@ -14,22 +14,20 @@ export interface PairRowData {
   a: ResolvedVeteran;
   b: ResolvedVeteran;
   /**
-   * What each criterion actually MEASURES on this pair, in criteria order.
+   * Stars this pair carries of each wanted spark, across ALL SIX ancestors.
    *
-   * THE SAME FIGURE `matchesPair` COMPARED TO THE THRESHOLD, from the same
-   * function, rather than one recomposed here. The band used to add the two
-   * halves together, which was right for a summing scope and wrong for a
-   * maximum: under `one-parent` a pair meeting "3 on one parent" was shown
-   * carrying 6, double the number the requirement had tested. Reported by the
-   * builder from the other direction -- a lineage-scoped chip reading 4 and 2
-   * beside a parent-scoped band reading 5.
+   * ALWAYS THE WHOLE LINEAGE, whatever scope the criterion was written in.
+   * The band answers "what does this pair give me"; the criterion's scope is
+   * how the reader FOUND the pair, not what the pair carries. A cut that showed
+   * the scoped figure instead was correct arithmetic answering the wrong
+   * question, and it read as a discrepancy -- chips saying 4 and 2 beside a
+   * band saying 5, because that criterion counted only the direct parents.
    *
-   * It is NOT the same as adding up the two chips above it. A chip states what
-   * a half holds across its whole three-uma package; this states what the
-   * CRITERION looks at, which may be the two direct parents or the better of
-   * them. `scopeNote` is what tells the reader which.
+   * So this always equals the two chips above it added together, and can be
+   * checked by eye against them. Who holds the stars is said by the chips and
+   * their parent-share marks, which is the right place for it.
    */
-  inScope: number[];
+  lineageStars: number[];
   perSpark: (number | null)[];
   joint: number | null;
   pairTotal: number;
@@ -103,7 +101,9 @@ function rowOf(
   return {
     a,
     b,
-    inScope: criteria.map((c) => starsInPair(a, b, c.groupId, c.scope)),
+    // `'package'` unconditionally: every ancestor of both halves, which is what
+    // the chips show and what the reader is asking the band.
+    lineageStars: criteria.map((c) => starsInPair(a, b, c.groupId, 'package')),
     perSpark: result.perSpark,
     joint: result.joint,
     pairTotal: result.pairTotal,

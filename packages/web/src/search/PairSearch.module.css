@@ -760,17 +760,3 @@
   padding: 1px 5px;
   margin-left: 2px;
 }
-
-/*
- * Where a requirement's stars were counted, when it is not the whole lineage.
- *
- * Faint and small: it qualifies the number beside it rather than competing with
- * it, and on the common scope it is absent entirely, so the band only grows for
- * the rows that need explaining.
- */
-.wantScope {
-  font-family: var(--font-data);
-  font-size: var(--text-3xs);
-  color: var(--ink-faint);
-  white-space: nowrap;
-}
