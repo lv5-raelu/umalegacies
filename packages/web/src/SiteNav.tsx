@@ -10,7 +10,7 @@ import styles from './SiteNav.module.css';
  * were or which one they were on. Three ad-hoc exits are not navigation.
  *
  * A ROUTE THE READER CANNOT USE IS SHOWN, NOT HIDDEN, and says why. "Find a
- * pair" before a roster is loaded and "The working" before a pair is picked are
+ * pair" before a roster is loaded and "Breakdown" before a pair is picked are
  * both preconditions rather than absences, and a menu that grows items as you
  * go gives no sense of the whole. They are `aria-disabled` and titled with what
  * is missing -- the same treatment the roster list already gives a veteran that
@@ -79,7 +79,7 @@ export function navTargets({
     },
     {
       hash: '#tree',
-      label: 'The working',
+      label: 'Breakdown',
       blocked: hasLineage ? null : 'Pick a trainee and two parents first',
     },
   ];

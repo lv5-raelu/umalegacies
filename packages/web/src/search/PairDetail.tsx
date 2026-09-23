@@ -98,7 +98,7 @@ export function PairDetail({
    *
    * ONE CALLBACK, TWO DESTINATIONS, because the two buttons differ only in
    * where you land -- both commit the pair. They were briefly the SAME
-   * callback, which is how "Show the working" came to open the roster: it was
+   * callback, which is how "Show breakdown" came to open the roster: it was
    * wired to the use-this-pair handler while the layout was being chosen, and
    * never given its own destination.
    */

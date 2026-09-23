@@ -89,7 +89,7 @@ export function App() {
    * The two lists were separated because a pair-scoped requirement applied to
    * single veterans emptied the roster list. That fixed the list and left the
    * screens that EXPLAIN a pair reading the wrong one: the tree, reached by
-   * "Show the working" straight out of a search, highlighted the roster's
+   * "Show breakdown" straight out of a search, highlighted the roster's
    * requirements rather than the ones that found the pair.
    *
    * A discriminator rather than a third copy of the criteria. The highlight
@@ -561,7 +561,7 @@ export function App() {
            * The effect below explains a new pair asynchronously, so `lineage`
            * is null for a moment after the picks change -- and the tree guard
            * bounces anyone who lands on `#tree` with no lineage to draw. A
-           * first-ever "Show the working" would therefore have come out on the
+           * first-ever "Show breakdown" would therefore have come out on the
            * roster, which is the symptom this arrived as. The detail already
            * explained this exact pair locally, so handing it over closes the
            * window rather than racing it.

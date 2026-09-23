@@ -64,14 +64,34 @@
  * Achromatic on purpose. DESIGN.md: "Don't add a second accent. Amber means
  * added; that is the whole accent budget", and red already means unresolved.
  * A filter is also not a fact about the game -- it is a choice the reader made.
+ *
+ * `track` RATHER THAN `surface`, because surface was too quiet to find. It sits
+ * at 1.10:1 against paper -- DESIGN.md says so itself, and says that is why a
+ * card's 1px border is load-bearing rather than decorative -- so a band of it
+ * down a table of ~50 rows was nearly invisible. `track` is the next step up
+ * and still achromatic, which keeps the loudness in contrast where the accent
+ * budget cannot be spent.
+ *
+ * The name gets the rest: full ink at 600 against the muted 400 of every row
+ * that was not asked for, so the band is findable by weight as well as ground.
  */
 .asked {
-  background: var(--surface);
+  background: var(--track);
 }
 
 .asked td.name {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
+}
+
+/*
+ * A row that is BOTH asked for and open keeps both marks, and the bar has to
+ * stay visible against the stronger fill. `rule-strong` would disappear into
+ * `track`; ink does not.
+ */
+.asked.selected {
+  background: var(--track);
+  box-shadow: inset 2px 0 0 var(--ink);
 }
 
 .table tbody td {

@@ -14,7 +14,7 @@ import { Tree, type Selection } from './Tree';
 import styles from '../App.module.css';
 
 /**
- * The working, on its own page.
+ * The lineage breakdown, on its own page.
  *
  * The tree is PROVENANCE, not a compare surface, and it lost the fight for
  * horizontal space on the roster screen: it needs 848px at its designed size,

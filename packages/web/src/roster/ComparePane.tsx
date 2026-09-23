@@ -344,7 +344,7 @@ function Result({
       </div>
 
       <button type="button" className={styles.open} onClick={onOpenTree}>
-        Show the working
+        Show breakdown
       </button>
     </>
   );

@@ -366,7 +366,7 @@ describe('the two requirement lists are kept apart', () => {
     /*
      * The tree and the compare pane highlight the requirements that produced
      * the pair, not the roster list's. Without this a reload would switch the
-     * highlight underneath a reader sitting on "Show the working" after a
+     * highlight underneath a reader sitting on "Show breakdown" after a
      * search.
      */
     const withFrom = (pairFrom: unknown): CachedSelection =>
