@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, type ReactNode } from 'react';
 import type {
   ResolvedMember,
   ResolvedVeteran,
@@ -23,6 +23,7 @@ import { SparkFilter } from '../roster/SparkFilter';
 import { TraineePicker } from '../roster/TraineePicker';
 import { usePairSearch, type SearchStatus } from './usePairSearch';
 import { viewOf, type PairRowData } from './search-rows';
+import { PairDetail, usePairDetail } from './PairDetail';
 import styles from './PairSearch.module.css';
 
 /**
@@ -59,7 +60,7 @@ export function PairSearch({
   onCriteria,
   onShowMore,
   onPick,
-  onBack,
+  nav,
 }: {
   roster: RosterResolveResponse;
   /** The slimmed save the engine reads. Index-aligned with `roster.veterans`. */
@@ -82,11 +83,26 @@ export function PairSearch({
   onShowMore: () => void;
   /** Take this pair back to the roster screen, picked. */
   onPick: (a: number, b: number) => void;
-  onBack: () => void;
+  /**
+   * Rendered by `App`, which is the only place that knows whether the OTHER
+   * screens are reachable. A screen that worked out its own navigation could
+   * disagree with its neighbours about what exists.
+   */
+  nav: ReactNode;
 }) {
   const trainee = useMemo(
     () => trainees.find((t) => t.cardId === traineeCardId) ?? null,
     [trainees, traineeCardId],
+  );
+
+  /** The row being inspected, or null. Inspecting does NOT change the app's pair. */
+  const [inspecting, setInspecting] = useState<PairRowData | null>(null);
+  const detail = usePairDetail(
+    packages,
+    trainee?.charaId ?? null,
+    traineeCardId,
+    roster.masterHash,
+    inspecting,
   );
 
   const catalogue = useMemo(() => catalogueOf(roster.sparkOptions), [roster]);
@@ -124,9 +140,7 @@ export function PairSearch({
     <main className={styles.shell}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
-        <button type="button" className={styles.back} onClick={onBack}>
-          Back to the roster
-        </button>
+        {nav}
       </header>
 
       <TraineePicker trainees={trainees} chosen={traineeCardId} onChoose={onTrainee} />
@@ -214,7 +228,7 @@ export function PairSearch({
                           at={at + 1}
                           criteria={criteria}
                           catalogue={catalogue}
-                          onPick={onPick}
+                          onPick={() => setInspecting(row)}
                         />
                       </li>
                     ))}
@@ -224,6 +238,19 @@ export function PairSearch({
                       Show {Math.min(PAGE, view.matchingPairs - view.rows.length)} more of{' '}
                       {(view.matchingPairs - view.rows.length).toLocaleString()}
                     </button>
+                  )}
+                  {inspecting !== null && (
+                    <PairDetail
+                      state={detail}
+                      row={inspecting}
+                      criteria={criteria}
+                      sparkOptions={roster.sparkOptions}
+                      onClose={() => setInspecting(null)}
+                      onUse={() => {
+                        onPick(inspecting.a.index, inspecting.b.index);
+                        setInspecting(null);
+                      }}
+                    />
                   )}
                 </>
               )}
@@ -333,7 +360,8 @@ const PairRow = memo(function PairRow({
   at: number;
   criteria: readonly SparkCriterion[];
   catalogue: Catalogue;
-  onPick: (a: number, b: number) => void;
+  /** Opens the detail. Inspecting a pair is not choosing it. */
+  onPick: () => void;
 }) {
   // Built per row rather than per list, because PairRow is memoised on its
   // props and a Set rebuilt in the parent would defeat that for all 80 rows.
@@ -355,7 +383,7 @@ const PairRow = memo(function PairRow({
    * button responds to both, and `preventDefault` on Space so the page does not
    * scroll out from under the row being chosen.
    */
-  const choose = (): void => onPick(row.a.index, row.b.index);
+  const choose = (): void => onPick();
 
   return (
     <article

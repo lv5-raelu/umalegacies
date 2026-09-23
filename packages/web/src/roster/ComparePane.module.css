@@ -16,6 +16,20 @@
   min-height: 0;
 }
 
+/*
+ * The same content with someone else's frame around it.
+ *
+ * `height: 100%` is what differs, and it matters: as a standing region the pane
+ * fills its column, but inside a dialog the DIALOG decides the height and
+ * scrolls, so stretching to 100% of a scrolling box makes it fight the box.
+ */
+.embedded {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 var(--space-snug) var(--space-snug);
+}
+
 .rubric {
   font-family: var(--font-data);
   font-size: var(--text-3xs);

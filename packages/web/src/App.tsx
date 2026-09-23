@@ -15,6 +15,7 @@ import {
 } from './api/client';
 import { TreePage } from './lineage/TreePage';
 import { ComparePane, paneState } from './roster/ComparePane';
+import { SiteNav, navTargets } from './SiteNav';
 import { DropZone } from './roster/DropZone';
 import { SparkFilter } from './roster/SparkFilter';
 import { TraineePicker } from './roster/TraineePicker';
@@ -528,9 +529,12 @@ export function App() {
           setPicks([ownPick(picked[0]), ownPick(picked[1])]);
           location.hash = '';
         }}
-        onBack={() => {
-          location.hash = '';
-        }}
+        nav={
+          <SiteNav
+            current={SEARCH_HASH}
+            targets={navTargets({ hasRoster: true, hasLineage: lineage !== null })}
+          />
+        }
       />
     );
   }
@@ -540,9 +544,7 @@ export function App() {
       <TreePage
         lineage={lineage}
         criteria={criteria}
-        onBack={() => {
-          location.hash = '';
-        }}
+        nav={<SiteNav current="#tree" targets={navTargets({ hasRoster: true, hasLineage: true })} />}
       />
     );
   }
@@ -568,14 +570,7 @@ export function App() {
     <main className={`${styles.shell} ${roster ? styles.wide : styles.landing}`}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
-        {/* The way into the inverse query, and only once there is a roster to
-            search. It was DEV-ONLY while it was a wireframe with invented
-            numbers; every figure behind it is real now. */}
-        {roster && (
-          <a className={styles.quiet} href={SEARCH_HASH}>
-            find a pair →
-          </a>
-        )}
+        <SiteNav current="" targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null })} />
       </header>
 
       {masterChanged && (

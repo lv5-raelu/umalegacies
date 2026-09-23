@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import type { LineageResponse, SparkCriterion, SparkSummaryRow } from '@umalegacies/types';
 import { AuditTrail } from './AuditTrail';
 import {
@@ -24,12 +25,13 @@ import styles from '../App.module.css';
 export function TreePage({
   lineage,
   criteria,
-  onBack,
+  nav,
 }: {
   lineage: LineageResponse;
   /** Only to light up the sparks the reader asked for. Nothing here filters. */
   criteria: readonly SparkCriterion[];
-  onBack: () => void;
+  /** Rendered by `App`; see the note on `PairSearch`. */
+  nav: ReactNode;
 }) {
   const [selection, setSelection] = useState<Selection>({ kind: 'total' });
   // The sparks the reader filtered for, so the audit trail can light them up.
@@ -43,9 +45,7 @@ export function TreePage({
     <main className={styles.shell}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
-        <button type="button" className={styles.back} onClick={onBack}>
-          ← Back to the roster
-        </button>
+        {nav}
       </header>
 
       <h2 className={styles.rubric}>Decision surface</h2>

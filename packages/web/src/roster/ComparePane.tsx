@@ -115,6 +115,7 @@ export function ComparePane({
   criteria,
   sparkOptions,
   pickedCount,
+  embedded = false,
   onClearPicks,
   onOpenTree,
 }: {
@@ -124,6 +125,17 @@ export function ComparePane({
   sparkOptions: readonly RosterSparkOption[];
   /** How many veterans are picked, whether or not the filter shows them. */
   pickedCount: number;
+  /**
+   * Something else owns the frame.
+   *
+   * On the roster screen this is a standing region, so it names itself and
+   * carries the way out of a pick. Inside the search's detail it is content in
+   * a dialog that already has a title and a close button, and repeating both
+   * gave the reader two headings and a "Clear both picks" that did not clear
+   * any picks -- nothing is picked yet there, since inspecting a pair is not
+   * choosing it.
+   */
+  embedded?: boolean;
   onClearPicks: () => void;
   onOpenTree: () => void;
 }) {
@@ -133,8 +145,8 @@ export function ComparePane({
   const [view, setView] = useState<OddsView>('once');
 
   return (
-    <aside className={styles.pane}>
-      <h2 className={styles.rubric}>The pair</h2>
+    <aside className={embedded ? styles.embedded : styles.pane}>
+      {!embedded && <h2 className={styles.rubric}>The pair</h2>}
       {state.kind === 'need-trainee' && (
         <p className={styles.hint}>Choose who you are training, then pick two veterans.</p>
       )}
@@ -154,7 +166,7 @@ export function ComparePane({
         names what is picked and is always visible, so this is the one place the
         way out cannot itself be filtered away.
       */}
-      {pickedCount > 0 && (
+      {!embedded && pickedCount > 0 && (
         <button type="button" className={styles.clearPicks} onClick={onClearPicks}>
           Clear {pickedCount === 1 ? 'pick' : 'both picks'}
         </button>
