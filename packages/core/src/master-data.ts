@@ -41,8 +41,12 @@ export interface Factor {
 export interface MasterTables {
   successionRelation: ReadonlyArray<{ relation_type: number; relation_point: number }>;
   successionRelationMember: ReadonlyArray<{ relation_type: number; chara_id: number }>;
-  /** Ascending by id. See above: the ordering is load-bearing. */
-  cardData: ReadonlyArray<{ id: number; chara_id: number }>;
+  /**
+   * Ascending by id. See above: the ordering is load-bearing. `default_rarity`
+   * is 0 on exactly two rows, 9100101 and 9101101: placeholder cards with no
+   * skill set that nobody can train. See `isPlayable`.
+   */
+  cardData: ReadonlyArray<{ id: number; chara_id: number; default_rarity: number }>;
   winsSaddle: ReadonlyArray<{ id: number; group_id: number; win_saddle_type: number }>;
   /** Ascending by min_value. */
   careerRank: ReadonlyArray<{ id: number; min_value: number; max_value: number }>;
@@ -77,7 +81,9 @@ export class MasterData {
   private readonly charaIdByCardId = new Map<number, number>();
   /** chara_id -> its lowest card_id, i.e. the base costume. */
   private readonly baseCardByCharaId = new Map<number, number>();
-  /** chara_id -> every card_id it has, ascending. 35 of 66 characters have more than one. */
+  /** Playable cards (default_rarity > 0), ascending by id, as card_data delivers them. */
+  private readonly playableCards: Array<{ cardId: number; charaId: number }> = [];
+  /** chara_id -> every playable card_id it has, ascending. 35 of 68 characters have more than one. */
   private readonly cardsByCharaId = new Map<number, number[]>();
   /** card_id -> its bracketed costume label, e.g. "[Special Dreamer]". */
   private readonly costumeByCardId = new Map<number, string>();
@@ -116,7 +122,14 @@ export class MasterData {
     }
 
     for (const r of tables.cardData) {
+      // Every card resolves to its character, placeholders included: the
+      // content checks pin 9100101 -> 1001, and a lookup is never where a
+      // placeholder should fail. But a placeholder is not a costume, so it
+      // stays out of everything below -- counted, it made Grass Wonder and
+      // Special Week each show one card twice in the trainee picker.
       this.charaIdByCardId.set(r.id, r.chara_id);
+      if (!(r.default_rarity > 0)) continue;
+      this.playableCards.push({ cardId: r.id, charaId: r.chara_id });
       // Ordered by id, so the first card seen for a chara is the lowest: the
       // base costume. Only the TRAINEE needs this, because the request carries
       // traineeCharaId and never a card. Every ancestor already arrives as a
@@ -202,7 +215,7 @@ export class MasterData {
    * The ONE place card_id becomes chara_id.
    *
    * The roster and every ancestor carry card_id (101601); succession relations
-   * key on chara_id (1016). `card_id / 100` holds for 103 of 105 cards and
+   * key on chara_id (1016). `card_id / 100` holds for 105 of 107 cards and
    * fails on 9100101 -> 1001 and 9101101 -> 1011. hakuraku inlines the division
    * in at least three functions, which means fixing it means fixing it three
    * times and missing the third. Join, do not divide.
@@ -244,7 +257,7 @@ export class MasterData {
    * The costume label for a card, but ONLY where it is load-bearing.
    *
    * Returns null for a character with a single card, where a tag would be noise
-   * on every row. 74 of 105 cards belong to a character with more than one, and
+   * on every row. 72 of 105 cards belong to a character with more than one, and
    * for those the tag is the only thing separating two otherwise identical rows
    * that carry DIFFERENT unique skills, i.e. different green sparks.
    */
@@ -260,11 +273,9 @@ export class MasterData {
     return (this.cardsByCharaId.get(charaId)?.length ?? 0) > 1;
   }
 
-  /** Every card, ascending by id. The trainee picker's whole source. */
+  /** Every playable card, ascending by id. The trainee picker's whole source. */
   allCards(): Array<{ cardId: number; charaId: number }> {
-    return [...this.charaIdByCardId.entries()]
-      .map(([cardId, charaId]) => ({ cardId, charaId }))
-      .sort((a, b) => a.cardId - b.cardId);
+    return this.playableCards.map((c) => ({ ...c })).sort((a, b) => a.cardId - b.cardId);
   }
 
   hasChara(charaId: number): boolean {

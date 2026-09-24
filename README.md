@@ -135,9 +135,9 @@ project. It compiles the API's TypeScript itself with a compiler that drops
 decorator metadata, so every injected dependency arrives `undefined`; setting
 `devCommand` does not override it.
 
-Optionally, fill the portrait cache. It is not required and nothing depends on
-it; without it every tree node shows initials, which is the designed
-missing-image state.
+Portraits and the rank atlas are committed, so a clone already has them. After a
+game patch adds cards, fetch the new ones (existing files are skipped) and commit
+them:
 
 ```bash
 npm run fetch:portraits --workspace @umalegacies/api
@@ -169,26 +169,35 @@ app's own cache format changes, or when the record does not read back intact.
 Storage failures are not errors: a private window, blocked site data or a full quota all fall
 back to the behaviour above, which is reading the file each time.
 
-### Portraits are cached, not committed
+### Portraits are committed
 
-`packages/web/public/portraits/<card_id>.png` is **gitignored on purpose.** These
-are Cygames' character illustrations; gametora, which the script fetches from,
-rehosts them rather than owning them, so nobody in that chain can grant
-redistribution rights. Caching them on the machine that runs the app is a
-different act from shipping them in git history and serving them publicly.
+`packages/web/public/portraits/<card_id>.png` is **committed**, and so is the rank
+atlas in `packages/web/public/rank-icons/`. Both used to be gitignored, because they
+are Cygames' artwork and gametora and daftuyda.moe rehost it without being able to
+grant redistribution rights. That was reversed on 2026-09-18, by the builder, because
+it made every automated build ship with no artwork at all. A deployment only sees
+committed files, and a missing portrait looks exactly like the designed initials
+fallback, so nothing flagged it. `NOTICE.md` records the reversal and the rights
+position.
+
+So after a game patch, run `fetch:portraits` and commit whatever it writes. A new
+card with no committed portrait deploys as initials.
 
 **Keyed by card, not by character.** A card is a costume, and a costume carries
-its own unique skill, which IS the green spark. 35 of the 66 characters have
+its own unique skill, which IS the green spark. 35 of the 68 characters have
 more than one card, and on a real roster 15 appear with two different greens:
 Oguri Cap `100601` is *Triumphant Pulse*, `100602` is *Festive Miracle*. Keying
 by `chara_id` drew one costume's face directly above another costume's spark.
 
 `scripts/fetch-portraits.mjs` reads `card_data` from the committed extract,
 verifies PNG magic bytes rather than trusting a 200, and skips anything already
-on disk, so a re-run after a patch fetches only what is new. 103 of 105 cards,
+on disk, so a re-run after a patch fetches only what is new. 105 of 107 cards,
 about 900 KB. The two misses are `9100101` and `9101101` — the same pair the
-`card_id / 100` gotcha below calls out — which gametora does not host under this
-naming; they render as initials.
+`card_id / 100` gotcha below calls out. gametora does not host them because they are
+not real costumes: both have `default_rarity` 0 and no skill set, so nobody can train
+them. `MasterData` still resolves them to a character but never offers them as a card,
+which keeps them out of the trainee picker. Before that, each one showed up as a
+second, portrait-less copy of a real costume.
 
 ### The two data files
 
@@ -215,6 +224,8 @@ Put the new `master.mdb` at the repository root, then:
 ```bash
 npm run build:master   --workspace @umalegacies/api   # regenerate the extract
 npm run build:fixtures --workspace @umalegacies/api   # regenerate the fixtures
+npm run build:master-json --workspace @umalegacies/api # regenerate web/public/master.json
+npm run fetch:portraits --workspace @umalegacies/api  # new cards' portraits; commit them
 npm test
 ```
 

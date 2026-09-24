@@ -325,7 +325,7 @@ export interface ResolvedMember {
   name: string;
   /**
    * The bracketed costume label, e.g. "[Special Dreamer]". null when this
-   * character has only one card, where a tag would be noise. 74 of 105 cards
+   * character has only one card, where a tag would be noise. 72 of 105 cards
    * belong to a character with more than one.
    */
   costume: string | null;
@@ -499,7 +499,7 @@ export interface TraineeOption {
   costume: string | null;
   /**
    * True when this character has more than one card, i.e. the costume tag is
-   * load-bearing rather than decorative. 74 of 105 cards.
+   * load-bearing rather than decorative. 72 of 105 cards.
    */
   ambiguous: boolean;
 }

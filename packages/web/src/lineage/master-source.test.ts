@@ -17,7 +17,7 @@ const doc = {
   tables: {
     successionRelation: { keys: ['relation_type', 'relation_point'], cols: [[1], [5]] },
     successionRelationMember: { keys: ['relation_type', 'chara_id'], cols: [[1], [1006]] },
-    cardData: { keys: ['id', 'chara_id'], cols: [[100601], [1006]] },
+    cardData: { keys: ['id', 'chara_id', 'default_rarity'], cols: [[100601], [1006], [3]] },
     winsSaddle: { keys: ['id', 'group_id', 'win_saddle_type'], cols: [[1], [1], [1]] },
     careerRank: { keys: ['id', 'min_value', 'max_value'], cols: [[1], [0], [99999]] },
     relationRank: { keys: ['relation_rank', 'rank_value_min', 'rank_value_max'], cols: [[1], [0], [999]] },

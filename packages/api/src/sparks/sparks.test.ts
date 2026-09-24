@@ -197,7 +197,7 @@ describe('the Oguri Cap verification lineage', () => {
 
 describe('costumes are distinct umas, not skins', () => {
   it('gives an ancestor its own card, so the portrait matches the green spark', () => {
-    // 35 of the 66 characters have more than one card, and a card carries its
+    // 35 of the 68 characters have more than one card, and a card carries its
     // own unique skill -- which IS the green spark the node prints under the
     // portrait. Keying the image by chara_id drew one costume's face above
     // another costume's spark. Measured on a real roster, 15 characters appear

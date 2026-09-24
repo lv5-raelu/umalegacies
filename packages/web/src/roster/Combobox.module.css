@@ -78,7 +78,7 @@
 
 /*
  * The popup. Not a native <select>: a native option list cannot hold an image,
- * and with 105 cards across 66 characters the picture is the fastest way to
+ * and with 105 cards across 68 characters the picture is the fastest way to
  * tell "Oguri Cap" from "Oguri Cap".
  */
 .popup {

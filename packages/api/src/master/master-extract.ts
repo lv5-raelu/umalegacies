@@ -120,7 +120,7 @@ export function readTables(db: DatabaseSync): MasterTables {
   return {
     successionRelation: all('SELECT relation_type, relation_point FROM succession_relation'),
     successionRelationMember: all('SELECT relation_type, chara_id FROM succession_relation_member'),
-    cardData: all('SELECT id, chara_id FROM card_data ORDER BY id'),
+    cardData: all('SELECT id, chara_id, default_rarity FROM card_data ORDER BY id'),
     winsSaddle: all('SELECT id, group_id, win_saddle_type FROM single_mode_wins_saddle'),
     careerRank: all('SELECT id, min_value, max_value FROM single_mode_rank ORDER BY min_value'),
     relationRank: all(

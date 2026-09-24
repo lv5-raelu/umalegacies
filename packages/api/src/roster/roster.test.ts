@@ -39,7 +39,7 @@ describe('resolveRoster: who each veteran is', () => {
   });
 
   it('tags a costume only where the character has more than one card', () => {
-    // 74 of 105 cards need the tag. On the other 31 it would be noise on every
+    // 72 of 105 cards need the tag. On the other 33 it would be noise on every
     // row, and a row is 52px with four other things competing for it.
     const { veterans } = resolveRoster(
       [
@@ -177,13 +177,24 @@ describe('the trainee picker', () => {
   const options = traineeOptions(master);
 
   it('offers every card, not every character, because a card is a costume', () => {
-    // 66 characters span 105 cards, and a costume carries its own unique skill.
+    // 68 characters span 105 playable cards, and a costume carries its own unique skill.
     expect(options.length).toBe(105);
-    expect(new Set(options.map((o) => o.charaId)).size).toBe(66);
+    expect(new Set(options.map((o) => o.charaId)).size).toBe(68);
   });
 
-  it('marks the 74 cards whose bare name is ambiguous', () => {
-    expect(options.filter((o) => o.ambiguous).length).toBe(74);
+  it('never offers the two placeholder cards', () => {
+    // 9100101 and 9101101 are card_data rows with default_rarity 0 and no skill
+    // set: nobody can train them. Offered, they were a second "Grass Wonder
+    // [Stone-Piercing Blue]" with no portrait, and a second Special Week.
+    const ids = options.map((o) => o.cardId);
+    expect(ids).not.toContain(9100101);
+    expect(ids).not.toContain(9101101);
+    const grass = options.filter((o) => o.name === 'Grass Wonder');
+    expect(grass.map((o) => o.costume)).toEqual(['[Stone-Piercing Blue]', '[Saintly Jade Cleric]']);
+  });
+
+  it('marks the 72 cards whose bare name is ambiguous', () => {
+    expect(options.filter((o) => o.ambiguous).length).toBe(72);
     const oguri = options.filter((o) => o.name === 'Oguri Cap');
     expect(oguri.map((o) => o.costume)).toEqual(['[Starlight Beat]', '[Ashen Miracle]']);
     expect(oguri.every((o) => o.ambiguous)).toBe(true);
