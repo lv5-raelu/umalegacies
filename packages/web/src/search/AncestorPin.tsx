@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import type { SlotPin } from '@umalegacies/core';
 import { Portrait } from '../lineage/Portrait';
 import { useCombobox } from '../roster/useCombobox';
 import styles from '../roster/Combobox.module.css';
@@ -18,26 +17,20 @@ import styles from '../roster/Combobox.module.css';
  * of the star totals and one link. A reader who wants Seiun's affinity is not
  * asking the same thing as one who wants her sparks at distance.
  *
- * BY CHARACTER, not by card. Three Oguri Caps are one entry here and the
- * ranking decides which of them wins; a grandparent slot in particular is a
- * card the reader never chose and may not recognise.
+ * BY CARD, because a costume is not a skin. Cards of one character carry
+ * different unique skills and so different GREEN sparks, and a direct parent's
+ * unique is handed to the trainee at career start -- so "Oguri Cap" without a
+ * costume would not say which green the run opens with. Aptitudes can differ
+ * too: Haru Urara's two cards are a step apart on Mile.
  */
 
 export interface PinOption {
-  /** Stable across renders; `by` and `id` together are not unique as a string. */
-  key: string;
-  /** What choosing this row asks the sweep for. */
-  pin: SlotPin;
-  name: string;
-  /** The bracketed costume label, or null on an "any costume" row. */
-  costume: string | null;
-  /** For the portrait. On an "any costume" row, one of that character's cards. */
+  /** The exact card, which is both the identity and the thing pinned. */
   cardId: number;
-  anyCostume: boolean;
+  name: string;
+  /** The bracketed costume label. Null when the character has only one card. */
+  costume: string | null;
 }
-
-const same = (a: SlotPin | null, b: SlotPin | null): boolean =>
-  a === null || b === null ? a === b : a.by === b.by && a.id === b.id;
 
 type Choice = PinOption | null;
 
@@ -49,10 +42,10 @@ export function AncestorPin({
 }: {
   label: string;
   options: readonly PinOption[];
-  chosen: SlotPin | null;
-  onChoose: (pin: SlotPin | null) => void;
+  chosen: number | null;
+  onChoose: (cardId: number | null) => void;
 }) {
-  const current = options.find((o) => same(o.pin, chosen)) ?? null;
+  const current = options.find((o) => o.cardId === chosen) ?? null;
 
   const { items, open, setOpen, query, onSearch, active, setActive, wrap, search, listbox, onKeyDown, choose } =
     useCombobox<Choice>({
@@ -76,10 +69,10 @@ export function AncestorPin({
       // other combobox here: a list of 68 characters should show you where you
       // already are.
       activeIndexOf: useCallback(
-        (items: readonly Choice[]) => items.findIndex((o) => same(o?.pin ?? null, chosen)),
+        (items: readonly Choice[]) => items.findIndex((o) => (o?.cardId ?? null) === chosen),
         [chosen],
       ),
-      onChoose: useCallback((choice: Choice) => onChoose(choice?.pin ?? null), [onChoose]),
+      onChoose: useCallback((choice: Choice) => onChoose(choice?.cardId ?? null), [onChoose]),
     });
 
   return (
@@ -109,7 +102,7 @@ export function AncestorPin({
             </span>
             <span className={styles.triggerText}>
               {current.name}
-              {current.anyCostume ? ' — any costume' : current.costume ? ` ${current.costume}` : ''}
+              {current.costume ? ` ${current.costume}` : ''}
             </span>
           </>
         ) : (
@@ -136,9 +129,9 @@ export function AncestorPin({
             <ul className={styles.options} role="listbox" ref={listbox}>
               {items.map((item, i) => (
                 <li
-                  key={item === null ? 'none' : item.key}
+                  key={item === null ? 'none' : item.cardId}
                   role="option"
-                  aria-selected={same(item?.pin ?? null, chosen)}
+                  aria-selected={(item?.cardId ?? null) === chosen}
                   className={`${styles.option} ${i === active ? styles.active : ''}`}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(item)}
@@ -152,19 +145,13 @@ export function AncestorPin({
                       </span>
                       <span className={styles.optionText}>
                         <span className={styles.optionName}>{item.name}</span>
-                        {/* The costume, or the row that means "whichever of
-                            them ranks best". Same slot, same weight, because
-                            they are alternatives rather than a heading and its
-                            children. */}
-                        {item.anyCostume ? (
-                          <span className={styles.optionCostume}>any costume</span>
-                        ) : item.costume ? (
+                        {item.costume ? (
                           <span className={styles.optionCostume}>{item.costume}</span>
                         ) : null}
                       </span>
                     </>
                   )}
-                  {same(item?.pin ?? null, chosen) && <span className={styles.chosen}>✓</span>}
+                  {(item?.cardId ?? null) === chosen && <span className={styles.chosen}>✓</span>}
                 </li>
               ))}
             </ul>

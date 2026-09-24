@@ -243,16 +243,7 @@ describe('the order it returns them in', () => {
  * pin the two things that makes true: the pair set narrows, and no figure moves.
  */
 describe('pinning a character into a slot', () => {
-  const GOLD_SHIP_CHARA = 1009;
-  const VODKA_CHARA = 1004;
-
-  const byChara = (id: number) => ({ by: 'chara' as const, id });
-  const byCard = (id: number) => ({ by: 'card' as const, id });
-
-  const pinned = (pins: {
-    requireParent?: { by: 'chara' | 'card'; id: number };
-    requireGrandparent?: { by: 'chara' | 'card'; id: number };
-  }) =>
+  const pinned = (pins: { requireParentCard?: number; requireGrandparentCard?: number }) =>
     sweepPairs({
       veterans,
       packages,
@@ -264,34 +255,34 @@ describe('pinning a character into a slot', () => {
       ...pins,
     });
 
-  const asParent = (r: PairSearchResult, chara: number) =>
-    veterans[r.a]?.self.charaId === chara || veterans[r.b]?.self.charaId === chara;
+  const asParent = (r: PairSearchResult, card: number) =>
+    veterans[r.a]?.self.cardId === card || veterans[r.b]?.self.cardId === card;
 
-  const asGrandparent = (r: PairSearchResult, chara: number) =>
+  const asGrandparent = (r: PairSearchResult, card: number) =>
     [veterans[r.a], veterans[r.b]].some((v) =>
-      v?.parents.some((member) => member?.charaId === chara),
+      v?.parents.some((member) => member?.cardId === card),
     );
 
   it('keeps only pairs seating the character as a PARENT', () => {
-    const { results, legal } = pinned({ requireParent: byChara(GOLD_SHIP_CHARA) });
+    const { results, legal } = pinned({ requireParentCard: GOLD_SHIP });
     expect(results.length).toBeGreaterThan(0);
     expect(legal).toBeLessThan(sweep([]).legal);
-    for (const r of results) expect(asParent(r, GOLD_SHIP_CHARA), names(r)).toBe(true);
+    for (const r of results) expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
   });
 
   it('keeps only pairs seating the character as a GRANDPARENT', () => {
-    const { results, legal } = pinned({ requireGrandparent: byChara(VODKA_CHARA) });
+    const { results, legal } = pinned({ requireGrandparentCard: VODKA });
     expect(results.length).toBeGreaterThan(0);
     expect(legal).toBeLessThan(sweep([]).legal);
-    for (const r of results) expect(asGrandparent(r, VODKA_CHARA), names(r)).toBe(true);
+    for (const r of results) expect(asGrandparent(r, VODKA), names(r)).toBe(true);
   });
 
   it('reads the two slots separately rather than as one "somewhere" pin', () => {
     // Gold Ship is BOTH a veteran and somebody's parent in this roster, so the
     // two pins select overlapping but different sets. A single "anywhere" pin
     // could not tell "I want to train off her" from "I want her affinity".
-    const parents = pinned({ requireParent: byChara(GOLD_SHIP_CHARA) }).results.map(names).sort();
-    const grands = pinned({ requireGrandparent: byChara(GOLD_SHIP_CHARA) }).results.map(names).sort();
+    const parents = pinned({ requireParentCard: GOLD_SHIP }).results.map(names).sort();
+    const grands = pinned({ requireGrandparentCard: GOLD_SHIP }).results.map(names).sort();
     expect(parents).not.toEqual(grands);
   });
 
@@ -299,33 +290,33 @@ describe('pinning a character into a slot', () => {
     // The whole reason the pin exists. If any figure moved, the reader would be
     // back to reading odds for a build they did not ask about.
     const before = sweep([]).results;
-    for (const after of pinned({ requireParent: byChara(GOLD_SHIP_CHARA) }).results) {
+    for (const after of pinned({ requireParentCard: GOLD_SHIP }).results) {
       const match = before.find((r) => r.a === after.a && r.b === after.b);
       expect(match, names(after)).toEqual(after);
     }
   });
 
   it('tells two costumes of one character apart', () => {
-    // THE REASON `by` EXISTS. Oguri Cap is in this roster twice, as two cards,
-    // and a costume is not a skin: the two carry different unique skills, and a
-    // DIRECT parent's unique is handed over at career start. Pinning the
-    // character accepts either; pinning the card accepts one.
-    const either = pinned({ requireParent: byChara(1006) }).results;
-    const one = pinned({ requireParent: byCard(OGURI_STARLIGHT) }).results;
-    expect(either.length).toBeGreaterThan(one.length);
-    for (const r of one) {
-      expect(
-        veterans[r.a]?.self.cardId === OGURI_STARLIGHT ||
-          veterans[r.b]?.self.cardId === OGURI_STARLIGHT,
-        names(r),
-      ).toBe(true);
-    }
+    // THE REASON THE PIN IS A CARD. Oguri Cap is in this roster twice, as two
+    // cards, and a costume is not a skin: the two carry different unique
+    // skills, and a direct parent's unique is handed over at career start. A
+    // pin that matched the character would accept either and answer neither.
+    const one = pinned({ requireParentCard: OGURI_STARLIGHT });
+    const other = pinned({ requireParentCard: OGURI_ASHEN });
+    expect(one.results.length).toBeGreaterThan(0);
+    expect(other.results.length).toBeGreaterThan(0);
+    for (const r of one.results) expect(asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
+    for (const r of other.results) expect(asParent(r, OGURI_ASHEN), names(r)).toBe(true);
+    // Disjoint: the game refuses a pair holding two cards of one character, so
+    // no pair can satisfy both.
+    const both = new Set(one.results.map(names));
+    expect(other.results.some((r) => both.has(names(r)))).toBe(false);
   });
 
   it('cannot be satisfied by a slot master.mdb could not resolve', () => {
     // A null charaId is an unresolved card, not a wildcard. 9999 is nobody.
-    expect(pinned({ requireParent: byChara(9999) }).legal).toBe(0);
-    expect(pinned({ requireGrandparent: byChara(9999) }).legal).toBe(0);
+    expect(pinned({ requireParentCard: 9999 }).legal).toBe(0);
+    expect(pinned({ requireGrandparentCard: 9999 }).legal).toBe(0);
   });
 });
 

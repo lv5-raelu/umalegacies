@@ -232,8 +232,9 @@ function Result({
   // joint to zero instead of being quietly left out of the product.
   /*
    * The aggregates count only what the reader left in. A criterion marked
-   * "A is enough" still filters and still shows its own figure on its chip; it
-   * is out of the product, and so out of the product's denominator.
+   * "exclude spark activation" still filters and still shows its own figure on
+   * its chip; it is out of the product, and so out of the product's
+   * denominator.
    */
   const countedWanted = wanted.filter((_, i) => criteria[i]?.excludeFromOdds !== true);
   const joint = jointOdds(countedWanted.map(({ row }) => (row ? valueFor(row, view) : null)));

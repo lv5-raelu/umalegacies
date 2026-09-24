@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PairSweep, SlotPin } from '@umalegacies/core';
+import type { PairSweep } from '@umalegacies/core';
 import type { RosterResolveResponse, RosterVeteranInput, SparkCriterion } from '@umalegacies/types';
 import { SweepClient, type SweepProgress } from './sweep-client';
 
@@ -41,8 +41,8 @@ export function usePairSearch(
   traineeCharaId: number | null,
   traineeCardId: number | null,
   criteria: readonly SparkCriterion[],
-  /** Who is pinned into each slot. Composition, not sparks; see `SweepRequest`. */
-  pins: { parent: SlotPin | null; grandparent: SlotPin | null },
+  /** The card pinned into each slot. Composition, not sparks; see `SweepRequest`. */
+  pins: { parent: number | null; grandparent: number | null },
 ): SearchStatus {
   const clientRef = useRef<SweepClient | null>(null);
   const [status, setStatus] = useState<SearchStatus>({ kind: 'idle' });
@@ -77,8 +77,8 @@ export function usePairSearch(
           traineeCharaId,
           ...(traineeCardId === null ? {} : { traineeCardId }),
           criteria: [...criteria],
-          ...(pins.parent === null ? {} : { requireParent: pins.parent }),
-          ...(pins.grandparent === null ? {} : { requireGrandparent: pins.grandparent }),
+          ...(pins.parent === null ? {} : { requireParentCard: pins.parent }),
+          ...(pins.grandparent === null ? {} : { requireGrandparentCard: pins.grandparent }),
           kinds,
           masterHash: roster.masterHash,
         },
@@ -103,8 +103,8 @@ export function usePairSearch(
     };
     // `pins` is an object literal at the call site, so its identity changes on
     // every render; the two numbers inside it are what the sweep depends on.
-    // The two pins are objects, so their VALUES are what the effect depends on;
-    // comparing identities would re-sweep on every render.
+    // `pins` is an object literal at the call site, so its identity changes on
+    // every render; the two card ids inside it are what the sweep depends on.
   }, [
     roster,
     packages,
@@ -112,10 +112,8 @@ export function usePairSearch(
     traineeCardId,
     criteria,
     kinds,
-    pins.parent?.by,
-    pins.parent?.id,
-    pins.grandparent?.by,
-    pins.grandparent?.id,
+    pins.parent,
+    pins.grandparent,
   ]);
 
   // The worker outlives every search but not the screen.

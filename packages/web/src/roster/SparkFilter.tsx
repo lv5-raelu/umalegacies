@@ -237,14 +237,14 @@ export function SparkFilter({
           {subject === 'pair' && kindOf(criterion.groupId) === 'pink' && (
             <label
               className={styles.mustHave}
-              title="Leave this pink out of the combined odds. The career start already raises the aptitude, up to A; the percentage is the chance of reaching S."
+              title="Leave this spark's activation out of the combined odds. The career start already raises the aptitude, up to A; the percentage beside it is the chance of an inspiration firing the spark, which is what reaches S."
             >
               <input
                 type="checkbox"
                 checked={criterion.excludeFromOdds === true}
                 onChange={(e) => replace(at, { excludeFromOdds: e.target.checked })}
               />
-              A is enough
+              exclude spark activation
             </label>
           )}
 

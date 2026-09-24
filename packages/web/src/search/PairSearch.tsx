@@ -9,7 +9,7 @@ import type {
   SparkKind,
   TraineeOption,
 } from '@umalegacies/types';
-import { carriedCount, type SlotPin } from '@umalegacies/core';
+import { carriedCount } from '@umalegacies/core';
 import { AncestorPin, type PinOption } from './AncestorPin';
 import { Portrait } from '../lineage/Portrait';
 import { rankGlyph } from '../lineage/pair-total';
@@ -151,59 +151,27 @@ export function PairSearch({
    */
   const pinOptions = useMemo(() => {
     /*
-     * CARDS, AND A CHARACTER ROW WHEN THERE IS A CHOICE TO MAKE.
+     * CARDS. A costume is not a skin: cards of one character carry different
+     * unique skills, so a direct parent's costume decides which green the
+     * trainee opens the career with, and Haru Urara's two cards differ on Mile
+     * as well. An earlier cut listed characters and lost that distinction.
      *
-     * A costume is not a skin: cards of one character carry different unique
-     * skills, so a direct parent's costume decides which green the trainee
-     * opens the career with, and Haru Urara's two cards differ on Mile as
-     * well. Collapsing them to a character was a real loss of precision.
-     *
-     * The character row survives because it is still a question worth asking
-     * -- "any Oguri, whichever is best" -- but it is only offered where the
-     * roster actually holds more than one of her in that slot. Offering it on
-     * a single-costume uma would be two rows meaning the same thing.
+     * Deduplicated by card, not by character -- five veterans of one costume
+     * are one row and the ranking decides between them.
      */
     const collect = (members: Iterable<ResolvedMember | null>) => {
-      const byChara = new Map<number, Map<number, ResolvedMember>>();
+      const byCard = new Map<number, PinOption>();
       for (const member of members) {
-        if (member?.charaId == null) continue;
-        const cards = byChara.get(member.charaId) ?? new Map<number, ResolvedMember>();
-        if (!cards.has(member.cardId)) cards.set(member.cardId, member);
-        byChara.set(member.charaId, cards);
+        if (member?.charaId == null || byCard.has(member.cardId)) continue;
+        byCard.set(member.cardId, {
+          cardId: member.cardId,
+          name: member.name,
+          costume: member.costume,
+        });
       }
-      const out: PinOption[] = [];
-      for (const [charaId, cards] of byChara) {
-        const all = [...cards.values()].sort((x, y) =>
-          (x.costume ?? '').localeCompare(y.costume ?? ''),
-        );
-        const first = all[0] as ResolvedMember;
-        if (all.length > 1) {
-          out.push({
-            key: `chara-${charaId}`,
-            pin: { by: 'chara', id: charaId },
-            name: first.name,
-            costume: null,
-            cardId: first.cardId,
-            anyCostume: true,
-          });
-        }
-        for (const card of all) {
-          out.push({
-            key: `card-${card.cardId}`,
-            pin: { by: 'card', id: card.cardId },
-            name: card.name,
-            costume: card.costume,
-            cardId: card.cardId,
-            anyCostume: false,
-          });
-        }
-      }
-      // By name, then the "any costume" row above its own costumes.
-      return out.sort(
+      return [...byCard.values()].sort(
         (x, y) =>
-          x.name.localeCompare(y.name) ||
-          Number(y.anyCostume) - Number(x.anyCostume) ||
-          (x.costume ?? '').localeCompare(y.costume ?? ''),
+          x.name.localeCompare(y.name) || (x.costume ?? '').localeCompare(y.costume ?? ''),
       );
     };
     return {
@@ -535,10 +503,10 @@ function SearchProgress({ status }: { status: SearchStatus }) {
  * ranked before a row renders -- so this paces the DOM, not the search, and
  * "show 80 more" costs a slice rather than a re-sweep.
  */
-/** Who has to be in the pair, per slot kind. Null is "anyone". */
+/** The card that has to be in the pair, per slot kind. Null is "anyone". */
 interface Pins {
-  parent: SlotPin | null;
-  grandparent: SlotPin | null;
+  parent: number | null;
+  grandparent: number | null;
 }
 
 export const PAGE = 80;
@@ -615,9 +583,9 @@ const PairRow = memo(function PairRow({
   /*
    * THE AGGREGATES COUNT ONLY WHAT THE READER LEFT IN.
    *
-   * A criterion marked "A is enough" still filters and still prints its own
-   * percentage on the row; it is out of the product and therefore out of the
-   * product's denominator too. "5 of 6 activate" beside a figure computed from
+   * A criterion marked "exclude spark activation" still filters and still
+   * prints its own percentage on the row; it is out of the product and
+   * therefore out of the product's denominator too. "5 of 6 activate" beside a figure computed from
    * five criteria would be the same lie the label was added to prevent.
    *
    * Positional: `perSpark` is index-aligned with `criteria`, so the mask has to

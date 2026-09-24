@@ -1,6 +1,5 @@
 import type {
   ExplainPairRequest,
-  ResolvedMember,
   ResolvedVeteran,
   RosterVeteranInput,
   SparkCriterion,
@@ -86,25 +85,6 @@ export interface PairSearchResult {
   relationRank: number;
 }
 
-/**
- * Who has to be in a slot: a character, or one costume of one.
- *
- * BOTH, because a costume is not a skin. Cards of one `chara_id` carry
- * different unique skills and so different green sparks, and a DIRECT parent's
- * unique is handed to the trainee at career start -- so "Oguri Cap" and
- * "Oguri Cap [Starlight Beat]" are different requests and only the second one
- * says which green you open the career with. Aptitudes can differ too: Haru
- * Urara's two cards are a step apart on Mile.
- *
- * `chara` is still worth offering. A reader who owns five costumes of one uma
- * and wants whichever is best should not have to run five searches, and a
- * grandparent slot in particular is a card they never chose.
- */
-export interface SlotPin {
-  by: 'chara' | 'card';
-  id: number;
-}
-
 export interface PairSweepInput {
   /** Resolved for identity and stars. Index-aligned with `packages`. */
   veterans: readonly ResolvedVeteran[];
@@ -132,10 +112,17 @@ export interface PairSweepInput {
    * a spark criterion she happens to carry -- and that criterion then entered
    * the joint, so the odds on every row described a build the reader was not
    * asking about. This narrows which pairs EXIST and touches no figure.
+   *
+   * BY CARD, because a costume is not a skin. Cards of one `chara_id` carry
+   * different unique skills and so different GREEN sparks, and a direct
+   * parent's unique is handed to the trainee at career start -- so pinning
+   * "Oguri Cap" without saying which costume would not answer which green the
+   * run opens with. Aptitudes can differ too: Haru Urara's two cards are a step
+   * apart on Mile.
    */
-  requireParent?: SlotPin | null;
+  requireParentCard?: number | null;
   /** The same, for the four GRANDPARENT slots. */
-  requireGrandparent?: SlotPin | null;
+  requireGrandparentCard?: number | null;
   /**
    * The catalogue lookup. A criterion is a groupId and a threshold; whether it
    * may EXCLUDE depends on its kind, which lives in `RosterSparkOption`.
@@ -184,8 +171,8 @@ export interface PairSweep {
 
 export function sweepPairs(input: PairSweepInput): PairSweep {
   const { veterans, packages, traineeCharaId, criteria, kindOf, master, masterHash } = input;
-  const requireParent = input.requireParent ?? null;
-  const requireGrandparent = input.requireGrandparent ?? null;
+  const requireParentCard = input.requireParentCard ?? null;
+  const requireGrandparentCard = input.requireGrandparentCard ?? null;
 
   // Split once, not 30,808 times. Whites that only rank still get measured --
   // they just cannot exclude, so they have no business in the inner loop's
@@ -229,7 +216,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       // this search rather than which of them are any good -- the same thing
       // choosing a trainee does. Counting pinned-out pairs as legal would make
       // "258 of 30,808" describe two different populations.
-      if (!seats(a, b, requireParent, requireGrandparent)) continue;
+      if (!seats(a, b, requireParentCard, requireGrandparentCard)) continue;
       legal++;
       if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
         input.onProgress(legal, total);
@@ -411,20 +398,19 @@ const carried = (values: readonly (number | null)[]): number => {
  * `charaId` is null on a member master.mdb has no card for. Such a member can
  * never satisfy a pin, which is right: an unresolved slot is not evidence.
  */
-const matches = (member: ResolvedMember | null, pin: SlotPin): boolean =>
-  member === null ? false : pin.by === 'card' ? member.cardId === pin.id : member.charaId === pin.id;
-
 const seats = (
   a: ResolvedVeteran,
   b: ResolvedVeteran,
-  parent: SlotPin | null,
-  grandparent: SlotPin | null,
+  parentCard: number | null,
+  grandparentCard: number | null,
 ): boolean => {
-  if (parent !== null && !matches(a.self, parent) && !matches(b.self, parent)) return false;
-  if (grandparent === null) return true;
+  if (parentCard !== null && a.self.cardId !== parentCard && b.self.cardId !== parentCard) {
+    return false;
+  }
+  if (grandparentCard === null) return true;
   for (const veteran of [a, b]) {
     for (const member of veteran.parents) {
-      if (matches(member, grandparent)) return true;
+      if (member?.cardId === grandparentCard) return true;
     }
   }
   return false;
