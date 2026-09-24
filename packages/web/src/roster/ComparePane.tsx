@@ -230,7 +230,14 @@ function Result({
   // The chance the whole filter lands, in whichever window is selected. A
   // requirement the pair misses is a null rather than a gap, so it takes the
   // joint to zero instead of being quietly left out of the product.
-  const joint = jointOdds(wanted.map(({ row }) => (row ? valueFor(row, view) : null)));
+  /*
+   * The aggregates count only what the reader left in. A criterion marked
+   * "exclude spark activation" still filters and still shows its own figure on
+   * its chip; it is out of the product, and so out of the product's
+   * denominator.
+   */
+  const countedWanted = wanted.filter((_, i) => criteria[i]?.excludeFromOdds !== true);
+  const joint = jointOdds(countedWanted.map(({ row }) => (row ? valueFor(row, view) : null)));
 
   /*
    * The second joint, over the criteria that HAVE an inherit figure.
@@ -246,6 +253,7 @@ function Result({
    * search sees the gold number here on the pair they picked.
    */
   const inheritValues = criteria
+    .filter((c) => c.excludeFromOdds !== true)
     .map((c) => {
       const row = lineage.sparks.find((s) => s.groupId === c.groupId);
       if (row === undefined) {
@@ -267,7 +275,9 @@ function Result({
     .filter((v) => v !== null);
   const jointInherit = jointOdds(inheritValues);
   const skillCriteria = criteria.filter(
-    (c) => sparkOptions.find((o) => o.groupId === c.groupId)?.kind === 'white_skill',
+    (c) =>
+      c.excludeFromOdds !== true &&
+      sparkOptions.find((o) => o.groupId === c.groupId)?.kind === 'white_skill',
   ).length;
 
   /* Which of the reader's criteria asked for the gold version, by group. */
@@ -357,8 +367,8 @@ function Result({
                 would be false; "5 of 6" is the same number told truthfully. */}
             <span className={styles.jointLabel}>
               {scopeLabel(
-                carriedCount(wanted.map(({ row }) => (row ? valueFor(row, view) : null))),
-                wanted.length,
+                carriedCount(countedWanted.map(({ row }) => (row ? valueFor(row, view) : null))),
+                countedWanted.length,
                 'activate',
               )}
             </span>

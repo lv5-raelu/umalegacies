@@ -41,7 +41,7 @@ export function usePairSearch(
   traineeCharaId: number | null,
   traineeCardId: number | null,
   criteria: readonly SparkCriterion[],
-  /** Characters pinned into a slot. Composition, not sparks; see `SweepRequest`. */
+  /** The card pinned into each slot. Composition, not sparks; see `SweepRequest`. */
   pins: { parent: number | null; grandparent: number | null },
 ): SearchStatus {
   const clientRef = useRef<SweepClient | null>(null);
@@ -77,8 +77,8 @@ export function usePairSearch(
           traineeCharaId,
           ...(traineeCardId === null ? {} : { traineeCardId }),
           criteria: [...criteria],
-          ...(pins.parent === null ? {} : { requireParentChara: pins.parent }),
-          ...(pins.grandparent === null ? {} : { requireGrandparentChara: pins.grandparent }),
+          ...(pins.parent === null ? {} : { requireParentCard: pins.parent }),
+          ...(pins.grandparent === null ? {} : { requireGrandparentCard: pins.grandparent }),
           kinds,
           masterHash: roster.masterHash,
         },
@@ -103,7 +103,18 @@ export function usePairSearch(
     };
     // `pins` is an object literal at the call site, so its identity changes on
     // every render; the two numbers inside it are what the sweep depends on.
-  }, [roster, packages, traineeCharaId, traineeCardId, criteria, kinds, pins.parent, pins.grandparent]);
+    // `pins` is an object literal at the call site, so its identity changes on
+    // every render; the two card ids inside it are what the sweep depends on.
+  }, [
+    roster,
+    packages,
+    traineeCharaId,
+    traineeCardId,
+    criteria,
+    kinds,
+    pins.parent,
+    pins.grandparent,
+  ]);
 
   // The worker outlives every search but not the screen.
   useEffect(() => () => clientRef.current?.cancel(), []);

@@ -105,7 +105,7 @@ export interface PairSweepInput {
   /** In the order the user asked for them; `perSpark` comes back in that order. */
   criteria: readonly SparkCriterion[];
   /**
-   * Keep only pairs that put this character in one of the two PARENT slots.
+   * Keep only pairs that seat this uma in one of the two PARENT slots.
    *
    * A composition filter, not a spark one, and that distinction is the whole
    * point of it existing. Wanting Seiun Sky as a parent used to mean inventing
@@ -113,13 +113,16 @@ export interface PairSweepInput {
    * the joint, so the odds on every row described a build the reader was not
    * asking about. This narrows which pairs EXIST and touches no figure.
    *
-   * BY CHARACTER, not by card or by roster entry. A reader who owns three Seiun
-   * Skys wants whichever of them is best, and the ranking is what picks; a
-   * grandparent slot is a card the reader never chose and may not recognise.
+   * BY CARD, because a costume is not a skin. Cards of one `chara_id` carry
+   * different unique skills and so different GREEN sparks, and a direct
+   * parent's unique is handed to the trainee at career start -- so pinning
+   * "Oguri Cap" without saying which costume would not answer which green the
+   * run opens with. Aptitudes can differ too: Haru Urara's two cards are a step
+   * apart on Mile.
    */
-  requireParentChara?: number | null;
+  requireParentCard?: number | null;
   /** The same, for the four GRANDPARENT slots. */
-  requireGrandparentChara?: number | null;
+  requireGrandparentCard?: number | null;
   /**
    * The catalogue lookup. A criterion is a groupId and a threshold; whether it
    * may EXCLUDE depends on its kind, which lives in `RosterSparkOption`.
@@ -168,8 +171,8 @@ export interface PairSweep {
 
 export function sweepPairs(input: PairSweepInput): PairSweep {
   const { veterans, packages, traineeCharaId, criteria, kindOf, master, masterHash } = input;
-  const requireParentChara = input.requireParentChara ?? null;
-  const requireGrandparentChara = input.requireGrandparentChara ?? null;
+  const requireParentCard = input.requireParentCard ?? null;
+  const requireGrandparentCard = input.requireGrandparentCard ?? null;
 
   // Split once, not 30,808 times. Whites that only rank still get measured --
   // they just cannot exclude, so they have no business in the inner loop's
@@ -190,6 +193,14 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
    */
   const inheritable = criteria.map((c) => kindOf(c.groupId) === 'white_skill');
 
+  /*
+   * Which criteria the COMBINED figures count, computed once.
+   *
+   * A criterion the reader excluded still filters and still reports its own
+   * percentage; it simply leaves the product. See `SparkCriterion.excludeFromOdds`.
+   */
+  const counted = criteria.map((c) => c.excludeFromOdds !== true);
+
   const results: PairSearchResult[] = [];
   let legal = 0;
   let scored = 0;
@@ -205,7 +216,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       // this search rather than which of them are any good -- the same thing
       // choosing a trainee does. Counting pinned-out pairs as legal would make
       // "258 of 30,808" describe two different populations.
-      if (!hasChara(a, b, requireParentChara, requireGrandparentChara)) continue;
+      if (!seats(a, b, requireParentCard, requireGrandparentCard)) continue;
       legal++;
       if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
         input.onProgress(legal, total);
@@ -274,7 +285,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       results.push({
         a: i,
         b: j,
-        joint: jointOdds(perSpark),
+        joint: jointOdds(perSpark.filter((_, i) => counted[i])),
         perSpark,
         perSparkInherit,
         // Over the criteria that HAVE an inherit figure, so a filter of three
@@ -285,7 +296,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
         // Over the criteria that CAN produce a figure at all. `jointOdds` then
         // skips the ones this pair happens to miss, and the label beside it
         // says how many of the two counts it covered.
-        jointInherit: jointOdds(perSparkInherit.filter((_, i) => inheritable[i])),
+        jointInherit: jointOdds(perSparkInherit.filter((_, i) => inheritable[i] && counted[i])),
         pairTotal: lineage.pairTotal.value,
         relationRank: lineage.relationRank.value,
       });
@@ -387,17 +398,19 @@ const carried = (values: readonly (number | null)[]): number => {
  * `charaId` is null on a member master.mdb has no card for. Such a member can
  * never satisfy a pin, which is right: an unresolved slot is not evidence.
  */
-const hasChara = (
+const seats = (
   a: ResolvedVeteran,
   b: ResolvedVeteran,
-  parent: number | null,
-  grandparent: number | null,
+  parentCard: number | null,
+  grandparentCard: number | null,
 ): boolean => {
-  if (parent !== null && a.self.charaId !== parent && b.self.charaId !== parent) return false;
-  if (grandparent === null) return true;
+  if (parentCard !== null && a.self.cardId !== parentCard && b.self.cardId !== parentCard) {
+    return false;
+  }
+  if (grandparentCard === null) return true;
   for (const veteran of [a, b]) {
     for (const member of veteran.parents) {
-      if (member?.charaId === grandparent) return true;
+      if (member?.cardId === grandparentCard) return true;
     }
   }
   return false;

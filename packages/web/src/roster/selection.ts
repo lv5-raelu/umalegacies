@@ -154,7 +154,7 @@ function restoreCriteria(
   for (const raw of stored) {
     if (typeof raw !== 'object' || raw === null) continue;
     const c = raw as Record<string, unknown>;
-    const { groupId, minStars, scope, mustHave, gold } = c;
+    const { groupId, minStars, scope, mustHave, gold, excludeFromOdds } = c;
 
     if (typeof groupId !== 'number' || !known.has(groupId)) continue;
     // The filter refuses a second row for the same spark, so a record holding
@@ -177,6 +177,7 @@ function restoreCriteria(
     // a criterion that does not check out rather than to guess at it.
     if (mustHave !== undefined && typeof mustHave !== 'boolean') continue;
     if (gold !== undefined && typeof gold !== 'boolean') continue;
+    if (excludeFromOdds !== undefined && typeof excludeFromOdds !== 'boolean') continue;
 
     seen.add(groupId);
     // EVERY FLAG HAS TO MAKE THE ROUND TRIP. `SelectionRecord.criteria` stores
@@ -184,17 +185,18 @@ function restoreCriteria(
     // rebuilding the criterion without one here drops it on every reload.
     //
     // This warning used to end "nothing sets it yet, which is exactly why it is
-    // worth wiring before something does". Something did: `gold` was added and
-    // went missing on the first reload, because a rebuild that names its fields
-    // forgets whatever was added after it was written. If a third flag ever
-    // joins these two, it belongs in the destructure, the type check and the
-    // spread, or it will be lost in exactly the same way.
+    // worth wiring before something does". Something did, twice: `gold` was
+    // added and went missing on the first reload, and `excludeFromOdds`
+    // followed it. A rebuild that names its fields forgets whatever was added
+    // after it was written. A FOURTH flag belongs in the destructure, the type
+    // check and the spread, or it will be lost in exactly the same way.
     out.push({
       groupId,
       minStars,
       scope: scope as FilterScope,
       ...(mustHave === undefined ? {} : { mustHave }),
       ...(gold === undefined ? {} : { gold }),
+      ...(excludeFromOdds === undefined ? {} : { excludeFromOdds }),
     });
   }
   return out;

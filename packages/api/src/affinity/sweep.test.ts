@@ -243,10 +243,7 @@ describe('the order it returns them in', () => {
  * pin the two things that makes true: the pair set narrows, and no figure moves.
  */
 describe('pinning a character into a slot', () => {
-  const GOLD_SHIP_CHARA = 1009;
-  const VODKA_CHARA = 1004;
-
-  const pinned = (pins: { requireParentChara?: number; requireGrandparentChara?: number }) =>
+  const pinned = (pins: { requireParentCard?: number; requireGrandparentCard?: number }) =>
     sweepPairs({
       veterans,
       packages,
@@ -258,34 +255,34 @@ describe('pinning a character into a slot', () => {
       ...pins,
     });
 
-  const asParent = (r: PairSearchResult, chara: number) =>
-    veterans[r.a]?.self.charaId === chara || veterans[r.b]?.self.charaId === chara;
+  const asParent = (r: PairSearchResult, card: number) =>
+    veterans[r.a]?.self.cardId === card || veterans[r.b]?.self.cardId === card;
 
-  const asGrandparent = (r: PairSearchResult, chara: number) =>
+  const asGrandparent = (r: PairSearchResult, card: number) =>
     [veterans[r.a], veterans[r.b]].some((v) =>
-      v?.parents.some((member) => member?.charaId === chara),
+      v?.parents.some((member) => member?.cardId === card),
     );
 
   it('keeps only pairs seating the character as a PARENT', () => {
-    const { results, legal } = pinned({ requireParentChara: GOLD_SHIP_CHARA });
+    const { results, legal } = pinned({ requireParentCard: GOLD_SHIP });
     expect(results.length).toBeGreaterThan(0);
     expect(legal).toBeLessThan(sweep([]).legal);
-    for (const r of results) expect(asParent(r, GOLD_SHIP_CHARA), names(r)).toBe(true);
+    for (const r of results) expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
   });
 
   it('keeps only pairs seating the character as a GRANDPARENT', () => {
-    const { results, legal } = pinned({ requireGrandparentChara: VODKA_CHARA });
+    const { results, legal } = pinned({ requireGrandparentCard: VODKA });
     expect(results.length).toBeGreaterThan(0);
     expect(legal).toBeLessThan(sweep([]).legal);
-    for (const r of results) expect(asGrandparent(r, VODKA_CHARA), names(r)).toBe(true);
+    for (const r of results) expect(asGrandparent(r, VODKA), names(r)).toBe(true);
   });
 
   it('reads the two slots separately rather than as one "somewhere" pin', () => {
     // Gold Ship is BOTH a veteran and somebody's parent in this roster, so the
     // two pins select overlapping but different sets. A single "anywhere" pin
     // could not tell "I want to train off her" from "I want her affinity".
-    const parents = pinned({ requireParentChara: GOLD_SHIP_CHARA }).results.map(names).sort();
-    const grands = pinned({ requireGrandparentChara: GOLD_SHIP_CHARA }).results.map(names).sort();
+    const parents = pinned({ requireParentCard: GOLD_SHIP }).results.map(names).sort();
+    const grands = pinned({ requireGrandparentCard: GOLD_SHIP }).results.map(names).sort();
     expect(parents).not.toEqual(grands);
   });
 
@@ -293,15 +290,103 @@ describe('pinning a character into a slot', () => {
     // The whole reason the pin exists. If any figure moved, the reader would be
     // back to reading odds for a build they did not ask about.
     const before = sweep([]).results;
-    for (const after of pinned({ requireParentChara: GOLD_SHIP_CHARA }).results) {
+    for (const after of pinned({ requireParentCard: GOLD_SHIP }).results) {
       const match = before.find((r) => r.a === after.a && r.b === after.b);
       expect(match, names(after)).toEqual(after);
     }
   });
 
+  it('tells two costumes of one character apart', () => {
+    // THE REASON THE PIN IS A CARD. Oguri Cap is in this roster twice, as two
+    // cards, and a costume is not a skin: the two carry different unique
+    // skills, and a direct parent's unique is handed over at career start. A
+    // pin that matched the character would accept either and answer neither.
+    const one = pinned({ requireParentCard: OGURI_STARLIGHT });
+    const other = pinned({ requireParentCard: OGURI_ASHEN });
+    expect(one.results.length).toBeGreaterThan(0);
+    expect(other.results.length).toBeGreaterThan(0);
+    for (const r of one.results) expect(asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
+    for (const r of other.results) expect(asParent(r, OGURI_ASHEN), names(r)).toBe(true);
+    // Disjoint: the game refuses a pair holding two cards of one character, so
+    // no pair can satisfy both.
+    const both = new Set(one.results.map(names));
+    expect(other.results.some((r) => both.has(names(r)))).toBe(false);
+  });
+
   it('cannot be satisfied by a slot master.mdb could not resolve', () => {
     // A null charaId is an unresolved card, not a wildcard. 9999 is nobody.
-    expect(pinned({ requireParentChara: 9999 }).legal).toBe(0);
-    expect(pinned({ requireGrandparentChara: 9999 }).legal).toBe(0);
+    expect(pinned({ requireParentCard: 9999 }).legal).toBe(0);
+    expect(pinned({ requireGrandparentCard: 9999 }).legal).toBe(0);
+  });
+});
+
+/**
+ * A CRITERION THE READER LEFT OUT OF THE COMBINED ODDS.
+ *
+ * Asked for on pinks, where the percentage answers the question most readers
+ * are not asking: the career-start grant raises an aptitude deterministically
+ * up to A, and the odds are the chance of an inspiration firing the spark,
+ * which is what takes A to S. Somebody who wanted A has it, guaranteed, and
+ * leaving that figure in the product dragged every row down by an outcome they
+ * had not asked for.
+ */
+describe('leaving a criterion out of the combined odds', () => {
+  const stamina = (excludeFromOdds?: boolean): SparkCriterion => ({
+    groupId: STAMINA,
+    minStars: 1,
+    scope: 'package',
+    ...(excludeFromOdds === undefined ? {} : { excludeFromOdds }),
+  });
+  const speed: SparkCriterion = { groupId: SPEED, minStars: 1, scope: 'package' };
+
+  it('still filters, so the same pairs qualify', () => {
+    const left = sweep([stamina(), speed]);
+    const out = sweep([stamina(true), speed]);
+    expect(out.scored).toBe(left.scored);
+    expect(out.results.map((r) => `${r.a}x${r.b}`).sort()).toEqual(
+      left.results.map((r) => `${r.a}x${r.b}`).sort(),
+    );
+  });
+
+  it('still reports its own figure on the row', () => {
+    // Excluded from a total is not hidden. The reader is still shown what the
+    // spark does; they have said it should not drag the aggregate.
+    const [row] = sweep([stamina(true), speed]).results;
+    expect(row?.perSpark[0]).not.toBeNull();
+    expect(row?.perSpark[0]).toBeGreaterThan(0);
+  });
+
+  it('leaves the joint describing only what was counted', () => {
+    // With one of two criteria excluded, `jointOdds` has a single term left and
+    // returns null by its own rule -- the joint IS that spark's figure.
+    const [row] = sweep([stamina(true), speed]).results;
+    expect(row?.joint).toBeNull();
+  });
+
+  it('raises the joint it is removed from, which is the point', () => {
+    // The excluded criterion has to be one the pair is NOT certain of, or the
+    // product cannot move: every veteran here carries 3 stars of Stamina, and a
+    // blue on a parent caps at 100%, so dropping it is arithmetically a no-op.
+    // A pink is the case this feature exists for and behaves like one.
+    const white = (excludeFromOdds?: boolean): SparkCriterion => ({
+      groupId: RIGHT_HANDED,
+      minStars: 1,
+      scope: 'package',
+      ...(excludeFromOdds === undefined ? {} : { excludeFromOdds }),
+    });
+    const withIt = sweep([white(), stamina(), speed]);
+    const without = sweep([white(true), stamina(), speed]);
+    const key = (r: PairSearchResult) => `${r.a}x${r.b}`;
+    const lookup = new Map(without.results.map((r) => [key(r), r]));
+    let compared = 0;
+    for (const before of withIt.results) {
+      const after = lookup.get(key(before));
+      if (after === undefined) continue;
+      const own = before.perSpark[0];
+      if (own === null || own <= 0 || own >= 1) continue;
+      expect(after.joint as number, key(before)).toBeGreaterThan(before.joint as number);
+      compared++;
+    }
+    expect(compared, 'no pair carried the white at uncertain odds').toBeGreaterThan(0);
   });
 });

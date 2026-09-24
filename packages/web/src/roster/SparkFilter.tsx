@@ -218,6 +218,36 @@ export function SparkFilter({
             </label>
           )}
 
+          {/*
+            LEAVE THIS PINK OUT OF THE COMBINED ODDS.
+
+            A pink's percentage is the chance an inspiration FIRES it, which is
+            what takes an aptitude from A to S. The career-start grant already
+            raised it -- deterministically, up to A -- so a reader who wanted
+            End Closer at A has what they asked for and does not care whether it
+            fires again. Leaving it in the product dragged every row's combined
+            figure down by a number describing an outcome nobody wanted.
+
+            The criterion still FILTERS, and the spark still prints its own
+            percentage on the row. This is about what the aggregate counts.
+
+            Pinks only: a blue is guaranteed anyway, and for whites the odds ARE
+            the question.
+          */}
+          {subject === 'pair' && kindOf(criterion.groupId) === 'pink' && (
+            <label
+              className={styles.mustHave}
+              title="Leave this spark's activation out of the combined odds. The career start already raises the aptitude, up to A; the percentage beside it is the chance of an inspiration firing the spark, which is what reaches S."
+            >
+              <input
+                type="checkbox"
+                checked={criterion.excludeFromOdds === true}
+                onChange={(e) => replace(at, { excludeFromOdds: e.target.checked })}
+              />
+              exclude spark activation
+            </label>
+          )}
+
           <button
             type="button"
             className={styles.clear}

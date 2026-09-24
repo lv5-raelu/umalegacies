@@ -17,22 +17,19 @@ import styles from '../roster/Combobox.module.css';
  * of the star totals and one link. A reader who wants Seiun's affinity is not
  * asking the same thing as one who wants her sparks at distance.
  *
- * BY CHARACTER, not by card. Three Oguri Caps are one entry here and the
- * ranking decides which of them wins; a grandparent slot in particular is a
- * card the reader never chose and may not recognise.
+ * BY CARD, because a costume is not a skin. Cards of one character carry
+ * different unique skills and so different GREEN sparks, and a direct parent's
+ * unique is handed to the trainee at career start -- so "Oguri Cap" without a
+ * costume would not say which green the run opens with. Aptitudes can differ
+ * too: Haru Urara's two cards are a step apart on Mile.
  */
 
 export interface PinOption {
-  charaId: number;
-  name: string;
-  /**
-   * A card of that character, for the portrait alone.
-   *
-   * The pin matches by CHARACTER, so which card this is does not affect the
-   * search; it is here because an option with a face is recognised faster than
-   * one with a name, and the trainee picker beside it has faces.
-   */
+  /** The exact card, which is both the identity and the thing pinned. */
   cardId: number;
+  name: string;
+  /** The bracketed costume label. Null when the character has only one card. */
+  costume: string | null;
 }
 
 type Choice = PinOption | null;
@@ -46,17 +43,21 @@ export function AncestorPin({
   label: string;
   options: readonly PinOption[];
   chosen: number | null;
-  onChoose: (charaId: number | null) => void;
+  onChoose: (cardId: number | null) => void;
 }) {
-  const current = options.find((o) => o.charaId === chosen) ?? null;
+  const current = options.find((o) => o.cardId === chosen) ?? null;
 
   const { items, open, setOpen, query, onSearch, active, setActive, wrap, search, listbox, onKeyDown, choose } =
     useCombobox<Choice>({
       filter: useCallback(
         (q: string) => {
           const needle = q.trim().toLowerCase();
+          // Costume too: "starlight" should find Oguri Cap [Starlight Beat],
+          // which is the whole reason the costumes are listed separately.
           const matched = needle
-            ? options.filter((o) => o.name.toLowerCase().includes(needle))
+            ? options.filter((o) =>
+                `${o.name} ${o.costume ?? ''}`.toLowerCase().includes(needle),
+              )
             : options;
           // The clear row lives IN the list rather than beside it, so undoing a
           // pin is the same gesture as making one.
@@ -68,10 +69,10 @@ export function AncestorPin({
       // other combobox here: a list of 68 characters should show you where you
       // already are.
       activeIndexOf: useCallback(
-        (items: readonly Choice[]) => items.findIndex((o) => (o?.charaId ?? null) === chosen),
+        (items: readonly Choice[]) => items.findIndex((o) => (o?.cardId ?? null) === chosen),
         [chosen],
       ),
-      onChoose: useCallback((choice: Choice) => onChoose(choice?.charaId ?? null), [onChoose]),
+      onChoose: useCallback((choice: Choice) => onChoose(choice?.cardId ?? null), [onChoose]),
     });
 
   return (
@@ -99,7 +100,10 @@ export function AncestorPin({
             <span className={styles.triggerPortrait}>
               <Portrait cardId={current.cardId} name={current.name} />
             </span>
-            <span className={styles.triggerText}>{current.name}</span>
+            <span className={styles.triggerText}>
+              {current.name}
+              {current.costume ? ` ${current.costume}` : ''}
+            </span>
           </>
         ) : (
           <span className={`${styles.triggerText} ${styles.placeholder}`}>anyone</span>
@@ -125,9 +129,9 @@ export function AncestorPin({
             <ul className={styles.options} role="listbox" ref={listbox}>
               {items.map((item, i) => (
                 <li
-                  key={item === null ? 'none' : item.charaId}
+                  key={item === null ? 'none' : item.cardId}
                   role="option"
-                  aria-selected={(item?.charaId ?? null) === chosen}
+                  aria-selected={(item?.cardId ?? null) === chosen}
                   className={`${styles.option} ${i === active ? styles.active : ''}`}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(item)}
@@ -141,10 +145,13 @@ export function AncestorPin({
                       </span>
                       <span className={styles.optionText}>
                         <span className={styles.optionName}>{item.name}</span>
+                        {item.costume ? (
+                          <span className={styles.optionCostume}>{item.costume}</span>
+                        ) : null}
                       </span>
                     </>
                   )}
-                  {(item?.charaId ?? null) === chosen && <span className={styles.chosen}>✓</span>}
+                  {(item?.cardId ?? null) === chosen && <span className={styles.chosen}>✓</span>}
                 </li>
               ))}
             </ul>

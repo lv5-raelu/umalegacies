@@ -272,6 +272,34 @@ describe('a criterion is only restored if it can still be asked', () => {
    * and `gold` was added and lost on the first reload -- a ticked box that
    * silently halved the figure it governs. These are the regression.
    */
+  describe('the exclude-from-odds flag', () => {
+    it('survives a reload', () => {
+      expect(
+        only([{ groupId: STAMINA, minStars: 1, scope: 'package', excludeFromOdds: true }]),
+      ).toEqual([{ groupId: STAMINA, minStars: 1, scope: 'package', excludeFromOdds: true }]);
+    });
+
+    it('survives alongside the other two flags', () => {
+      // Three independent flags on one criterion. A spread that handled only
+      // the ones it was written for would pass every other test and lose this.
+      const record = {
+        groupId: STAMINA,
+        minStars: 1,
+        scope: 'package' as const,
+        mustHave: true,
+        gold: true,
+        excludeFromOdds: true,
+      };
+      expect(only([record])).toEqual([record]);
+    });
+
+    it('drops a criterion whose flag is not a boolean', () => {
+      expect(
+        only([{ groupId: STAMINA, minStars: 1, scope: 'package', excludeFromOdds: 'yes' }]),
+      ).toEqual([]);
+    });
+  });
+
   describe('the gold flag', () => {
     it('keeps a gold skill gold', () => {
       expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', gold: true }])).toEqual([
