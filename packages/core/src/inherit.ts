@@ -8,18 +8,28 @@ import { isWhite } from './spark-types.js';
  * distinction is easy to lose because the word "inherit" has been used for both.
  * `sparks.ts` answers "will this spark FIRE during an inspiration", which hands
  * the trainee a skill hint they can buy with SP. That is a thing that happens
- * DURING the run. This file answers "will the trainee RETIRE carrying that spark
+ * DURING the run. This file answers "will the trainee FINISH THE CAREER carrying that spark
  * as one of their own factors", which is what makes them useful as somebody
  * else's parent, and it is decided at the END of the run by a separate roll.
  *
  * Having the skill does not give you the spark. That is the whole point.
  *
- * THE RULE. At retirement each white spark the trainee could generate rolls
+ * THE RULE. At the end of a career each white spark the trainee could generate rolls
  * independently, and the chance rises with HOW MANY OF THE SIX ANCESTORS -- two
  * parents and four grandparents -- already carry that spark:
  *
- *     carriers    0      1      2      3      4      5      6
- *     chance     20%   22.5%    25%   27.5%    30%   32.5%    35%
+ *     carriers          0      1      2      3      4      5      6
+ *     white skill      20%   22.5%    25%   27.5%    30%   32.5%    35%
+ *     GOLD version     40%     45%    50%     55%    60%     65%    70%
+ *
+ * LEARNING THE GOLD VERSION DOUBLES THE FLOOR AND THE STEP. A skill's gold
+ * form is a different skill with the same factor -- "only the White version of
+ * the Skill can be generated" -- so the factor produced is the same one, and
+ * only the odds move. Which version the trainee learns is a PLAN, not a
+ * property of the lineage, which is why the tier is carried on the criterion
+ * the reader wrote rather than derived from master data. Gold exists for
+ * skills alone: race and scenario sparks have no upgraded form, and their row
+ * is the white one.
  *
  * So it is ADDITIVE, 2.5 percentage points per carrier, and it saturates at 35%
  * with a full lineage. A multiplicative reading fits too -- 20 x 1.75 = 35 --
@@ -54,29 +64,52 @@ import { isWhite } from './spark-types.js';
  * The documented table ships; the measurement is recorded beside it.
  */
 
-/** Chance with no ancestor carrying the spark. */
-export const ACQUISITION_BASE = 0.2;
+/** Which version of the skill the trainee is planning to learn. */
+export type SkillTier = 'white' | 'gold';
 
-/** Added per ancestor that carries it. Six of them reach 35%. */
-export const ACQUISITION_STEP = 0.025;
+/** Floor and per-carrier step, by tier. Gold is exactly double on both. */
+export const ACQUISITION_TABLE: Readonly<Record<SkillTier, { base: number; step: number }>> = {
+  white: { base: 0.2, step: 0.025 },
+  gold: { base: 0.4, step: 0.05 },
+};
+
+/** Chance with no ancestor carrying the spark, learning the plain white skill. */
+export const ACQUISITION_BASE = ACQUISITION_TABLE.white.base;
+
+/** Added per ancestor that carries it, learning the plain white skill. */
+export const ACQUISITION_STEP = ACQUISITION_TABLE.white.step;
 
 /** Two parents and four grandparents. */
 export const MAX_LINEAGE_CARRIERS = 6;
 
 /**
- * Chance the trainee retires carrying this spark, GIVEN its precondition is met.
+ * Chance the trainee finishes a career carrying this spark, GIVEN its precondition is met.
  *
  * The precondition is the caller's business and differs by kind -- see
  * `precondition()`. This function is only the roll.
+ *
+ * `tier` defaults to `'white'`, which is the FLOOR rather than a guess: a
+ * reader who has said nothing about which version they will learn gets the
+ * lower of the two numbers, and can only be pleasantly surprised.
  */
-export function acquisitionChance(carriers: number): number {
-  if (!Number.isFinite(carriers) || carriers < 0) return ACQUISITION_BASE;
+export function acquisitionChance(carriers: number, tier: SkillTier = 'white'): number {
+  const { base, step } = ACQUISITION_TABLE[tier] ?? ACQUISITION_TABLE.white;
+  if (!Number.isFinite(carriers) || carriers < 0) return base;
   // Clamped rather than extrapolated. A seventh carrier cannot exist, but a
   // caller that miscounts should get the table's last row rather than 37.5%,
   // because a number off the end of a published table is not a prediction.
   const n = Math.min(Math.floor(carriers), MAX_LINEAGE_CARRIERS);
-  return ACQUISITION_BASE + ACQUISITION_STEP * n;
+  return base + step * n;
 }
+
+/**
+ * Does a gold version of this spark exist to be learned?
+ *
+ * Skills alone. A race spark comes from winning a G1 and a scenario spark from
+ * clearing the scenario; neither has an upgraded form, so offering the choice
+ * would be offering a control that cannot change the number.
+ */
+export const hasGoldVersion = (kind: SparkKind): boolean => kind === 'white_skill';
 
 /**
  * Does the carrier mechanic apply to this kind at all?
@@ -117,7 +150,7 @@ export function precondition(kind: SparkKind): Precondition {
  *
  * `white_skill` is the only kind whose precondition this tool already models:
  * an inspiration hands over the hint, and `onceInCareer` is the chance that
- * happens. Multiply, and the answer is "the chance the trainee retires carrying
+ * happens. Multiply, and the answer is "the chance the trainee finishes a career carrying
  * this spark, by way of the lineage".
  *
  * TWO ASSUMPTIONS, BOTH REAL, and the UI says so rather than burying them.
@@ -135,7 +168,8 @@ export function inheritOnceInCareer(
   kind: SparkKind,
   onceInCareer: number,
   carriers: number,
+  tier: SkillTier = 'white',
 ): number | null {
   if (kind !== 'white_skill') return null;
-  return onceInCareer * acquisitionChance(carriers);
+  return onceInCareer * acquisitionChance(carriers, tier);
 }

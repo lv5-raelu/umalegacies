@@ -6,6 +6,7 @@ import {
   MAX_LINEAGE_CARRIERS,
   acquisitionChance,
   hasAcquisitionRoll,
+  hasGoldVersion,
   inheritOnceInCareer,
   precondition,
 } from './inherit.js';
@@ -107,5 +108,71 @@ describe('the end-to-end figure', () => {
       expect(composed).not.toBeNull();
       expect(composed as number).toBeLessThan(0.8);
     }
+  });
+});
+
+/**
+ * THE GOLD ROW, ASSERTED AS A TABLE, for the same reason as the white one.
+ * Both published rows are written out rather than generated, so a change to
+ * either constant fails by naming the row that moved.
+ */
+const PUBLISHED_GOLD: readonly [number, number][] = [
+  [0, 0.4],
+  [1, 0.45],
+  [2, 0.5],
+  [3, 0.55],
+  [4, 0.6],
+  [5, 0.65],
+  [6, 0.7],
+];
+
+describe('learning the gold version', () => {
+  it.each(PUBLISHED_GOLD)('%i carriers gives %f', (carriers, expected) => {
+    expect(acquisitionChance(carriers, 'gold')).toBeCloseTo(expected, 10);
+  });
+
+  it('is exactly double the white row at every carrier count', () => {
+    // 40 vs 20 on the floor and 5 vs 2.5 on the step, so the whole row doubles.
+    // Stated as a relationship because that is the thing a future edit breaks.
+    for (let n = 0; n <= MAX_LINEAGE_CARRIERS; n++) {
+      expect(acquisitionChance(n, 'gold')).toBeCloseTo(2 * acquisitionChance(n, 'white'), 10);
+    }
+  });
+
+  it('saturates at 70%, not past it', () => {
+    expect(acquisitionChance(7, 'gold')).toBeCloseTo(0.7, 10);
+    expect(acquisitionChance(99, 'gold')).toBeCloseTo(0.7, 10);
+  });
+
+  it('defaults to white, which is the floor rather than a guess', () => {
+    // A reader who has said nothing about which version they will learn can
+    // only be pleasantly surprised. The reverse would overstate every row.
+    for (let n = 0; n <= MAX_LINEAGE_CARRIERS; n++) {
+      expect(acquisitionChance(n)).toBe(acquisitionChance(n, 'white'));
+      expect(acquisitionChance(n)).toBeLessThan(acquisitionChance(n, 'gold'));
+    }
+  });
+
+  it('carries the tier through the composed figure', () => {
+    // 40% to fire, 50% to keep at two carriers on gold, against 25% on white.
+    expect(inheritOnceInCareer('white_skill', 0.4, 2, 'gold')).toBeCloseTo(0.2, 10);
+    expect(inheritOnceInCareer('white_skill', 0.4, 2, 'white')).toBeCloseTo(0.1, 10);
+  });
+
+  it('is offered on skills and nothing else', () => {
+    // A race spark comes from winning a G1 and a scenario spark from clearing
+    // the scenario. Neither has an upgraded form, so a gold toggle there would
+    // be a control that cannot change the number.
+    expect(hasGoldVersion('white_skill')).toBe(true);
+    for (const kind of ['white_race', 'white_scenario', 'blue', 'pink', 'green'] as const) {
+      expect(hasGoldVersion(kind)).toBe(false);
+    }
+  });
+
+  it('cannot smuggle gold onto a kind that has no roll at all', () => {
+    // Belt and braces: even asked for gold, a blue has no acquisition roll.
+    expect(inheritOnceInCareer('blue', 0.9, 6, 'gold')).toBeNull();
+    expect(inheritOnceInCareer('white_race', 0.9, 6, 'gold')).toBeNull();
+    expect(hasAcquisitionRoll('blue')).toBe(false);
   });
 });

@@ -246,7 +246,7 @@ export interface SparkSummaryRow {
    */
   lineageCarriers: number;
   /**
-   * P(the trainee RETIRES carrying this spark), given its precondition is met.
+   * P(the trainee FINISHES A CAREER carrying this spark), given its precondition is met.
    *
    * A different question from `onceInCareer`, which is whether the spark fires
    * during a run. This is whether the trainee ends up holding it themselves,
@@ -261,7 +261,7 @@ export interface SparkSummaryRow {
    * `onceInCareer x acquisitionChance`, for white SKILL sparks only.
    *
    * The end-to-end chance by way of the lineage: an inspiration hands over the
-   * hint, and the retirement roll turns it into a spark. Null for every other
+   * hint, and the end-of-career roll turns it into a spark. Null for every other
    * kind, because their preconditions -- winning a G1, clearing a scenario --
    * are not lineage properties and this engine cannot honestly put a number on
    * them.
@@ -494,6 +494,21 @@ export interface SparkCriterion {
    * knows the flag does nothing on the three named slots.
    */
   mustHave?: boolean;
+  /**
+   * The trainee is planning to learn the GOLD version of this skill.
+   *
+   * Doubles both the floor and the per-carrier step of the end-of-career roll:
+   * 40% + 5 points per ancestor instead of 20% + 2.5. The factor produced is
+   * the same one either way -- only the white version of a skill has a factor
+   * -- so this changes the odds and nothing else.
+   *
+   * A PLAN, NOT A FACT ABOUT THE LINEAGE, which is why it lives on the
+   * criterion the reader wrote rather than in master data. Absent means white,
+   * which is the floor rather than a guess. Meaningful only on `white_skill`:
+   * race and scenario sparks have no upgraded form, so `hasGoldVersion` is the
+   * one place that knows the flag does nothing on them.
+   */
+  gold?: boolean;
 }
 
 // ---------------------------------------------------------------- pair (M3)

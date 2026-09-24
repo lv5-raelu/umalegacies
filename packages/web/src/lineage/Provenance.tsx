@@ -6,7 +6,14 @@ import type {
   MasterRef,
   SparkSummaryRow,
 } from '@umalegacies/types';
-import { ACQUISITION_BASE, ACQUISITION_STEP, MAX_LINEAGE_CARRIERS } from '@umalegacies/core';
+import {
+  ACQUISITION_TABLE,
+  MAX_LINEAGE_CARRIERS,
+  acquisitionChance,
+  hasAcquisitionRoll,
+  inheritOnceInCareer,
+  type SkillTier,
+} from '@umalegacies/core';
 import { sumByRulePrefix } from './explain-node';
 import { positionLabel } from './positions';
 import { resolutionText } from './resolution';
@@ -240,7 +247,10 @@ export function MemberProvenance({
 
       <div className={styles.term}>
         <div className={styles.termHead}>
-          <span className={styles.termLabel}>inheritable sparks</span>
+          {/* What this ONE ancestor carries and can therefore pass on. Not the
+              trainee's own end-of-career roll, which the spark panel owns; the two
+              used to share the word "inherit" and no longer do. */}
+          <span className={styles.termLabel}>sparks carried</span>
           <span className={styles.value}>{named.length + sparks.whites.length}</span>
         </div>
         <ul className={styles.sparkList}>
@@ -286,7 +296,27 @@ export function MemberProvenance({
 }
 
 /** One spark across the lineage: who carries it, and the arithmetic behind its odds. */
-export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
+export function SparkProvenance({
+  row,
+  gold = false,
+}: {
+  row: SparkSummaryRow;
+  /** The reader plans to learn this skill's gold version, doubling the roll. */
+  gold?: boolean;
+}) {
+  /*
+   * Recomputed at the planned tier, not read off the row.
+   *
+   * The row carries the white-tier figure -- the floor for a reader who has
+   * said nothing -- and the plan lives on the criterion they wrote in the
+   * search. Reading the row here would put a different number under the same
+   * spark name than the modal shows, which is the worst of both.
+   */
+  const tier: SkillTier = gold ? 'gold' : 'white';
+  const keeps = hasAcquisitionRoll(row.kind)
+    ? acquisitionChance(row.lineageCarriers, tier)
+    : null;
+  const inherits = inheritOnceInCareer(row.kind, row.onceInCareer, row.lineageCarriers, tier);
   return (
     <section className={styles.panel}>
       <h3 className={styles.heading}>
@@ -362,18 +392,16 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
         </table>
       </div>
 
-      {row.acquisitionChance !== null && (
+      {keeps !== null && (
         <div className={styles.term}>
           <div className={styles.termHead}>
             <span className={styles.termLabel}>
-              {row.inheritOnceInCareer === null
-                ? 'kept at retirement, if the trainee earns it'
-                : 'the trainee retires carrying it'}
+              {inherits === null
+                ? 'chance of inheriting it, if the trainee earns it'
+                : 'combined chance the trainee inherits it'}
             </span>
             <span className={styles.value}>
-              {row.inheritOnceInCareer === null
-                ? percentPrecise(row.acquisitionChance, 1)
-                : percent(row.inheritOnceInCareer)}
+              {inherits === null ? percentPrecise(keeps, 1) : percent(inherits)}
             </span>
           </div>
           {/* The arithmetic in full, because this is the number the table
@@ -387,28 +415,55 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
               </dd>
             </div>
             {/* Only where it is a SECOND number. With no composed figure the
-                headline above already IS the retirement roll, and printing it
+                headline above already IS the inherit roll, and printing it
                 twice reads as two facts that happen to agree. */}
-            {row.inheritOnceInCareer !== null && (
+            {inherits !== null && (
               <div>
-                <dt>retirement roll</dt>
-                <dd>{percentPrecise(row.acquisitionChance, 1)}</dd>
+                <dt>chance of inheriting</dt>
+                <dd>{percentPrecise(keeps, 1)}</dd>
               </div>
             )}
           </dl>
           <p className={styles.reason}>
             A spark that fires during a run hands over a skill hint. It does not hand over the
-            spark: a separate roll at retirement decides whether the trainee keeps it as one of
+            spark: a separate roll at the end of the career decides whether the trainee inherits it as one of
             their own, and that roll starts at{' '}
-            <code>{percentPrecise(ACQUISITION_BASE, 1)}</code> and gains{' '}
+            <code>{percentPrecise(ACQUISITION_TABLE[tier].base, 1)}</code> and gains{' '}
             {/* POINTS, not per cent. "gains 2.5%" against a 20% base reads as
                 20 x 1.025, and the two are not the same number. */}
-            <code>{(ACQUISITION_STEP * 100).toFixed(1)} points</code> for each of the six
+            <code>{(ACQUISITION_TABLE[tier].step * 100).toFixed(1)} points</code> for each of the six
             ancestors already carrying it, reaching{' '}
-            {percentPrecise(ACQUISITION_BASE + ACQUISITION_STEP * MAX_LINEAGE_CARRIERS, 1)}{' '}
-            with a full lineage. Affinity does not enter into it, which is why a pair can be
+            {percentPrecise(
+              ACQUISITION_TABLE[tier].base + ACQUISITION_TABLE[tier].step * MAX_LINEAGE_CARRIERS,
+              1,
+            )}{' '}
+            with a full lineage.{' '}
+            {/* The tier has to be NAMED, not just applied. Two readers looking
+                at the same spark see 22.5% and 45%, and the only thing that
+                explains the gap is a checkbox on another screen. */}
+            {gold ? (
+              <>
+                Those are the GOLD figures, because this criterion says the trainee will learn
+                the gold version of the skill; the plain white skill would be{' '}
+                {percentPrecise(ACQUISITION_TABLE.white.base, 1)} to{' '}
+                {percentPrecise(
+                  ACQUISITION_TABLE.white.base +
+                    ACQUISITION_TABLE.white.step * MAX_LINEAGE_CARRIERS,
+                  1,
+                )}
+                .{' '}
+              </>
+            ) : (
+              <>
+                Learning the skill&rsquo;s GOLD version doubles both figures, to{' '}
+                {percentPrecise(ACQUISITION_TABLE.gold.base, 1)} and{' '}
+                {(ACQUISITION_TABLE.gold.step * 100).toFixed(1)} points; say so on the search
+                filter and this number follows.{' '}
+              </>
+            )}
+            Affinity does not enter into it, which is why a pair can be
             excellent at firing a spark and ordinary at passing it on.{' '}
-            {row.inheritOnceInCareer === null ? (
+            {inherits === null ? (
               <>
                 The chain stops here for this kind. {preconditionNote(row.kind)} That is not
                 something the lineage decides, so the figure above is conditional on it rather
@@ -417,7 +472,7 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
             ) : (
               <>
                 Multiplied through, that is {percent(row.onceInCareer)} to fire ×{' '}
-                {percentPrecise(row.acquisitionChance, 1)} to keep. Read it as a floor: it assumes the hint
+                {percentPrecise(keeps, 1)} to keep. Read it as a floor: it assumes the hint
                 gets bought with SP, and it counts only the inspiration route, so the same skill
                 learned from a support card lands outside it.
               </>
@@ -429,7 +484,7 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
   );
 }
 
-/** What the trainee has to do themselves before the retirement roll is taken. */
+/** What the trainee has to do themselves before the inherit roll is taken. */
 function preconditionNote(kind: SparkSummaryRow['kind']): string {
   switch (kind) {
     case 'white_race':

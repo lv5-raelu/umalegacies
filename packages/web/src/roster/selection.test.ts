@@ -265,6 +265,38 @@ describe('a criterion is only restored if it can still be asked', () => {
       expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', mustHave: 1 }])).toEqual([]);
     });
   });
+
+  /**
+   * THE SAME TRAP, SPRUNG. The block above warned that a restore rebuilding the
+   * criterion field by field would drop any flag added after it was written,
+   * and `gold` was added and lost on the first reload -- a ticked box that
+   * silently halved the figure it governs. These are the regression.
+   */
+  describe('the gold flag', () => {
+    it('keeps a gold skill gold', () => {
+      expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', gold: true }])).toEqual([
+        { groupId: STAMINA, minStars: 1, scope: 'package', gold: true },
+      ]);
+    });
+
+    it('survives alongside mustHave rather than replacing it', () => {
+      // Two independent flags on one criterion. A spread that handled only the
+      // one it was written for would pass every test above and still lose this.
+      expect(
+        only([{ groupId: STAMINA, minStars: 1, scope: 'package', mustHave: true, gold: true }]),
+      ).toEqual([{ groupId: STAMINA, minStars: 1, scope: 'package', mustHave: true, gold: true }]);
+    });
+
+    it('leaves the field off entirely when the record has none', () => {
+      const [restored] = only([{ groupId: STAMINA, minStars: 1, scope: 'package' }]);
+      expect(restored && 'gold' in restored).toBe(false);
+    });
+
+    it('drops a criterion whose gold flag is not a boolean', () => {
+      expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', gold: 'yes' }])).toEqual([]);
+      expect(only([{ groupId: STAMINA, minStars: 1, scope: 'package', gold: 1 }])).toEqual([]);
+    });
+  });
 });
 
 describe('what gets written', () => {

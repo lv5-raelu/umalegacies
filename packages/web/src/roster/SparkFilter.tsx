@@ -1,5 +1,11 @@
 import type { FilterScope, RosterSparkOption, SparkCriterion, SparkKind } from '@umalegacies/types';
-import { isWhite, isRequirement, maxStarsFor, type StarSubject } from '@umalegacies/core';
+import {
+  hasGoldVersion,
+  isWhite,
+  isRequirement,
+  maxStarsFor,
+  type StarSubject,
+} from '@umalegacies/core';
 import { SparkPicker } from './SparkPicker';
 import styles from './Controls.module.css';
 
@@ -182,6 +188,33 @@ export function SparkFilter({
                 onChange={(e) => replace(at, { mustHave: e.target.checked })}
               />
               must have
+            </label>
+          )}
+
+          {/*
+            THE GOLD TOGGLE, ON SKILLS, IN THE SEARCH ONLY.
+
+            Learning a skill's gold version doubles the end-of-career roll -- 40%
+            + 5 points per ancestor against 20% + 2.5 -- while producing the
+            SAME factor, because only the white version of a skill has one. So
+            it moves the odds and nothing else.
+
+            It is a PLAN rather than a fact about the lineage, which is why it
+            sits on the criterion the reader wrote. Absent means white, which
+            is the floor: say nothing and the number can only turn out better.
+
+            Skills only. `hasGoldVersion` is the one place that knows a race
+            spark comes from winning a G1 and a scenario spark from clearing
+            the scenario, so neither has an upgraded form to learn.
+          */}
+          {subject === 'pair' && hasGoldVersion(kindOf(criterion.groupId)) && (
+            <label className={styles.mustHave} title="Learning the gold version doubles the chance the trainee keeps this spark">
+              <input
+                type="checkbox"
+                checked={criterion.gold === true}
+                onChange={(e) => replace(at, { gold: e.target.checked })}
+              />
+              gold
             </label>
           )}
 

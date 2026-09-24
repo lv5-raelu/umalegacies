@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jointOdds } from './joint.js';
+import { carriedCount, jointOdds } from './joint.js';
 
 /**
  * The number that turns four encouraging rows into one honest one.
@@ -33,16 +33,43 @@ describe('every requirement, together', () => {
   });
 });
 
-describe('a requirement that cannot be met', () => {
-  it('is zero, not a term to skip', () => {
-    // `null` is "this pair carries none of that spark". Skipping it would
-    // answer how likely the OTHER sparks are, which is a different and much
-    // more flattering question than the one on screen.
-    expect(jointOdds([0.9, null])).toBe(0);
-    expect(jointOdds([null, null])).toBe(0);
+describe('a spark the pair does not carry', () => {
+  /*
+   * REVERSED 2026-09-24. This block used to assert the opposite -- that a null
+   * zeroes the whole product -- and the reasoning was that skipping it answers
+   * "how likely are the ones that are present", a more flattering question.
+   *
+   * What changed is that two other things now carry that weight. The sweep
+   * ranks on COVERAGE before the product, so a pair missing a spark sorts below
+   * every pair that has it whatever this returns; and the label beside the
+   * figure names its own scope, "5 of 6 activate" rather than "all 6". Zeroing
+   * meanwhile produced a column of 0% on every realistic whites-only search:
+   * true, useless, and impossible to tell two rows apart by.
+   */
+  it('is left out of the product rather than failing it', () => {
+    expect(jointOdds([0.9, 0.5, null])).toBeCloseTo(0.45, 12);
   });
 
-  it('is zero when a term is zero', () => {
+  it('is not a joint at all when it leaves fewer than two terms', () => {
+    // One present term IS that term; printing it twice under two labels invites
+    // a hunt for a difference that is not there.
+    expect(jointOdds([0.9, null])).toBeNull();
+    expect(jointOdds([null, null])).toBeNull();
+  });
+
+  it('is counted, so the label can say how much it covered', () => {
+    // The denominator lives beside the figure or the number reads as a claim
+    // about the whole filter.
+    expect(carriedCount([0.9, 0.5, null])).toBe(2);
+    expect(carriedCount([null, null])).toBe(0);
+    expect(carriedCount([0.9, 0.5])).toBe(2);
+  });
+});
+
+describe('a term that is present and hopeless', () => {
+  it('is zero, because that is an impossibility rather than an absence', () => {
+    // The distinction the whole reversal turns on: "the pair has none of this
+    // spark" is a gap, "the pair has it and it cannot fire" is a failure.
     expect(jointOdds([0.9, 0])).toBe(0);
   });
 
@@ -57,7 +84,8 @@ describe('when there is no joint worth stating', () => {
   it.each([
     ['no requirements', []],
     ['one requirement', [0.42]],
-    ['one requirement that cannot be met', [null]],
+    ['one requirement the pair does not carry', [null]],
+    ['two requirements, only one of them carried', [0.42, null]],
   ])('says nothing about %s', (_label, terms) => {
     expect(jointOdds(terms as readonly (number | null)[])).toBeNull();
   });

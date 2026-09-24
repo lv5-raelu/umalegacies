@@ -297,7 +297,7 @@ describe('an ancestor whose card master.mdb does not know', () => {
 });
 
 /**
- * THE RETIREMENT ROLL, THROUGH THE WHOLE ENGINE AND AGAINST A REAL LINEAGE.
+ * THE END-OF-CAREER ROLL, THROUGH THE WHOLE ENGINE AND AGAINST A REAL LINEAGE.
  *
  * `inherit.test.ts` pins the table. This pins the WIRING: that the carrier
  * count summariseSparks hands the table is the count of umas the table means,
@@ -306,7 +306,7 @@ describe('an ancestor whose card master.mdb does not know', () => {
  * precondition this engine models. Every one of those is a place a plausible
  * edit would produce a number that still looks like a percentage.
  */
-describe('what the trainee retires carrying', () => {
+describe('what the trainee finishes a career carrying', () => {
   const sparks = lineage('5531').sparks;
 
   it('counts the carriers the table is indexed by, not the carrier entries', () => {

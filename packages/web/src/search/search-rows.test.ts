@@ -39,7 +39,18 @@ const criterion = (scope: SparkCriterion['scope']): SparkCriterion => ({
 });
 
 const sweep = (): PairSweep => ({
-  results: [{ a: 0, b: 1, joint: null, perSpark: [0.5], pairTotal: 100, relationRank: 3 }],
+  results: [
+    {
+      a: 0,
+      b: 1,
+      joint: null,
+      perSpark: [0.5],
+      perSparkInherit: [0.125],
+      jointInherit: null,
+      pairTotal: 100,
+      relationRank: 3,
+    },
+  ],
   legal: 1,
   scored: 1,
 });
@@ -99,8 +110,26 @@ describe('what the counts describe', () => {
     // "31 of 259 veterans" must not change when the reader asks for more rows.
     const wide: PairSweep = {
       results: [
-        { a: 0, b: 1, joint: null, perSpark: [1], pairTotal: 100, relationRank: 3 },
-        { a: 0, b: 2, joint: null, perSpark: [1], pairTotal: 90, relationRank: 3 },
+        {
+          a: 0,
+          b: 1,
+          joint: null,
+          perSpark: [1],
+          perSparkInherit: [0.25],
+          jointInherit: null,
+          pairTotal: 100,
+          relationRank: 3,
+        },
+        {
+          a: 0,
+          b: 2,
+          joint: null,
+          perSpark: [1],
+          perSparkInherit: [0.25],
+          jointInherit: null,
+          pairTotal: 90,
+          relationRank: 3,
+        },
       ],
       legal: 2,
       scored: 2,

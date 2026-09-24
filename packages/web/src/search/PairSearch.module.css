@@ -471,21 +471,43 @@
  * MEET in a T instead of the horizontal one beginning in mid-air; the matching
  * padding puts the chips back exactly where they were.
  */
+/*
+ * BLOCK, NOT FLEX, so the joints can FLOAT and the sparks can wrap around them.
+ *
+ * This was a wrapping flex row with the joints pushed right by `margin-left:
+ * auto`. That keeps them at the right of whichever line they land on, which
+ * with enough requirements is the LAST one -- the aggregate ended up beneath
+ * its own addends, and on a narrow band it was pushed onto a line of its own.
+ *
+ * A float is the one layout that lets inline content flow around a box: the
+ * joints sit top right and stay there, and the chips fill the shape that is
+ * left. The cost is that `gap` no longer applies, so the chips carry their own
+ * margins, and the float has to be cleared or it escapes the band.
+ */
 .wants {
   grid-column: 2 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs) var(--space-md);
+  display: block;
   padding-top: var(--space-sm);
   margin-left: calc(-1 * var(--space-snug));
   padding-left: var(--space-snug);
   border-top: 1px solid var(--rule);
 }
+.wants::after {
+  content: '';
+  display: block;
+  clear: both;
+}
 
+/*
+ * Its own margins, because `.wants` is no longer a flex container and `gap`
+ * only works in one. `inline-flex` keeps each chip an unbreakable inline box,
+ * which is what lets the run of them wrap around the floated joints.
+ */
 .want {
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-xs);
+  margin: 0 var(--space-md) var(--space-xs) 0;
   font-size: var(--text-2xs);
   color: var(--ink-muted);
   white-space: nowrap;
@@ -673,19 +695,52 @@
 }
 
 /*
- * The joint, at the far end of the band.
+ * The joints, at the far end of the band.
  *
- * `margin-left: auto` rather than a fixed column, so it sits hard right however
- * many requirements precede it and wraps with them when the band runs out of
- * width. It is the aggregate of everything to its left, which is why it reads
- * after them and not above: a horizontal band has no above.
+ * `margin-left: auto` on the GROUP rather than on each figure, so the two sit
+ * together at the right edge however many requirements precede them. It used
+ * to be on `.joint` itself, which pushed the first figure to the right and
+ * then let the second take whatever space was left -- the two ended up at
+ * opposite ends of the band, reading as two unrelated facts rather than one
+ * claim answered two ways.
+ *
+ * They are the aggregate of everything to their left, which is why they read
+ * after the sparks and not above them: a horizontal band has no above.
+ */
+.jointsEnd {
+  float: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-xs);
+  margin-left: var(--space-lg);
+  padding-left: var(--space-md);
+}
+/*
+ * STACKED, not side by side. Two aggregates on one line make a float wide
+ * enough to push the first row of chips most of the way down the band; stacked,
+ * the float is narrow and two lines tall, which is the shape the chips wrap
+ * around most cleanly. Right-aligned so the two figures share an edge and can
+ * be compared without tracking across a label.
  */
 .joint {
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-xs);
-  margin-left: auto;
-  padding-left: var(--space-md);
+}
+
+/*
+ * The inherit figure, in brackets beside the one it is not a second opinion on.
+ *
+ * Quieter than the activation figure it follows, because the two answer
+ * different questions and the bracket already says which is the aside. Same
+ * data face so the digits line up down the column; no new colour, since
+ * DESIGN.md spends the whole accent budget on amber-means-added.
+ */
+.wantInherit {
+  font-family: var(--font-data);
+  color: var(--ink-muted);
+  flex: none;
 }
 
 .jointLabel {
@@ -801,3 +856,48 @@
 
 
 
+
+/*
+ * WHAT THE LIST IS ORDERED BY.
+ *
+ * Deliberately the same object as the compare pane's window switch -- a
+ * segmented pair inside one rule, current segment lifted by ink and surface
+ * rather than by a hue. Two controls that do the same KIND of thing on two
+ * screens should not be two different shapes, and DESIGN.md settles the hue
+ * question anyway: interaction here is achromatic.
+ *
+ * It sits after `.count`, which owns the `margin-left: auto`, so the head reads
+ * name, then tally, then the control that reorders what the tally counts.
+ */
+.sort {
+  display: flex;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.sortOption,
+.sortOn {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  padding: var(--space-tight) var(--space-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sortOption + .sortOn,
+.sortOn + .sortOption,
+.sortOption + .sortOption {
+  border-left: 1px solid var(--rule);
+}
+.sortOption:hover {
+  color: var(--ink-muted);
+}
+.sortOn {
+  color: var(--ink);
+  background: var(--surface);
+}

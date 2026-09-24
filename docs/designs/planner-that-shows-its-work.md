@@ -187,7 +187,7 @@ WHERE category = 6 AND "index" = ?`). Win-saddle names are `category = 111` (184
 
    Everything the engine had was about the RUN: a spark activates during an inspiration and
    hands the trainee a skill hint they can buy with SP. What it never answered is whether
-   the trainee *retires carrying* that spark as one of their own factors, which is the
+   the trainee *finishes the career carrying* that spark as one of their own factors, which is the
    thing that makes them useful as somebody else's parent -- and it is decided by a
    SEPARATE roll at the end of the career. Having the skill is not having the spark. From
    here on, "inherits" means the second; the first is "activates".
@@ -238,7 +238,7 @@ WHERE category = 6 AND "index" = ?`). Win-saddle names are `category = 111` (184
    is confounded, because a parent carrying a skill factor both raises the hint odds and
    signals a build that wanted the skill, so the measured lift (11% -> 31% -> 57%)
    compounds three effects. **Race factors are the natural experiment**: the record says
-   which G1s the veteran actually won, so conditioning on the win isolates the retirement
+   which G1s the veteran actually won, so conditioning on the win isolates the end-of-career
    roll from everything else. Across **45,755 conditioned observations**:
 
    ```
