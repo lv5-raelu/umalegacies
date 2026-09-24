@@ -901,3 +901,35 @@
   color: var(--ink);
   background: var(--surface);
 }
+
+/*
+ * WHO HAS TO BE IN THE PAIR, above the filter that says what they must carry.
+ *
+ * Its own row rather than a column inside the spark filter, because it is a
+ * different kind of claim: the filter narrows by QUALITY and this narrows by
+ * COMPOSITION, and the whole reason it exists is that the two had been
+ * collapsed into one control and the odds paid for it.
+ */
+.pins {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-lg);
+  margin-top: var(--space-md);
+}
+.pinsLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+}
+.pin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.pinSlot {
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}

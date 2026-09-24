@@ -51,6 +51,20 @@ const inheritsOf = (row: SparkSummaryRow, gold: ReadonlySet<number>): number | n
     tierOf(row.groupId, gold),
   );
 
+/**
+ * Hints a direct parent's unique hands over at career start, or null.
+ *
+ * Greens only, and PARENT slots only: `PARENT_POSITIONS` is 10 and 20, and a
+ * grandparent's unique has to be inspired for. Two parents can carry different
+ * uniques but never the same one -- they are different characters by the pair
+ * rules -- so this is a single carrier's stars rather than a sum.
+ */
+const startGrant = (row: SparkSummaryRow): number | null => {
+  if (row.kind !== 'green') return null;
+  const onParent = row.carriers.find((c) => c.position === 10 || c.position === 20);
+  return onParent?.stars ?? null;
+};
+
 export function AuditTrail({
   sparks,
   onSelect,
@@ -199,7 +213,30 @@ export function AuditTrail({
                       style={isWhite(row.kind) ? undefined : { background: SPARK_COLOR[row.kind] }}
                     />
                   </td>
-                  <td className={styles.name}>{row.name}</td>
+                  {/*
+                    A UNIQUE ON A DIRECT PARENT IS ALREADY YOURS.
+
+                    The game hands it over at the start of the career, at a hint
+                    level equal to its stars; only a GRANDPARENT's unique has to
+                    wait for an inspiration. The odds column is therefore not
+                    wrong -- it answers "will this fire in one of the two April
+                    inspirations", which is exactly the question for the
+                    grandparent copy and for the extra hints a re-fire gives --
+                    but on its own it reads as the whole story, and for a row
+                    like this one the whole story starts with "you have it".
+
+                    So the fact is ADDED, not substituted. Collapsing the row to
+                    "guaranteed" would throw away the grandparent odds, which
+                    readers ask for by name.
+                  */}
+                  <td className={styles.name}>
+                    {row.name}
+                    {startGrant(row) !== null && (
+                      <span className={styles.atStart} title="A direct parent's unique skill is acquired at the start of the career, guaranteed. The percentage beside it is the chance of it firing in an inspiration, which is what brings a grandparent's copy in and what adds further hints.">
+                        +{startGrant(row)} at start
+                      </span>
+                    )}
+                  </td>
                   {/* The lineage TOTAL, not the best single spark, because that
                       total is the unit the borrow search will filter on and the
                       two must agree. */}
@@ -310,6 +347,10 @@ export function AuditTrail({
         neither of which a lineage decides. Read it as a floor -- it assumes the hint gets bought,
         and it counts only the inspiration route, so a skill picked up from a support card lands
         outside it.{' '}
+        A green marked <b>+N at start</b> is a unique carried by a DIRECT parent, which the
+        trainee is given outright when the career begins, at N hints. Its percentage is not a
+        correction to that: it is the chance of an inspiration firing the spark, which is what
+        brings a grandparent&rsquo;s copy of the same unique in and what adds further hints.{' '}
         {certain > 0 && (
           <>
             {certain} blue {certain === 1 ? 'row is' : 'rows are'} omitted for computing to 100%: a

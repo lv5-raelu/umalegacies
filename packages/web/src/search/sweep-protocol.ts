@@ -25,6 +25,15 @@ export interface SweepRequest {
   traineeCardId?: number;
   criteria: SparkCriterion[];
   /**
+   * Characters the reader pinned into a slot, by chara_id.
+   *
+   * Composition rather than sparks: these narrow which pairs the sweep builds
+   * and touch no figure it reports. Plain numbers, so they cross the boundary
+   * without ceremony.
+   */
+  requireParentChara?: number;
+  requireGrandparentChara?: number;
+  /**
    * The catalogue, flattened.
    *
    * `sweepPairs` wants a `kindOf` function and a function cannot be cloned, so

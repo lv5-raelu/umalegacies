@@ -10,6 +10,7 @@ import type {
   TraineeOption,
 } from '@umalegacies/types';
 import { carriedCount } from '@umalegacies/core';
+import { AncestorPin } from './AncestorPin';
 import { Portrait } from '../lineage/Portrait';
 import { rankGlyph } from '../lineage/pair-total';
 import {
@@ -118,6 +119,15 @@ export function PairSearch({
    */
   const [applied, setApplied] = useState<readonly SparkCriterion[]>(criteria);
   const [sortBy, setSortBy] = useState<SortBy>('activate');
+  /*
+   * WHO HAS TO BE IN THE PAIR, by character, in each of the two slot kinds.
+   *
+   * Edited freely and APPLIED by the Search button, like the spark criteria
+   * beside them: a pin re-runs the sweep, so it belongs on the same commit as
+   * everything else rather than firing on selection.
+   */
+  const [pins, setPins] = useState<Pins>({ parent: null, grandparent: null });
+  const [appliedPins, setAppliedPins] = useState<Pins>({ parent: null, grandparent: null });
   const detail = usePairDetail(
     packages,
     trainee?.charaId ?? null,
@@ -127,6 +137,31 @@ export function PairSearch({
   );
 
   const catalogue = useMemo(() => catalogueOf(roster.sparkOptions), [roster]);
+
+  /*
+   * WHO CAN BE PINNED WHERE, read off the roster rather than off the game.
+   *
+   * Offering every character in master.mdb would let a reader pin somebody they
+   * do not own and get a confident empty list. These are the characters that
+   * actually sit in each slot kind: a veteran's SELF becomes a direct parent,
+   * and a veteran's own two parents become the grandparents.
+   *
+   * Deduplicated by character, because that is what the pin matches: three
+   * Oguri Caps are one entry, and the ranking decides which of them wins.
+   */
+  const pinOptions = useMemo(() => {
+    const parent = new Map<number, string>();
+    const grandparent = new Map<number, string>();
+    for (const veteran of roster.veterans) {
+      if (veteran.self.charaId !== null) parent.set(veteran.self.charaId, veteran.self.name);
+      for (const member of veteran.parents) {
+        if (member?.charaId != null) grandparent.set(member.charaId, member.name);
+      }
+    }
+    const list = (m: Map<number, string>) =>
+      [...m].map(([charaId, name]) => ({ charaId, name })).sort((x, y) => x.name.localeCompare(y.name));
+    return { parent: list(parent), grandparent: list(grandparent) };
+  }, [roster]);
 
   /*
    * THE SWEEP RUNS IN A WORKER, and this is the only place that waits on it.
@@ -140,6 +175,7 @@ export function PairSearch({
     trainee?.charaId ?? null,
     traineeCardId,
     applied,
+    appliedPins,
   );
 
   /*
@@ -245,6 +281,35 @@ export function PairSearch({
             wants the same search again should get it rather than a dead control
             they have to work out.
           */}
+          {/*
+            WHO, BEFORE WHAT. A pin says which pairs exist; the spark filter
+            says which of those are good. Reading them in that order matches
+            the order the sweep applies them, and keeps the two ideas apart --
+            the reason the pin exists at all is that they had been collapsed
+            into one control and the odds paid for it.
+          */}
+          <div className={styles.pins}>
+            <span className={styles.pinsLabel}>MUST INCLUDE</span>
+            <label className={styles.pin}>
+              <span className={styles.pinSlot}>as a parent</span>
+              <AncestorPin
+                label="Character that must be a parent"
+                options={pinOptions.parent}
+                chosen={pins.parent}
+                onChoose={(parent) => setPins((p) => ({ ...p, parent }))}
+              />
+            </label>
+            <label className={styles.pin}>
+              <span className={styles.pinSlot}>as a grandparent</span>
+              <AncestorPin
+                label="Character that must be a grandparent"
+                options={pinOptions.grandparent}
+                chosen={pins.grandparent}
+                onChoose={(grandparent) => setPins((p) => ({ ...p, grandparent }))}
+              />
+            </label>
+          </div>
+
           <div className={styles.searchRow}>
             <button
               type="button"
@@ -252,7 +317,10 @@ export function PairSearch({
               // Paging needs no reset here: `onCriteria` already returns the
               // list to its first page on every edit, so it is there by the
               // time this is reachable.
-              onClick={() => setApplied(criteria)}
+              onClick={() => {
+                setApplied(criteria);
+                setAppliedPins(pins);
+              }}
             >
               Search
             </button>
@@ -414,6 +482,12 @@ function SearchProgress({ status }: { status: SearchStatus }) {
  * ranked before a row renders -- so this paces the DOM, not the search, and
  * "show 80 more" costs a slice rather than a re-sweep.
  */
+/** Who has to be in the pair, by character, per slot kind. Null is "anyone". */
+interface Pins {
+  parent: number | null;
+  grandparent: number | null;
+}
+
 export const PAGE = 80;
 
 /**
