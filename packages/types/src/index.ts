@@ -552,6 +552,22 @@ export interface SparkCriterion {
    * one place that knows the flag does nothing on them.
    */
   gold?: boolean;
+  /**
+   * Filter on this spark, but leave it OUT of the combined odds.
+   *
+   * For PINKS, where the odds answer a question most readers are not asking.
+   * The career-start grant raises an aptitude deterministically and the
+   * percentage beside it is the chance of an inspiration firing the spark --
+   * which is what takes A to S. Somebody who wants Oguri Cap at A in End
+   * Closer gets that at the start, guaranteed, and does not care whether it
+   * fires again; leaving it in the product dragged every row's combined figure
+   * down by a number that described an outcome they had not asked for.
+   *
+   * The criterion still FILTERS. This is about what the aggregate counts, not
+   * about which pairs qualify, and the spark's own percentage is still printed
+   * beside it -- the reader is excluding it from a total, not hiding it.
+   */
+  excludeFromOdds?: boolean;
 }
 
 // ---------------------------------------------------------------- pair (M3)

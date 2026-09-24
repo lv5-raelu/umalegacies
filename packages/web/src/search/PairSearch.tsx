@@ -9,7 +9,7 @@ import type {
   SparkKind,
   TraineeOption,
 } from '@umalegacies/types';
-import { carriedCount } from '@umalegacies/core';
+import { carriedCount, type SlotPin } from '@umalegacies/core';
 import { AncestorPin, type PinOption } from './AncestorPin';
 import { Portrait } from '../lineage/Portrait';
 import { rankGlyph } from '../lineage/pair-total';
@@ -150,26 +150,66 @@ export function PairSearch({
    * Oguri Caps are one entry, and the ranking decides which of them wins.
    */
   const pinOptions = useMemo(() => {
-    // The first card seen for a character wins the portrait. Which costume it
-    // is does not matter -- the pin matches by character -- and picking one
-    // deterministically keeps the list stable between renders.
-    const add = (into: Map<number, PinOption>, member: ResolvedMember | null) => {
-      if (member?.charaId == null || into.has(member.charaId)) return;
-      into.set(member.charaId, {
-        charaId: member.charaId,
-        name: member.name,
-        cardId: member.cardId,
-      });
+    /*
+     * CARDS, AND A CHARACTER ROW WHEN THERE IS A CHOICE TO MAKE.
+     *
+     * A costume is not a skin: cards of one character carry different unique
+     * skills, so a direct parent's costume decides which green the trainee
+     * opens the career with, and Haru Urara's two cards differ on Mile as
+     * well. Collapsing them to a character was a real loss of precision.
+     *
+     * The character row survives because it is still a question worth asking
+     * -- "any Oguri, whichever is best" -- but it is only offered where the
+     * roster actually holds more than one of her in that slot. Offering it on
+     * a single-costume uma would be two rows meaning the same thing.
+     */
+    const collect = (members: Iterable<ResolvedMember | null>) => {
+      const byChara = new Map<number, Map<number, ResolvedMember>>();
+      for (const member of members) {
+        if (member?.charaId == null) continue;
+        const cards = byChara.get(member.charaId) ?? new Map<number, ResolvedMember>();
+        if (!cards.has(member.cardId)) cards.set(member.cardId, member);
+        byChara.set(member.charaId, cards);
+      }
+      const out: PinOption[] = [];
+      for (const [charaId, cards] of byChara) {
+        const all = [...cards.values()].sort((x, y) =>
+          (x.costume ?? '').localeCompare(y.costume ?? ''),
+        );
+        const first = all[0] as ResolvedMember;
+        if (all.length > 1) {
+          out.push({
+            key: `chara-${charaId}`,
+            pin: { by: 'chara', id: charaId },
+            name: first.name,
+            costume: null,
+            cardId: first.cardId,
+            anyCostume: true,
+          });
+        }
+        for (const card of all) {
+          out.push({
+            key: `card-${card.cardId}`,
+            pin: { by: 'card', id: card.cardId },
+            name: card.name,
+            costume: card.costume,
+            cardId: card.cardId,
+            anyCostume: false,
+          });
+        }
+      }
+      // By name, then the "any costume" row above its own costumes.
+      return out.sort(
+        (x, y) =>
+          x.name.localeCompare(y.name) ||
+          Number(y.anyCostume) - Number(x.anyCostume) ||
+          (x.costume ?? '').localeCompare(y.costume ?? ''),
+      );
     };
-    const parent = new Map<number, PinOption>();
-    const grandparent = new Map<number, PinOption>();
-    for (const veteran of roster.veterans) {
-      add(parent, veteran.self);
-      for (const member of veteran.parents) add(grandparent, member);
-    }
-    const list = (m: Map<number, PinOption>) =>
-      [...m.values()].sort((x, y) => x.name.localeCompare(y.name));
-    return { parent: list(parent), grandparent: list(grandparent) };
+    return {
+      parent: collect(roster.veterans.map((v) => v.self)),
+      grandparent: collect(roster.veterans.flatMap((v) => v.parents)),
+    };
   }, [roster]);
 
   /*
@@ -495,10 +535,10 @@ function SearchProgress({ status }: { status: SearchStatus }) {
  * ranked before a row renders -- so this paces the DOM, not the search, and
  * "show 80 more" costs a slice rather than a re-sweep.
  */
-/** Who has to be in the pair, by character, per slot kind. Null is "anyone". */
+/** Who has to be in the pair, per slot kind. Null is "anyone". */
 interface Pins {
-  parent: number | null;
-  grandparent: number | null;
+  parent: SlotPin | null;
+  grandparent: SlotPin | null;
 }
 
 export const PAGE = 80;
@@ -571,6 +611,21 @@ const PairRow = memo(function PairRow({
   // Built per row rather than per list, because PairRow is memoised on its
   // props and a Set rebuilt in the parent would defeat that for all 80 rows.
   const asked = new Set(criteria.map((c) => c.groupId));
+
+  /*
+   * THE AGGREGATES COUNT ONLY WHAT THE READER LEFT IN.
+   *
+   * A criterion marked "A is enough" still filters and still prints its own
+   * percentage on the row; it is out of the product and therefore out of the
+   * product's denominator too. "5 of 6 activate" beside a figure computed from
+   * five criteria would be the same lie the label was added to prevent.
+   *
+   * Positional: `perSpark` is index-aligned with `criteria`, so the mask has to
+   * be applied by index rather than by filtering values.
+   */
+  const countedCriteria = criteria.filter((c) => c.excludeFromOdds !== true);
+  const counted = <T,>(values: readonly T[]): T[] =>
+    values.filter((_, i) => criteria[i]?.excludeFromOdds !== true);
 
   /*
    * THE WHOLE ROW IS THE CONTROL, because the whole row is the thing you pick.
@@ -665,7 +720,7 @@ const PairRow = memo(function PairRow({
               {row.joint !== null && (
                 <span className={styles.joint}>
                   <span className={styles.jointLabel}>
-                    {scopeLabel(carriedCount(row.perSpark), criteria.length, 'activate')}
+                    {scopeLabel(carriedCount(counted(row.perSpark)), countedCriteria.length, 'activate')}
                   </span>
                   <span className={styles.jointValue}>{percentJoint(row.joint)}</span>
                 </span>
@@ -677,9 +732,10 @@ const PairRow = memo(function PairRow({
                 <span className={styles.joint}>
                   <span className={styles.jointLabel}>
                     {scopeLabel(
-                      carriedCount(row.perSparkInherit),
-                      criteria.filter((c) => catalogue.get(c.groupId)?.kind === 'white_skill')
-                        .length,
+                      carriedCount(counted(row.perSparkInherit)),
+                      countedCriteria.filter(
+                        (c) => catalogue.get(c.groupId)?.kind === 'white_skill',
+                      ).length,
                       'inherited',
                       'skills',
                     )}

@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { SlotPin } from '@umalegacies/core';
 import { Portrait } from '../lineage/Portrait';
 import { useCombobox } from '../roster/useCombobox';
 import styles from '../roster/Combobox.module.css';
@@ -23,17 +24,20 @@ import styles from '../roster/Combobox.module.css';
  */
 
 export interface PinOption {
-  charaId: number;
+  /** Stable across renders; `by` and `id` together are not unique as a string. */
+  key: string;
+  /** What choosing this row asks the sweep for. */
+  pin: SlotPin;
   name: string;
-  /**
-   * A card of that character, for the portrait alone.
-   *
-   * The pin matches by CHARACTER, so which card this is does not affect the
-   * search; it is here because an option with a face is recognised faster than
-   * one with a name, and the trainee picker beside it has faces.
-   */
+  /** The bracketed costume label, or null on an "any costume" row. */
+  costume: string | null;
+  /** For the portrait. On an "any costume" row, one of that character's cards. */
   cardId: number;
+  anyCostume: boolean;
 }
+
+const same = (a: SlotPin | null, b: SlotPin | null): boolean =>
+  a === null || b === null ? a === b : a.by === b.by && a.id === b.id;
 
 type Choice = PinOption | null;
 
@@ -45,18 +49,22 @@ export function AncestorPin({
 }: {
   label: string;
   options: readonly PinOption[];
-  chosen: number | null;
-  onChoose: (charaId: number | null) => void;
+  chosen: SlotPin | null;
+  onChoose: (pin: SlotPin | null) => void;
 }) {
-  const current = options.find((o) => o.charaId === chosen) ?? null;
+  const current = options.find((o) => same(o.pin, chosen)) ?? null;
 
   const { items, open, setOpen, query, onSearch, active, setActive, wrap, search, listbox, onKeyDown, choose } =
     useCombobox<Choice>({
       filter: useCallback(
         (q: string) => {
           const needle = q.trim().toLowerCase();
+          // Costume too: "starlight" should find Oguri Cap [Starlight Beat],
+          // which is the whole reason the costumes are listed separately.
           const matched = needle
-            ? options.filter((o) => o.name.toLowerCase().includes(needle))
+            ? options.filter((o) =>
+                `${o.name} ${o.costume ?? ''}`.toLowerCase().includes(needle),
+              )
             : options;
           // The clear row lives IN the list rather than beside it, so undoing a
           // pin is the same gesture as making one.
@@ -68,10 +76,10 @@ export function AncestorPin({
       // other combobox here: a list of 68 characters should show you where you
       // already are.
       activeIndexOf: useCallback(
-        (items: readonly Choice[]) => items.findIndex((o) => (o?.charaId ?? null) === chosen),
+        (items: readonly Choice[]) => items.findIndex((o) => same(o?.pin ?? null, chosen)),
         [chosen],
       ),
-      onChoose: useCallback((choice: Choice) => onChoose(choice?.charaId ?? null), [onChoose]),
+      onChoose: useCallback((choice: Choice) => onChoose(choice?.pin ?? null), [onChoose]),
     });
 
   return (
@@ -99,7 +107,10 @@ export function AncestorPin({
             <span className={styles.triggerPortrait}>
               <Portrait cardId={current.cardId} name={current.name} />
             </span>
-            <span className={styles.triggerText}>{current.name}</span>
+            <span className={styles.triggerText}>
+              {current.name}
+              {current.anyCostume ? ' — any costume' : current.costume ? ` ${current.costume}` : ''}
+            </span>
           </>
         ) : (
           <span className={`${styles.triggerText} ${styles.placeholder}`}>anyone</span>
@@ -125,9 +136,9 @@ export function AncestorPin({
             <ul className={styles.options} role="listbox" ref={listbox}>
               {items.map((item, i) => (
                 <li
-                  key={item === null ? 'none' : item.charaId}
+                  key={item === null ? 'none' : item.key}
                   role="option"
-                  aria-selected={(item?.charaId ?? null) === chosen}
+                  aria-selected={same(item?.pin ?? null, chosen)}
                   className={`${styles.option} ${i === active ? styles.active : ''}`}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(item)}
@@ -141,10 +152,19 @@ export function AncestorPin({
                       </span>
                       <span className={styles.optionText}>
                         <span className={styles.optionName}>{item.name}</span>
+                        {/* The costume, or the row that means "whichever of
+                            them ranks best". Same slot, same weight, because
+                            they are alternatives rather than a heading and its
+                            children. */}
+                        {item.anyCostume ? (
+                          <span className={styles.optionCostume}>any costume</span>
+                        ) : item.costume ? (
+                          <span className={styles.optionCostume}>{item.costume}</span>
+                        ) : null}
                       </span>
                     </>
                   )}
-                  {(item?.charaId ?? null) === chosen && <span className={styles.chosen}>✓</span>}
+                  {same(item?.pin ?? null, chosen) && <span className={styles.chosen}>✓</span>}
                 </li>
               ))}
             </ul>
