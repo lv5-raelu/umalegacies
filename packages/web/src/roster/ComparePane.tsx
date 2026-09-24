@@ -17,8 +17,10 @@ import {
 import { pairTotalOf, rankGlyph } from '../lineage/pair-total';
 import {
   SPARK_COLOR,
-  SPARK_GROUP_LABEL,
-  SPARK_KIND_ORDER,
+  SPARK_GROUP_ORDER,
+  groupKeyOf,
+  groupLabelOf,
+  type SparkGroupKey,
   isWhite,
   percent,
   percentJoint,
@@ -405,9 +407,9 @@ function Result({
           <span className={styles.oddsCount}>({lineage.sparks.length})</span>
         </p>
         <div className={styles.oddsScroll}>
-          {byKind(lineage.sparks).map(([kind, rows]) => (
-            <div key={kind} className={styles.group}>
-              <p className={styles.groupLabel}>{SPARK_GROUP_LABEL[kind]}</p>
+          {byKind(lineage.sparks).map(([key, rows]) => (
+            <div key={key} className={styles.group}>
+              <p className={styles.groupLabel}>{groupLabelOf(key)}</p>
               {rows.map((row) => (
                 <Odds
                   key={row.groupId}
@@ -535,8 +537,12 @@ function Odds({
  * partitions it -- it never re-sorts, which would let the pane and the audit
  * trail on the tree page disagree about what "most likely" means.
  */
-function byKind(sparks: readonly SparkSummaryRow[]): Array<[SparkKind, SparkSummaryRow[]]> {
-  return SPARK_KIND_ORDER.map(
-    (kind) => [kind, sparks.filter((row) => row.kind === kind)] as [SparkKind, SparkSummaryRow[]],
+function byKind(sparks: readonly SparkSummaryRow[]): Array<[SparkGroupKey, SparkSummaryRow[]]> {
+  return SPARK_GROUP_ORDER.map(
+    (key) =>
+      [key, sparks.filter((row) => groupKeyOf(row) === key)] as [
+        SparkGroupKey,
+        SparkSummaryRow[],
+      ],
   ).filter(([, rows]) => rows.length > 0);
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadFixture } from '../affinity/fixtures.js';
 import { careerOdds, explainLineage, SPARK_KIND_ORDER } from '@umalegacies/core';
-import { extractHash, extractMaster } from '../master/master-extract.js';
+import { extractDatabase, extractHash, extractMaster } from '../master/master-extract.js';
 
 const master = extractMaster();
 const lineage = (name: string) =>
@@ -358,5 +358,66 @@ describe('what the trainee finishes a career carrying', () => {
     expect(loud).toBeDefined();
     expect((loud as (typeof sparks)[number]).onceInCareer).toBeGreaterThan(0.7);
     expect((loud as (typeof sparks)[number]).acquisitionChance as number).toBeLessThan(0.4);
+  });
+});
+
+/**
+ * WHEN A SKILL FIRES, READ OFF THE GAME'S OWN FIELD.
+ *
+ * `skill_data.skill_category` is what the pre-race screen groups by, so these
+ * headings are the game's headings rather than this project's reading of a
+ * condition string. The first attempt DID parse conditions -- `phase==1` and
+ * friends -- and it classified only 119 of 235 white skills, put 116 in an
+ * undifferentiated bucket, and needed a rule for skills spanning two legs.
+ * The category column answers all of that in one integer, and these pin it.
+ */
+describe('when a white skill fires', () => {
+  const master = extractMaster();
+
+  /*
+   * By NAME, via the extract's own text rows.
+   *
+   * A scan of the factor id space would work and was the first cut, but factor
+   * ids are seven digits -- `factor_group_id * 100 + rarity` -- so the loop
+   * bound is the kind of thing that is wrong by a factor of ten and still
+   * compiles. Asking the database which id carries the name cannot be.
+   */
+  const db = extractDatabase();
+  const factorNamed = (name: string) => {
+    const row = db
+      .prepare(`SELECT "index" AS id FROM text_data WHERE category = 147 AND text = ? LIMIT 1`)
+      .get(name) as { id: number } | undefined;
+    return row === undefined ? null : master.factor(row.id);
+  };
+
+  it.each([
+    // Verified against a screenshot of the game's own pre-race skill list.
+    ['Straightaway Recovery', 'mid'],
+    ['Tail Held High', 'mid'],
+    ['Head-On', 'late'],
+    // And against skills named as always firing at the start, no wit check.
+    ['Summer Runner ○', 'passive'],
+    ['Restraint', 'passive'],
+    ['Early Lead', 'early'],
+  ])('puts %s under %s', (name, timing) => {
+    expect(factorNamed(name)?.timing).toBe(timing);
+  });
+
+  it('gives every white skill in a real lineage a timing', () => {
+    // The whole point of using the game's field: no skill falls through into a
+    // heading that cannot be named.
+    const skills = lineage('5531').sparks.filter((row) => row.kind === 'white_skill');
+    expect(skills.length).toBeGreaterThan(20);
+    for (const row of skills) expect(row.timing).not.toBeNull();
+  });
+
+  it('gives every OTHER kind no timing at all', () => {
+    // A race spark grants a skill hint too -- February S. hands over Winter
+    // Runner -- so the join finds a category for it. Filing it under Passive
+    // because of the skill it teaches would put it in a heading that says
+    // nothing about the G1 you have to win.
+    const others = lineage('5531').sparks.filter((row) => row.kind !== 'white_skill');
+    expect(others.length).toBeGreaterThan(10);
+    for (const row of others) expect(row.timing).toBeNull();
   });
 });

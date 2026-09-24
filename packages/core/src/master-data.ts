@@ -1,5 +1,5 @@
-import type { SparkKind } from './spark-types.js';
-import { SPARK_KIND_BY_FACTOR_TYPE } from './spark-types.js';
+import type { SkillTiming, SparkKind } from './spark-types.js';
+import { SKILL_TIMING_BY_CATEGORY, SPARK_KIND_BY_FACTOR_TYPE } from './spark-types.js';
 
 /** One succession_factor row, joined to its name. */
 export interface Factor {
@@ -9,6 +9,14 @@ export interface Factor {
   stars: number;
   kind: SparkKind;
   name: string;
+  /**
+   * When the hinted skill fires, for a white SKILL spark.
+   *
+   * Null for every other kind, and for a skill whose category the game has
+   * added since this extract was built -- a heading nobody can name is worse
+   * than no heading.
+   */
+  timing: SkillTiming | null;
 }
 
 /**
@@ -70,6 +78,20 @@ export interface MasterTables {
     rarity: number;
     factor_type: number;
   }>;
+  /**
+   * Which skill a spark hints at: one row per factor group, `value_1` being the
+   * skill id. The source table repeats each mapping once per hint level 1-5 and
+   * the extract collapses that, so this is the mapping itself.
+   */
+  factorSkill: ReadonlyArray<{ factor_group_id: number; value_1: number }>;
+  /**
+   * Skills, projected to the two columns this engine reads.
+   *
+   * `skill_category` is the GAME'S OWN grouping by when a skill fires -- the
+   * same headings the pre-race screen shows -- and `rarity` separates a plain
+   * white skill from its gold form.
+   */
+  skillData: ReadonlyArray<{ id: number; skill_category: number; rarity: number }>;
 }
 
 export class MasterData {
@@ -188,6 +210,26 @@ export class MasterData {
           break;
       }
     }
+    /*
+     * Factor group -> when its skill fires.
+     *
+     * Two hops: `succession_factor_effect` says which skill a spark hints at,
+     * and `skill_data.skill_category` says when that skill fires. Built once
+     * here rather than joined per lookup, because the audit trail asks this
+     * question for every spark in a lineage.
+     */
+    const categoryBySkill = new Map<number, number>();
+    for (const r of tables.skillData) categoryBySkill.set(r.id, r.skill_category);
+    const timingByGroup = new Map<number, SkillTiming>();
+    for (const r of tables.factorSkill) {
+      const category = categoryBySkill.get(r.value_1);
+      if (category === undefined) continue;
+      const timing = SKILL_TIMING_BY_CATEGORY[category];
+      // Category 5 is the unique skills, which are the green spark and have
+      // their own group. An unmapped category is a new one; see `Factor.timing`.
+      if (timing !== undefined) timingByGroup.set(r.factor_group_id, timing);
+    }
+
     for (const r of tables.successionFactor) {
       const kind = SPARK_KIND_BY_FACTOR_TYPE[r.factor_type];
       // An unknown factor_type is a new game mechanic, not a spark this tool
@@ -207,6 +249,12 @@ export class MasterData {
         stars: r.rarity,
         kind,
         name: factorNames.get(r.factor_id) ?? `factor ${r.factor_id}`,
+        // WHITE SKILLS ONLY. A race spark grants a skill hint too -- February
+        // S. hands over Winter Runner -- so the join finds a category for it,
+        // but a race spark's own group is "the G1 you have to win" and moving
+        // it under Passive because of the skill it happens to teach would put
+        // it in a heading that says nothing about it.
+        timing: kind === 'white_skill' ? (timingByGroup.get(r.factor_group_id) ?? null) : null,
       });
     }
   }

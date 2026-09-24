@@ -181,6 +181,8 @@ export interface AncestorSpark {
   name: string;
   /** succession_factor.rarity, the star count 1-3. Not a rarity tier. */
   stars: number;
+  /** When its skill fires, for a white skill. Null for every other kind. */
+  timing: SkillTiming | null;
 }
 
 /**
@@ -197,6 +199,9 @@ export interface AncestorSparkSet {
   /** factor ids the save carried that master.mdb has no row for. Named, not swallowed. */
   unknownFactorIds: number[];
 }
+
+/** When a white SKILL fires, as the game's own pre-race screen groups them. */
+export type SkillTiming = 'passive' | 'early' | 'mid' | 'late' | 'anytime';
 
 /** One ancestor's contribution to a summary row. */
 export interface SparkCarrier {
@@ -245,6 +250,15 @@ export interface SparkSummaryRow {
    * the day a patch lets one ancestor hold two factors of one group.
    */
   lineageCarriers: number;
+  /**
+   * When this spark's skill fires, for a white SKILL only.
+   *
+   * Null for every other kind: a blue is a stat, a race spark is a G1 win, and
+   * a green IS the trainee's unique skill and has a group of its own. Read
+   * straight off `skill_data.skill_category`, which is the field the game's
+   * pre-race screen groups by, so the headings here are the game's headings.
+   */
+  timing: SkillTiming | null;
   /**
    * P(the trainee FINISHES A CAREER carrying this spark), given its precondition is met.
    *

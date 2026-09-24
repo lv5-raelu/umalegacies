@@ -26,6 +26,11 @@ const doc = {
       keys: ['factor_id', 'factor_group_id', 'rarity', 'factor_type'],
       cols: [[101], [1], [1], [1]],
     },
+    // The two projected tables. Present but empty: this document exists to
+    // exercise fetching and caching, not the skill join, and `MasterData` reads
+    // every table it is handed rather than probing for the ones it likes.
+    factorSkill: { keys: ['factor_group_id', 'value_1'], cols: [[], []] },
+    skillData: { keys: ['id', 'skill_category', 'rarity'], cols: [[], [], []] },
   },
 };
 

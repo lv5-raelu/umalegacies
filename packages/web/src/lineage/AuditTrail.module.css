@@ -256,3 +256,29 @@
 .na {
   color: var(--ink-faint);
 }
+
+/*
+ * ONE SLOT: its star count, and the name of the uma holding them.
+ *
+ * A column each, fixed width, so the six read as a grid down fifty rows -- the
+ * whole point of the column is scanning it vertically, and a slot sized to its
+ * own content would put P1 and GP1 in different places on consecutive rows.
+ *
+ * The stars line keeps its height when it is empty, so a row with no carrier in
+ * a slot does not sit a line higher than its neighbours.
+ */
+.slot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 4.5ch;
+  vertical-align: top;
+}
+.slotStars {
+  font-size: 7px;
+  line-height: 1;
+  height: 8px;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  white-space: nowrap;
+}

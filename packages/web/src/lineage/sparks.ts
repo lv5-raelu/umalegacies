@@ -1,4 +1,5 @@
-import type { SparkKind } from '@umalegacies/types';
+import type { SkillTiming, SparkKind } from '@umalegacies/types';
+import { SKILL_TIMING_ORDER } from '@umalegacies/core';
 
 /**
  * A spark's hue is category identity, never decoration, and it appears only as
@@ -33,6 +34,57 @@ export const SPARK_GROUP_LABEL: Readonly<Record<SparkKind, string>> = {
   white_skill: 'white · skill',
   white_scenario: 'white · scenario',
 };
+
+/**
+ * THE GAME'S OWN HEADINGS, in the game's own order.
+ *
+ * The pre-race screen groups a trainee's skills by when they fire, and these
+ * are those groups: `skill_data.skill_category` is the field it reads, so a
+ * reader who knows that screen already knows this one. Only white SKILLS have
+ * a timing; every other kind keeps the group it had.
+ */
+export const SKILL_TIMING_LABEL: Readonly<Record<SkillTiming, string>> = {
+  passive: 'white · skill · Passive',
+  early: 'white · skill · Early-Race',
+  mid: 'white · skill · Mid-Race',
+  late: 'white · skill · Late-Race',
+  anytime: 'white · skill · Anytime',
+};
+
+/**
+ * One key per group a spark list can be split into.
+ *
+ * A white skill keys on its timing and everything else on its kind, so the two
+ * surfaces that group sparks -- the audit trail's table and the compare pane's
+ * chips -- cannot drift apart about what a group IS.
+ */
+export type SparkGroupKey = SparkKind | `timing:${SkillTiming}`;
+
+export const groupKeyOf = (row: { kind: SparkKind; timing: SkillTiming | null }): SparkGroupKey =>
+  row.kind === 'white_skill' && row.timing !== null ? `timing:${row.timing}` : row.kind;
+
+export const groupLabelOf = (key: SparkGroupKey): string =>
+  key.startsWith('timing:')
+    ? SKILL_TIMING_LABEL[key.slice(7) as SkillTiming]
+    : SPARK_GROUP_LABEL[key as SparkKind];
+
+/**
+ * Every group, in render order: structural kinds first, then the white skills
+ * split by when they fire, then the bag's remaining kinds.
+ *
+ * `white_skill` KEEPS ITS PLACE in the list for the skills the game has given a
+ * category this build does not know. Dropping it would make a new category
+ * vanish from the screen rather than merely be ungrouped.
+ */
+export const SPARK_GROUP_ORDER: readonly SparkGroupKey[] = [
+  'blue',
+  'pink',
+  'green',
+  'white_race',
+  ...SKILL_TIMING_ORDER.map((t): SparkGroupKey => `timing:${t}`),
+  'white_skill',
+  'white_scenario',
+];
 
 /**
  * Percentages round to whole numbers, with an exception at EACH end.

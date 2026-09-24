@@ -36,6 +36,7 @@ export function ancestorSparks(ref: AncestorRef, data: MasterData): AncestorSpar
       kind: factor.kind,
       name: factor.name,
       stars: factor.stars,
+      timing: factor.timing,
     };
     if (spark.kind === 'blue' && !set.blue) set.blue = spark;
     else if (spark.kind === 'pink' && !set.pink) set.pink = spark;
@@ -156,6 +157,7 @@ export function summariseSparks(
           withinOneInspiration: 0,
           onceInCareer: 0,
           twiceInCareer: 0,
+          timing: spark.timing,
           lineageCarriers: 0,
           acquisitionChance: null,
           inheritOnceInCareer: null,
