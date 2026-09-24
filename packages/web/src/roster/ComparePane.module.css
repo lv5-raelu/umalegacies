@@ -439,3 +439,30 @@
   color: var(--ink-faint);
   margin: 0 0 var(--space-snug);
 }
+
+/*
+ * The retirement roll and what it leaves, on a white-skill chip.
+ *
+ * Both quieter than `.chipValue`, which stays the chip's headline: the
+ * activation figure is what the window switch above governs, and these two do
+ * not move when it changes. `keeps` is labelled because a bare third
+ * percentage in a row of three would be unreadable; the bracketed one needs no
+ * label because the brackets and the position say it is the result of the two
+ * before it -- the same idiom the search row band uses, so a reader who
+ * learned it there does not learn it twice.
+ */
+.chipKeeps {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.chipInherit {
+  font-family: var(--font-data);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.chipAsked .chipKeeps,
+.chipAsked .chipInherit {
+  color: var(--ink-muted);
+}

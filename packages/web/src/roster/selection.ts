@@ -154,7 +154,7 @@ function restoreCriteria(
   for (const raw of stored) {
     if (typeof raw !== 'object' || raw === null) continue;
     const c = raw as Record<string, unknown>;
-    const { groupId, minStars, scope, mustHave } = c;
+    const { groupId, minStars, scope, mustHave, gold } = c;
 
     if (typeof groupId !== 'number' || !known.has(groupId)) continue;
     // The filter refuses a second row for the same spark, so a record holding
@@ -176,18 +176,25 @@ function restoreCriteria(
     // means the record was not written by this UI, and the rule here is to drop
     // a criterion that does not check out rather than to guess at it.
     if (mustHave !== undefined && typeof mustHave !== 'boolean') continue;
+    if (gold !== undefined && typeof gold !== 'boolean') continue;
 
     seen.add(groupId);
-    // THE FLAG HAS TO MAKE THE ROUND TRIP. `SelectionRecord.criteria` stores
-    // whole `SparkCriterion` objects, so `mustHave` is already being written;
-    // rebuilding the criterion without it here would drop a promoted white on
-    // every reload and quietly widen the user's search. Nothing sets it yet,
-    // which is exactly why it is worth wiring before something does.
+    // EVERY FLAG HAS TO MAKE THE ROUND TRIP. `SelectionRecord.criteria` stores
+    // whole `SparkCriterion` objects, so the flags are already being written;
+    // rebuilding the criterion without one here drops it on every reload.
+    //
+    // This warning used to end "nothing sets it yet, which is exactly why it is
+    // worth wiring before something does". Something did: `gold` was added and
+    // went missing on the first reload, because a rebuild that names its fields
+    // forgets whatever was added after it was written. If a third flag ever
+    // joins these two, it belongs in the destructure, the type check and the
+    // spread, or it will be lost in exactly the same way.
     out.push({
       groupId,
       minStars,
       scope: scope as FilterScope,
       ...(mustHave === undefined ? {} : { mustHave }),
+      ...(gold === undefined ? {} : { gold }),
     });
   }
   return out;

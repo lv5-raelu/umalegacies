@@ -37,6 +37,16 @@ export function TreePage({
   // The sparks the reader filtered for, so the audit trail can light them up.
   // A Set because the table asks this once per row, ~50 times.
   const askedGroupIds = new Set(criteria.map((c) => c.groupId));
+  /*
+   * Which of those the reader said they would learn the GOLD version of.
+   *
+   * Carried here for the same reason `asked` is: the breakdown explains the
+   * pair the reader picked, and the search is where they declared the plan. A
+   * breakdown showing 22.5% next to a modal showing 45% for one spark would be
+   * two screens disagreeing about the same number, which is worse than either
+   * being wrong on its own.
+   */
+  const goldGroupIds = new Set(criteria.filter((c) => c.gold === true).map((c) => c.groupId));
   const [spark, setSpark] = useState<SparkSummaryRow | null>(null);
 
   /*
@@ -138,7 +148,7 @@ export function TreePage({
           something to scroll to on the render where the spark first appears. */}
       <div ref={provenance}>
         {spark ? (
-          <SparkProvenance row={spark} />
+          <SparkProvenance row={spark} gold={goldGroupIds.has(spark.groupId)} />
         ) : selection.kind === 'link' ? (
           <LinkProvenance link={selection.node} />
         ) : selection.kind === 'member' && selection.position !== 'T' ? (
@@ -151,6 +161,7 @@ export function TreePage({
       <h2 className={styles.rubric}>Audit trail — every spark this lineage can pass down</h2>
       <AuditTrail
         asked={askedGroupIds}
+        gold={goldGroupIds}
         sparks={lineage.sparks}
         selectedGroupId={spark?.groupId ?? null}
         onSelect={(row) => setSpark(row.groupId === spark?.groupId ? null : row)}

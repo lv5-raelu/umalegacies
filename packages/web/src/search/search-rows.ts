@@ -1,5 +1,5 @@
 import type { PairSearchResult, PairSweep } from '@umalegacies/core';
-import { starsInPair } from '@umalegacies/core';
+import { compareByInherit, starsInPair } from '@umalegacies/core';
 import type { ResolvedVeteran, SparkCriterion } from '@umalegacies/types';
 
 /**
@@ -29,7 +29,15 @@ export interface PairRowData {
    */
   lineageStars: number[];
   perSpark: (number | null)[];
+  /**
+   * One INHERIT figure per criterion: the chance the trainee finishes a career carrying
+   * that spark. Null where the chain is not ours to compute -- anything other
+   * than a white skill, or a spark the pair does not carry.
+   */
+  perSparkInherit: (number | null)[];
   joint: number | null;
+  /** The chance every wanted SKILL is inherited. Null with fewer than two. */
+  jointInherit: number | null;
   pairTotal: number;
   relationRank: number;
 }
@@ -51,6 +59,16 @@ export interface PairSearchView {
   candidates: number;
 }
 
+/**
+ * Which question the list is ordered by.
+ *
+ * `activate` is the sweep's own order -- whether every wanted spark FIRES --
+ * and `inherit` is whether the trainee ends up CARRYING them. The two rank
+ * differently because the end-of-career roll is not scaled by affinity, so a pair
+ * that fires best is not always the one that passes most on.
+ */
+export type SortBy = 'activate' | 'inherit';
+
 export function viewOf(
   sweep: PairSweep,
   veterans: readonly ResolvedVeteran[],
@@ -65,8 +83,19 @@ export function viewOf(
    * screen never understates what it found.
    */
   limit: number,
+  sortBy: SortBy = 'activate',
 ): PairSearchView {
-  const shown = sweep.results.slice(0, limit);
+  /*
+   * RE-SORTED HERE, NOT RE-SWEPT. The sweep is complete -- every legal pair is
+   * already scored on both axes -- so changing the question the list is ordered
+   * by is a sort of an array we hold, not 2.4 seconds of work again. Sorting a
+   * copy leaves the sweep's own order intact for the other setting, and
+   * `compareByInherit` is total in the same way `compare` is, so toggling back
+   * and forth is stable rather than reshuffling ties.
+   */
+  const ranked =
+    sortBy === 'inherit' ? [...sweep.results].sort(compareByInherit) : sweep.results;
+  const shown = ranked.slice(0, limit);
   const rows = shown.map((result) => rowOf(result, veterans, criteria));
 
   // Across the WHOLE sweep, not just the page: "31 of 259 veterans" must not
@@ -105,7 +134,9 @@ function rowOf(
     // the chips show and what the reader is asking the band.
     lineageStars: criteria.map((c) => starsInPair(a, b, c.groupId, 'package')),
     perSpark: result.perSpark,
+    perSparkInherit: result.perSparkInherit,
     joint: result.joint,
+    jointInherit: result.jointInherit,
     pairTotal: result.pairTotal,
     relationRank: result.relationRank,
   };

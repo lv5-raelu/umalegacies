@@ -9,6 +9,7 @@ import type {
   SparkKind,
   TraineeOption,
 } from '@umalegacies/types';
+import { carriedCount } from '@umalegacies/core';
 import { Portrait } from '../lineage/Portrait';
 import { rankGlyph } from '../lineage/pair-total';
 import {
@@ -16,14 +17,15 @@ import {
   SPARK_KIND_ORDER,
   isWhite,
   percent,
-  percentPrecise,
+  percentJoint,
+  scopeLabel,
 } from '../lineage/sparks';
 import { catalogueOf, type Catalogue } from '../roster/catalogue';
 import { RankBadge } from '../roster/RankBadge';
 import { SparkFilter } from '../roster/SparkFilter';
 import { TraineePicker } from '../roster/TraineePicker';
 import { usePairSearch, type SearchStatus } from './usePairSearch';
-import { viewOf, type PairRowData } from './search-rows';
+import { viewOf, type PairRowData, type SortBy } from './search-rows';
 import { PairDetail, usePairDetail } from './PairDetail';
 import styles from './PairSearch.module.css';
 
@@ -115,6 +117,7 @@ export function PairSearch({
    * an empty page with a button on it.
    */
   const [applied, setApplied] = useState<readonly SparkCriterion[]>(criteria);
+  const [sortBy, setSortBy] = useState<SortBy>('activate');
   const detail = usePairDetail(
     packages,
     trainee?.charaId ?? null,
@@ -147,12 +150,43 @@ export function PairSearch({
    * would be 30,000 allocations nobody reads, and the counts beside the list
    * would be identical either way.
    */
+  /*
+   * The sort offers `inherit` only when a criterion can produce one.
+   *
+   * Every inherit figure comes from a white SKILL, so a filter of blues and
+   * races would give a control that sorts on a column of nulls -- a control
+   * that lies about having done something. Tied to the APPLIED criteria rather
+   * than the edited ones, so it appears alongside the results it describes.
+   * The fallback matters as much as the gate: a reader who sorts by
+   * inheritance and then filters it away must not be left with a list claiming
+   * an order it no longer has.
+   */
+  /*
+   * THE CRITERIA THE VISIBLE RESULTS WERE SWEPT FOR, which is not always the
+   * ones the filter currently holds. `applied` changes the instant Search is
+   * clicked; the sweep that answers it lands later. Rendering the old sweep
+   * against the new criteria produced one frame of mismatched rows -- star
+   * totals for the new filter beside odds for the old one, and an em dash
+   * wherever the new list was longer -- before the running state replaced
+   * them. Reading both from the same status makes that frame impossible.
+   */
+  const searched = status.kind === 'done' ? status.criteria : applied;
+
+  const canSortByInherit = searched.some(
+    (c) => catalogue.get(c.groupId)?.kind === 'white_skill',
+  );
+  const activeSort: SortBy = canSortByInherit ? sortBy : 'activate';
+
   const view = useMemo(
-    () => (status.kind === 'done' ? viewOf(status.sweep, roster.veterans, applied, shown) : null),
-    [status, roster, applied, shown],
+    () =>
+      status.kind === 'done'
+        ? viewOf(status.sweep, roster.veterans, status.criteria, shown, activeSort)
+        : null,
+    [status, roster, shown, activeSort],
   );
 
-  const headline = HEADLINE[Math.min(applied.length, 2) as 0 | 1 | 2];
+
+  const headline = HEADLINE[Math.min(searched.length, 2) as 0 | 1 | 2];
 
   return (
     <main className={styles.shell}>
@@ -233,13 +267,47 @@ export function PairSearch({
               <div className={styles.listHead}>
                 <h2 className={styles.rubric}>Pairs for {trainee.name}</h2>
                 <span className={styles.count}>
-                  {applied.length === 0
+                  {searched.length === 0
                     ? `${view.legalPairs.toLocaleString()} legal pairs`
                     : `${view.matchingPairs.toLocaleString()} of ${view.legalPairs.toLocaleString()} pairs`}
                 </span>
+                {/*
+                  TWO QUESTIONS, SO TWO ORDERS.
+
+                  The end-of-career roll is not scaled by affinity, so the pair
+                  that fires a spark most reliably is not always the one that
+                  passes it on most often. Which of those a reader is
+                  optimising for is theirs to say, and the alternative -- a key
+                  that switches itself when the filter changes shape -- would
+                  reorder the list without being asked.
+
+                  Absent when no applied criterion is a white skill, because
+                  nothing else has an inherit figure to rank on.
+                */}
+                {canSortByInherit && (
+                  <div
+                    className={styles.sort}
+                    role="group"
+                    aria-label="What the list is ordered by"
+                  >
+                    {(['activate', 'inherit'] as SortBy[]).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={
+                          option === activeSort ? `${styles.sortOn}` : styles.sortOption
+                        }
+                        aria-pressed={option === activeSort}
+                        onClick={() => setSortBy(option)}
+                      >
+                        {option === 'activate' ? 'by activation' : 'by inheritance'}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <p className={styles.headlineRubric}>{headline.rubric(applied.length)}</p>
+              <p className={styles.headlineRubric}>{headline.rubric(searched.length)}</p>
 
               {/* Column rubrics, on the page ground. A header ROW inside the
                   list would make the first card look like a different kind of
@@ -254,7 +322,7 @@ export function PairSearch({
 
               {view.matchingPairs === 0 ? (
                 <p className={styles.empty}>
-                  No legal pair of your veterans meets all {applied.length} requirements. Relax
+                  No legal pair of your veterans meets all {searched.length} requirements. Relax
                   one and search again — on the builder&rsquo;s roster, &ldquo;Stamina ≥ 12 AND
                   Medium ≥ 4&rdquo; is met by 22 of 30,808 legal pairs, so this is the ordinary
                   path rather than an error.
@@ -267,7 +335,7 @@ export function PairSearch({
                         <PairRow
                           row={row}
                           at={at + 1}
-                          criteria={applied}
+                          criteria={searched}
                           catalogue={catalogue}
                           onPick={() => setInspecting(row)}
                         />
@@ -284,7 +352,7 @@ export function PairSearch({
                     <PairDetail
                       state={detail}
                       row={inspecting}
-                      criteria={applied}
+                      criteria={searched}
                       sparkOptions={roster.sparkOptions}
                       onClose={() => setInspecting(null)}
                       onChoose={() => {
@@ -364,11 +432,12 @@ const HEADLINE: Readonly<Record<0 | 1 | 2, Headline>> = {
       'No sparks requested, so there is nothing to rank by — these are ordered by pair total, which is NOT what the search does.',
   },
   1: {
-    rubric: () => 'Invented chance of inheriting that spark at least once across a career.',
+    rubric: () =>
+      'Chance that spark ACTIVATES at least once across a career, with the chance the trainee inherits it in brackets.',
   },
   2: {
     rubric: (n) =>
-      `Invented chance that all ${n} arrive at least once across a career, with the per-spark figures beneath each row.`,
+      `Chance that all ${n} ACTIVATE at least once across a career, with each spark's own figure beside it and the chance the trainee inherits it in brackets.`,
   },
 };
 
@@ -487,6 +556,53 @@ const PairRow = memo(function PairRow({
       {criteria.length > 0 && (
         <div className={styles.wants}>
           {/*
+            THE TWO JOINTS, PINNED TOP RIGHT, WITH THE SPARKS FLOWING ROUND THEM.
+
+            FIRST IN SOURCE ORDER because `.jointsEnd` is a right FLOAT, and a
+            float only pushes the line boxes that come after it. Read out of
+            order this looks backwards; it is exactly what makes the chips wrap
+            around the block instead of being shoved below it.
+
+            They used to sit apart, one mid-band and one hard right, reading as
+            two unrelated facts rather than one claim answered two ways. Both
+            carry a VERB now: "all 4" alone was the whole confusion, and with
+            two figures it has to say which is which.
+          */}
+          {(row.joint !== null || row.jointInherit !== null) && (
+            <span className={styles.jointsEnd}>
+              {/* THE LABEL NAMES ITS OWN SCOPE, and has to, because the figure
+                  beside it now skips the sparks this pair does not carry. "all
+                  6 activate" against a pair holding five of them would be
+                  false; "5 of 6 activate" is the same number told truthfully,
+                  and the em dashes in the band say which one is missing. */}
+              {row.joint !== null && (
+                <span className={styles.joint}>
+                  <span className={styles.jointLabel}>
+                    {scopeLabel(carriedCount(row.perSpark), criteria.length, 'activate')}
+                  </span>
+                  <span className={styles.jointValue}>{percentJoint(row.joint)}</span>
+                </span>
+              )}
+              {/* Counted over the SKILL criteria only, because nothing else has
+                  an inherit figure for any pair -- so a filter of three skills
+                  and a blue says "3 skills", never "4". */}
+              {row.jointInherit !== null && (
+                <span className={styles.joint}>
+                  <span className={styles.jointLabel}>
+                    {scopeLabel(
+                      carriedCount(row.perSparkInherit),
+                      criteria.filter((c) => catalogue.get(c.groupId)?.kind === 'white_skill')
+                        .length,
+                      'inherited',
+                      'skills',
+                    )}
+                  </span>
+                  <span className={styles.jointValue}>{percentJoint(row.jointInherit)}</span>
+                </span>
+              )}
+            </span>
+          )}
+          {/*
             THE SELECTOR'S ORDER, not the order the rows were added in. The
             spark picker lists blue, pink, green, then whites, and within a kind
             the game's own order -- so a Medium added after three whites belongs
@@ -535,29 +651,26 @@ const PairRow = memo(function PairRow({
                 </span>
                 <span className={styles.wantStars}>{row.lineageStars[c]}★</span>
                 <span className={styles.wantOdds}>{percent(row.perSpark[c] as number)}</span>
+                {/* THE SECOND NUMBER IS A DIFFERENT QUESTION, not a second
+                    opinion on the first. The left figure is whether the spark
+                    FIRES during a run and hands over a skill hint; this one is
+                    whether the trainee INHERITS it. Parenthesised
+                    rather than arrowed because an arrow reads as a conversion
+                    -- as though the first number became the second -- and the
+                    relationship is a multiplication by a roll that has nothing
+                    to do with affinity.
+
+                    Absent on anything but a white skill. A race spark needs the
+                    trainee to win that G1 and a scenario spark needs the
+                    scenario cleared, so there is no chain here to finish. */}
+                {row.perSparkInherit[c] !== null && (
+                  <span className={styles.wantInherit}>
+                    ({percent(row.perSparkInherit[c] as number)})
+                  </span>
+                )}
               </span>
               );
             })}
-          {/*
-            THE JOINT, at the end of the sparks it is the product of.
-            Aggregate-then-addends is this product's shape everywhere else, and
-            here the addends are the band itself -- so the figure sits after
-            them rather than above, which a horizontal band has no room for.
-
-            Absent with a single criterion, because `jointOdds` returns null
-            there: the joint IS that spark's figure and it is already two inches
-            to the left. Printing it twice under two labels invites a hunt for a
-            difference that is not there.
-          */}
-          {row.joint !== null && (
-            <span className={styles.joint}>
-              <span className={styles.jointLabel}>
-                {criteria.length === 2 ? 'both' : `all ${criteria.length}`}
-              </span>
-              {/* FAKE. */}
-              <span className={styles.jointValue}>{percentPrecise(row.joint)}</span>
-            </span>
-          )}
         </div>
       )}
     </article>
@@ -581,7 +694,7 @@ const PairRow = memo(function PairRow({
  * with it. "6 stars of Medium" where the parent holds 2 and "3 stars of Uma
  * Stan" where the parent holds all 3 are different propositions, and the total
  * alone cannot tell them apart. The parent's share is also the likelier half to
- * be inherited: measured on this roster, parent Individual Affinity has median
+ * activate: measured on this roster, parent Individual Affinity has median
  * 138 against a grandparent's 36.
  *
  * ONE TREATMENT, NOT TWO. An earlier cut had a second, lighter style for the
@@ -667,7 +780,7 @@ function Half({
       // `stars` is [self, slot 10, slot 20], and in a PAIR this veteran IS the
       // direct parent. So index 0 is the share that sits one generation closer
       // than the rest, which is the share that matters most twice over: it is
-      // far likelier to be inherited (parent IA median 138 against a
+      // far likelier to ACTIVATE (parent IA median 138 against a
       // grandparent's 36) and it is the uma the player actually has to select
       // in the game.
       onParent: s.stars[0] ?? 0,

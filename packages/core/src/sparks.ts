@@ -1,5 +1,6 @@
 import type { MasterData } from './master-data.js';
 import type { AncestorRef, Position } from './types.js';
+import { acquisitionChance, hasAcquisitionRoll, inheritOnceInCareer } from './inherit.js';
 import {
   BASE_RATES,
   SPARK_KIND_ORDER,
@@ -155,6 +156,9 @@ export function summariseSparks(
           withinOneInspiration: 0,
           onceInCareer: 0,
           twiceInCareer: 0,
+          lineageCarriers: 0,
+          acquisitionChance: null,
+          inheritOnceInCareer: null,
         });
       }
     }
@@ -166,6 +170,15 @@ export function summariseSparks(
     row.withinOneInspiration = odds.withinOne;
     row.onceInCareer = odds.once;
     row.twiceInCareer = odds.twice;
+    // Distinct UMAS, not distinct carrier entries: the acquisition table counts
+    // "parents + grandparents with the spark", so an ancestor holding it twice
+    // is still one of the six. Today the two counts agree; the day a patch lets
+    // one uma hold two factors of a group, only this one stays correct.
+    row.lineageCarriers = new Set(row.carriers.map((c) => c.position)).size;
+    row.acquisitionChance = hasAcquisitionRoll(row.kind)
+      ? acquisitionChance(row.lineageCarriers)
+      : null;
+    row.inheritOnceInCareer = inheritOnceInCareer(row.kind, row.onceInCareer, row.lineageCarriers);
     row.carriers.sort((a, b) => b.perInspiration - a.perInspiration || a.position - b.position);
   }
   // Group order first, then likeliest within a group: the table reads top-down

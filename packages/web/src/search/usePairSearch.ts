@@ -22,7 +22,17 @@ export type SearchStatus =
   /** No trainee yet: every figure a search ranks by is relative to one. */
   | { kind: 'idle' }
   | { kind: 'running'; progress: SweepProgress | null }
-  | { kind: 'done'; sweep: PairSweep }
+  /**
+   * The sweep, AND the criteria it was swept for.
+   *
+   * Carried together because the screen renders one against the other: a row's
+   * star totals and its labels come from the criteria while its odds come from
+   * the sweep, and the two must describe the same search. Reading the criteria
+   * from a separate piece of state let them disagree for exactly one frame --
+   * the one between "Search" being clicked and this effect running -- which the
+   * builder saw as the list flickering before "Searching..." appeared.
+   */
+  | { kind: 'done'; sweep: PairSweep; criteria: readonly SparkCriterion[] }
   | { kind: 'failed'; message: string };
 
 export function usePairSearch(
@@ -73,7 +83,7 @@ export function usePairSearch(
         },
       )
       .then((sweep) => {
-        if (live) setStatus({ kind: 'done', sweep });
+        if (live) setStatus({ kind: 'done', sweep, criteria });
       })
       .catch((error: unknown) => {
         if (live) {

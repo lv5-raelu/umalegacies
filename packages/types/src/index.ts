@@ -236,6 +236,41 @@ export interface SparkSummaryRow {
   onceInCareer: number;
   /** P(at least two). A doubled spark stacks, so it is worth its own column. */
   twiceInCareer: number;
+  /**
+   * How many DISTINCT ancestors of the six carry this spark, 0-6.
+   *
+   * `carriers.length` is nearly the same number and is not the same question:
+   * that list is one entry per contributing spark, and this is one per uma. The
+   * acquisition table is indexed by umas, so the distinction is load-bearing
+   * the day a patch lets one ancestor hold two factors of one group.
+   */
+  lineageCarriers: number;
+  /**
+   * P(the trainee FINISHES A CAREER carrying this spark), given its precondition is met.
+   *
+   * A different question from `onceInCareer`, which is whether the spark fires
+   * during a run. This is whether the trainee ends up holding it themselves,
+   * which is what makes them useful as somebody else's parent. Rises with
+   * `lineageCarriers` and is NOT scaled by affinity.
+   *
+   * Null for blue, pink and green: those come from the trainee's own stats,
+   * aptitudes and unique skill, so nothing the ancestors carry moves them.
+   */
+  acquisitionChance: number | null;
+  /**
+   * `onceInCareer x acquisitionChance`, for white SKILL sparks only.
+   *
+   * The end-to-end chance by way of the lineage: an inspiration hands over the
+   * hint, and the end-of-career roll turns it into a spark. Null for every other
+   * kind, because their preconditions -- winning a G1, clearing a scenario --
+   * are not lineage properties and this engine cannot honestly put a number on
+   * them.
+   *
+   * A FLOOR, not an estimate: it assumes the hint gets bought, and it counts
+   * only the inspiration route, so a skill learned from a support card lands
+   * outside it.
+   */
+  inheritOnceInCareer: number | null;
 }
 
 // ---------------------------------------------------------------- lineage
@@ -459,6 +494,21 @@ export interface SparkCriterion {
    * knows the flag does nothing on the three named slots.
    */
   mustHave?: boolean;
+  /**
+   * The trainee is planning to learn the GOLD version of this skill.
+   *
+   * Doubles both the floor and the per-carrier step of the end-of-career roll:
+   * 40% + 5 points per ancestor instead of 20% + 2.5. The factor produced is
+   * the same one either way -- only the white version of a skill has a factor
+   * -- so this changes the odds and nothing else.
+   *
+   * A PLAN, NOT A FACT ABOUT THE LINEAGE, which is why it lives on the
+   * criterion the reader wrote rather than in master data. Absent means white,
+   * which is the floor rather than a guess. Meaningful only on `white_skill`:
+   * race and scenario sparks have no upgraded form, so `hasGoldVersion` is the
+   * one place that knows the flag does nothing on them.
+   */
+  gold?: boolean;
 }
 
 // ---------------------------------------------------------------- pair (M3)

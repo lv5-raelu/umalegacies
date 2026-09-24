@@ -78,6 +78,32 @@ export function percent(p: number): string {
  * or so are arithmetic, not measurement. They still order the list correctly,
  * which is what they are here for -- they are not a claim about accuracy.
  */
+/**
+ * A joint figure, at enough precision to tell two pairs apart and no more.
+ *
+ * `percent` rounds to whole points, which collapses the exact discrimination a
+ * ranked list exists to make: four sparks at 40% each is 2.6%, and two pairs a
+ * long way apart both read "3%". So the joint has always been printed with
+ * `percentPrecise`, whose default is TEN decimals.
+ *
+ * Ten was survivable while there was one joint on a row. There are two now --
+ * what fires and what is kept -- and `1.5662010062%` beside `0.0141728955%` is
+ * 24 characters of digits that no reader is comparing. Significant figures fix
+ * both ends at once: a figure near 1% keeps its decimals and a figure near
+ * 0.01% keeps its, without either being padded to a fixed width.
+ */
+export function percentJoint(p: number, significant = 4): string {
+  if (!Number.isFinite(p)) return '\u2014';
+  if (p <= 0) return '0%';
+  if (p >= 1) return '100%';
+  const n = p * 100;
+  // toPrecision gives exponential notation below 1e-6; a joint that small is
+  // not a number anybody reads, so it becomes a bound rather than "1.0e-5%".
+  if (n < 0.0001) return '<0.0001%';
+  const trimmed = Number(n.toPrecision(significant)).toString();
+  return `${trimmed}%`;
+}
+
 export function percentPrecise(p: number, maxDecimals = 10): string {
   if (!Number.isFinite(p)) return '\u2014';
   if (p <= 0) return '0%';
@@ -92,3 +118,22 @@ export const stars = (n: number): string => `${n}★`;
 /** Whites are a bare count on a node, and a count needs its plural. */
 export const plural = (n: number, one: string, many = `${one}s`): string =>
   `${n} ${n === 1 ? one : many}`;
+
+/**
+ * What a joint figure actually covered, said out loud.
+ *
+ * The figure skips any spark the pair does not carry, so the label has to carry
+ * the denominator or the number reads as a claim about the whole filter. Two
+ * forms rather than one: "all 6 activate" when nothing is missing, because a
+ * reader should not have to do arithmetic to learn that the answer is
+ * everything, and "5 of 6 activate" when something is.
+ */
+export function scopeLabel(carried: number, total: number, verb: string, noun?: string): string {
+  const what = noun === undefined ? '' : ` ${noun}`;
+  if (carried >= total) {
+    // "both" reads better than "all 2" and is the commonest filter size.
+    if (noun === undefined && total === 2) return `both ${verb}`;
+    return `all${noun === undefined ? ` ${total}` : what} ${verb}`;
+  }
+  return `${carried} of ${total}${what} ${verb}`;
+}

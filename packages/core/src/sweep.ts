@@ -7,6 +7,7 @@ import type {
   VeteranPackage,
 } from '@umalegacies/types';
 import { isLegalPair, isRequirement, matchesPair } from './filter.js';
+import { inheritOnceInCareer } from './inherit.js';
 import { jointOdds } from './joint.js';
 import { lineageFromPair } from './pair.js';
 import { explainLineage } from './lineage.js';
@@ -58,6 +59,26 @@ export interface PairSearchResult {
   joint: number | null;
   /** One figure per criterion, in the order asked. null where the pair carries none. */
   perSpark: (number | null)[];
+  /**
+   * One INHERIT figure per criterion, in the same order: the chance the trainee
+   * finishes a career carrying that spark, by way of the lineage.
+   *
+   * Null wherever the chain is not ours to compute -- the pair carries none of
+   * it, or the criterion names anything other than a white skill, because a
+   * race spark needs the trainee to win that G1 and a scenario spark needs the
+   * scenario cleared. Computed here rather than on the screen because the
+   * carrier count comes from the composed lineage, which only exists inside
+   * this loop.
+   */
+  perSparkInherit: (number | null)[];
+  /**
+   * The chance EVERY wanted SKILL is inherited, or null when fewer than two of
+   * the criteria produce a figure.
+   *
+   * A narrower claim than `joint`, over a subset of the same criteria, which is
+   * why the surface that shows both says which sparks each one covers.
+   */
+  jointInherit: number | null;
   /** 7 base + 5 bonus, the figure the compare pane leads on. Breaks ranking ties. */
   pairTotal: number;
   /** The icon verdict, 1-9. Carried so a row can show it without re-explaining. */
@@ -140,6 +161,17 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
     return kind !== undefined && isRequirement(c, kind);
   });
 
+  /*
+   * Which criteria can produce an inherit figure at all, computed once.
+   *
+   * Only `white_skill` can: a race spark needs the trainee to win that G1 and a
+   * scenario spark needs the scenario cleared, and a blue, pink or green comes
+   * from the trainee's own stats, aptitudes and unique skill. None of those is
+   * something the six ancestors decide, so they are null for every pair and
+   * dropping them compares like with like.
+   */
+  const inheritable = criteria.map((c) => kindOf(c.groupId) === 'white_skill');
+
   const results: PairSearchResult[] = [];
   let legal = 0;
   let scored = 0;
@@ -183,11 +215,54 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
         return row === undefined ? null : row.onceInCareer;
       });
 
+      // The second axis. The end-of-career roll is not scaled by affinity, so a
+      // pair can rank well on `perSpark` and poorly here; that gap is the
+      // reason the two are carried separately rather than multiplied into one
+      // ranking key. The tier comes from the criterion because which version
+      // of a skill the trainee learns is the reader's plan, not a fact about
+      // these six ancestors.
+      //
+      // TWO KINDS OF ABSENCE, AND THEY DIFFER IN WHAT THEY ARE COUNTED AGAINST.
+      // A criterion naming a blue, a race or a scenario spark has no inherit
+      // figure for ANY pair, so `inheritable` drops it before the joint and it
+      // never reaches the denominator. A criterion naming a white skill THIS
+      // pair does not carry stays in the array as a null: it is skipped by the
+      // product, it does not count toward coverage, and it IS counted in the
+      // "3 of 4 skills" the label prints.
+      //
+      // Collapsing the two was a real bug: both came back null, both were
+      // filtered out, and a pair carrying one of six wanted skills scored that
+      // skill's own 28% while a pair carrying all six scored the product of six
+      // numbers -- so carrying LESS ranked HIGHER, and "by inheritance" put a
+      // pair holding one wanted spark at the top of the list. Coverage-first
+      // ranking is what settles it now; see `rank`.
+      const perSparkInherit = criteria.map((c, k) => {
+        if (!inheritable[k]) return null;
+        const row = lineage.sparks.find((s) => s.groupId === c.groupId);
+        if (row === undefined) return null;
+        return inheritOnceInCareer(
+          row.kind,
+          row.onceInCareer,
+          row.lineageCarriers,
+          c.gold === true ? 'gold' : 'white',
+        );
+      });
+
       results.push({
         a: i,
         b: j,
         joint: jointOdds(perSpark),
         perSpark,
+        perSparkInherit,
+        // Over the criteria that HAVE an inherit figure, so a filter of three
+        // skills and one blue states the joint for the three. `jointOdds`
+        // treats a null as a zeroed factor, which would be a different and
+        // wrong claim here: a blue has no inherit figure because the mechanic
+        // does not reach it, not because the pair fails at it.
+        // Over the criteria that CAN produce a figure at all. `jointOdds` then
+        // skips the ones this pair happens to miss, and the label beside it
+        // says how many of the two counts it covered.
+        jointInherit: jointOdds(perSparkInherit.filter((_, i) => inheritable[i])),
         pairTotal: lineage.pairTotal.value,
         relationRank: lineage.relationRank.value,
       });
@@ -215,10 +290,67 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
  * there is nothing to combine and the list falls back to pair total, which is
  * NOT what the search is for and is why the surface says so out loud.
  */
-const compare = (x: PairSearchResult, y: PairSearchResult): number =>
-  rankKey(y) - rankKey(x) || y.pairTotal - x.pairTotal || x.a - y.a || x.b - y.b;
+const compare = (x: PairSearchResult, y: PairSearchResult): number => rank(x, y, (r) => r.perSpark);
 
-const rankKey = (r: PairSearchResult): number => r.joint ?? r.perSpark[0] ?? 0;
+/**
+ * The same order, ranked on what the trainee INHERITS rather than what fires.
+ *
+ * Exported because the sort is a control on the screen and re-running a 2.4s
+ * sweep to change a sort key would be absurd: the results are complete, so the
+ * screen re-sorts the array it already has. Same comparator, same totality, so
+ * toggling back and forth is stable.
+ */
+export const compareByInherit = (x: PairSearchResult, y: PairSearchResult): number =>
+  rank(x, y, (r) => r.perSparkInherit);
+
+/**
+ * COVERAGE FIRST, THEN THE PRODUCT OVER WHAT IS COVERED.
+ *
+ * The joint alone cannot order this list, and the reason is the design's own
+ * rule that whites RANK rather than exclude. `jointOdds` zeroes on any spark
+ * the pair misses -- correctly, because a filter is one build rather than
+ * several wishes -- so on a six-white filter with nothing promoted to "must
+ * have", essentially every pair scores exactly 0 and the order collapses onto
+ * the pair total. The reader is then told the list is ranked by something it is
+ * visibly not ranked by.
+ *
+ * So the key is a pair: how many of the wanted sparks this pair carries at all,
+ * and then the product over the ones it does. A pair carrying four of six sorts
+ * above one carrying three however good the three are, which is the ordering
+ * somebody scanning 27,613 rows for a partial match actually wants.
+ *
+ * IT CHANGES NOTHING WHEN THE FILTER IS MET. If every pair carries every wanted
+ * spark, coverage ties and the product IS the joint, so this reduces exactly to
+ * the old key. It only does work in the case the old key could not order.
+ *
+ * Ties still fall through to the pair total and then to the pair's own indices,
+ * which are unique by construction -- so the order is total and a re-sweep or a
+ * toggle back cannot reshuffle rows that scored identically.
+ */
+const rank = (
+  x: PairSearchResult,
+  y: PairSearchResult,
+  pick: (r: PairSearchResult) => readonly (number | null)[],
+): number =>
+  coverage(pick(y)) - coverage(pick(x)) ||
+  carried(pick(y)) - carried(pick(x)) ||
+  y.pairTotal - x.pairTotal ||
+  x.a - y.a ||
+  x.b - y.b;
+
+/** How many wanted sparks this pair carries at all. Nulls do not count against it. */
+const coverage = (values: readonly (number | null)[]): number => {
+  let n = 0;
+  for (const v of values) if (v !== null && v > 0) n++;
+  return n;
+};
+
+/** The product over the ones it carries. 1 when it carries none, which ties with itself. */
+const carried = (values: readonly (number | null)[]): number => {
+  let product = 1;
+  for (const v of values) if (v !== null && v > 0) product *= v > 1 ? 1 : v;
+  return product;
+};
 
 const packageAt = (packages: readonly RosterVeteranInput[], index: number): VeteranPackage => {
   const veteran = packages[index];
