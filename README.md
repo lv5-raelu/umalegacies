@@ -256,13 +256,16 @@ second, portrait-less copy of a real costume.
 
 **`master.mdb` is not in the repository, and is not needed to run the app.**
 `packages/api/data/master-extract.sql` is, and the API serves from it by default.
-The extract holds 11 of `master.mdb`'s 416 tables and 1,775 of `text_data`'s 54,234
+The extract holds 12 of `master.mdb`'s 416 tables and 1,775 of `text_data`'s 54,234
 rows, against a 16 MB binary.
 
-Two of those tables are **projected to the columns this app reads** rather than copied
+Three of those tables are **projected to the columns this app reads** rather than copied
 whole: `skill_data` is 78 columns of race-simulation parameters and only `id`,
 `skill_category` and `rarity` are used, and `succession_factor_effect` collapses to the
 factor-to-skill mapping once its five hint-level rows per factor are deduplicated.
+`card_rarity_data` is both projected and deduplicated: it stores one row per card per
+rarity and the ten aptitudes are identical across them, so 340 rows become 105.
+
 A projected table gets a `CREATE TABLE` written from the columns asked for, with types
 read back from the source schema so a projection cannot quietly change one.
 
@@ -352,6 +355,18 @@ that twice.
   leaving 116 in a bucket that answers nothing. Category 5 is the unique skills, which
   are the green spark and keep their own group; a race spark grants a skill hint too,
   so it has a category and must not be filed under it.
+
+- **An aptitude belongs to the COSTUME, not the character.** `card_rarity_data.proper_*`
+  is keyed by `card_id`, values 1-8 for G through S, and Haru Urara's two cards already
+  differ: `[Bestest Prize ♪]` is Mile B and `[New Year ♪ New Urara!]` is Mile A. So
+  anything reading an aptitude must use the trainee's actual card and must return nothing
+  when no card was named. `traineePortrait` falls back to a character's base card on
+  purpose -- any face of the right character beats none -- and copying that fallback here
+  would print another costume's grades with total confidence.
+- **A pink's real question is a letter, not a percentage.** The career-start grant raises
+  an aptitude by one step at 1 lineage star, two at 4, three at 7 and four at 10,
+  deterministically, and **can never reach S**. S needs one of the two April inspirations,
+  which is what a pink's percentage is about.
 
 **Spark names are `text_data` category 147, keyed by `factor_id`** — not by
   `factor_group_id`. The 1/2/3-star variants of one spark are three `factor_id`s sharing a

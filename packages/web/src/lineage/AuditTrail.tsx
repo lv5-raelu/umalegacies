@@ -231,6 +231,33 @@ export function AuditTrail({
                   */}
                   <td className={styles.name}>
                     {row.name}
+                    {/*
+                      A PINK'S REAL ANSWER IS A LETTER, NOT A PERCENTAGE.
+
+                      The career-start grant raises the aptitude by up to four
+                      steps on the lineage's star total, deterministically, and
+                      cannot reach S. "Does this pair get me to A" is therefore
+                      a yes or no, and it was being answered with the odds of an
+                      inspiration firing -- which is a real number about a
+                      different question, the one that takes A to S.
+
+                      "A -> A" is printed rather than hidden when the trainee is
+                      already there: it says the stars are not wasted so much as
+                      unnecessary, which is what a reader choosing between pairs
+                      needs to know.
+                    */}
+                    {row.aptitude !== null && (
+                      <span
+                        className={styles.atStart}
+                        title={
+                          row.aptitude.cappedAtA
+                            ? 'The start of a career raises an aptitude by up to four steps, on 1, 4, 7 and 10 stars across the lineage, and can never reach S. The percentage beside this is the chance of an inspiration firing the spark, which is what takes A to S.'
+                            : 'The start of a career raises an aptitude by up to four steps, on 1, 4, 7 and 10 stars across the lineage.'
+                        }
+                      >
+                        {row.aptitude.from}&rarr;{row.aptitude.to} at start
+                      </span>
+                    )}
                     {startGrant(row) !== null && (
                       <span className={styles.atStart} title="A direct parent's unique skill is acquired at the start of the career, guaranteed. The percentage beside it is the chance of it firing in an inspiration, which is what brings a grandparent's copy in and what adds further hints.">
                         +{startGrant(row)} at start
@@ -347,6 +374,12 @@ export function AuditTrail({
         neither of which a lineage decides. Read it as a floor -- it assumes the hint gets bought,
         and it counts only the inspiration route, so a skill picked up from a support card lands
         outside it.{' '}
+        A pink marked <b>D&rarr;A at start</b> is what the career-start grant does to that
+        aptitude: the lineage&rsquo;s stars raise it by one step at 1, two at 4, three at 7 and
+        four at 10, deterministically, and never as far as S. Its percentage is the chance of
+        an inspiration firing the spark, which is the part that takes A to S. An aptitude
+        belongs to the COSTUME rather than the character, so this is blank until a trainee card
+        is chosen.{' '}
         A green marked <b>+N at start</b> is a unique carried by a DIRECT parent, which the
         trainee is given outright when the career begins, at N hints. Its percentage is not a
         correction to that: it is the chance of an inspiration firing the spark, which is what

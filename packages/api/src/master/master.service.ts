@@ -34,6 +34,9 @@ const REQUIRED_TABLES = [
   // not be a missing table so much as a stale build script.
   'succession_factor_effect',
   'skill_data',
+  // Each card's ten aptitudes, which decide what the career-start pink grant
+  // is worth. Projected and deduplicated like the two above.
+  'card_rarity_data',
 ] as const;
 
 export interface MasterMeta {

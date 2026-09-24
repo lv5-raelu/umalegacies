@@ -10,7 +10,7 @@ import type {
   TraineeOption,
 } from '@umalegacies/types';
 import { carriedCount } from '@umalegacies/core';
-import { AncestorPin } from './AncestorPin';
+import { AncestorPin, type PinOption } from './AncestorPin';
 import { Portrait } from '../lineage/Portrait';
 import { rankGlyph } from '../lineage/pair-total';
 import {
@@ -150,16 +150,25 @@ export function PairSearch({
    * Oguri Caps are one entry, and the ranking decides which of them wins.
    */
   const pinOptions = useMemo(() => {
-    const parent = new Map<number, string>();
-    const grandparent = new Map<number, string>();
+    // The first card seen for a character wins the portrait. Which costume it
+    // is does not matter -- the pin matches by character -- and picking one
+    // deterministically keeps the list stable between renders.
+    const add = (into: Map<number, PinOption>, member: ResolvedMember | null) => {
+      if (member?.charaId == null || into.has(member.charaId)) return;
+      into.set(member.charaId, {
+        charaId: member.charaId,
+        name: member.name,
+        cardId: member.cardId,
+      });
+    };
+    const parent = new Map<number, PinOption>();
+    const grandparent = new Map<number, PinOption>();
     for (const veteran of roster.veterans) {
-      if (veteran.self.charaId !== null) parent.set(veteran.self.charaId, veteran.self.name);
-      for (const member of veteran.parents) {
-        if (member?.charaId != null) grandparent.set(member.charaId, member.name);
-      }
+      add(parent, veteran.self);
+      for (const member of veteran.parents) add(grandparent, member);
     }
-    const list = (m: Map<number, string>) =>
-      [...m].map(([charaId, name]) => ({ charaId, name })).sort((x, y) => x.name.localeCompare(y.name));
+    const list = (m: Map<number, PinOption>) =>
+      [...m.values()].sort((x, y) => x.name.localeCompare(y.name));
     return { parent: list(parent), grandparent: list(grandparent) };
   }, [roster]);
 
@@ -292,21 +301,25 @@ export function PairSearch({
             <span className={styles.pinsLabel}>MUST INCLUDE</span>
             <label className={styles.pin}>
               <span className={styles.pinSlot}>as a parent</span>
-              <AncestorPin
-                label="Character that must be a parent"
-                options={pinOptions.parent}
-                chosen={pins.parent}
-                onChoose={(parent) => setPins((p) => ({ ...p, parent }))}
-              />
+              <span className={styles.pinField}>
+                <AncestorPin
+                  label="Character that must be a parent"
+                  options={pinOptions.parent}
+                  chosen={pins.parent}
+                  onChoose={(parent) => setPins((p) => ({ ...p, parent }))}
+                />
+              </span>
             </label>
             <label className={styles.pin}>
               <span className={styles.pinSlot}>as a grandparent</span>
-              <AncestorPin
-                label="Character that must be a grandparent"
-                options={pinOptions.grandparent}
-                chosen={pins.grandparent}
-                onChoose={(grandparent) => setPins((p) => ({ ...p, grandparent }))}
-              />
+              <span className={styles.pinField}>
+                <AncestorPin
+                  label="Character that must be a grandparent"
+                  options={pinOptions.grandparent}
+                  chosen={pins.grandparent}
+                  onChoose={(grandparent) => setPins((p) => ({ ...p, grandparent }))}
+                />
+              </span>
             </label>
           </div>
 

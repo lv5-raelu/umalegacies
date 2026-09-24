@@ -1,3 +1,4 @@
+import type { AptitudeKey, CardAptitudes } from './aptitude.js';
 import type { SkillTiming, SparkKind } from './spark-types.js';
 import { SKILL_TIMING_BY_CATEGORY, SPARK_KIND_BY_FACTOR_TYPE } from './spark-types.js';
 
@@ -92,6 +93,28 @@ export interface MasterTables {
    * white skill from its gold form.
    */
   skillData: ReadonlyArray<{ id: number; skill_category: number; rarity: number }>;
+  /**
+   * Each card's ten aptitudes, 1-8 for G through S.
+   *
+   * One row per CARD: the source table repeats a card per rarity and the
+   * aptitudes are identical across them, so the extract deduplicates. The
+   * column names are the game's -- nige, senko, sashi and oikomi are the four
+   * running styles, in the order Front Runner, Pace Chaser, Late Surger, End
+   * Closer.
+   */
+  cardAptitudes: ReadonlyArray<{
+    card_id: number;
+    proper_distance_short: number;
+    proper_distance_mile: number;
+    proper_distance_middle: number;
+    proper_distance_long: number;
+    proper_running_style_nige: number;
+    proper_running_style_senko: number;
+    proper_running_style_sashi: number;
+    proper_running_style_oikomi: number;
+    proper_ground_turf: number;
+    proper_ground_dirt: number;
+  }>;
 }
 
 export class MasterData {
@@ -128,6 +151,7 @@ export class MasterData {
   private readonly saddleNames = new Map<number, string>();
   /** factor_id -> the succession_factor row, joined to its category 147 name. */
   private readonly factors = new Map<number, Factor>();
+  private readonly aptitudes = new Map<number, CardAptitudes>();
 
   constructor(tables: MasterTables) {
     for (const r of tables.successionRelation) {
@@ -210,6 +234,26 @@ export class MasterData {
           break;
       }
     }
+    /*
+     * Card -> its ten aptitudes, as grade indices 0-7 rather than the game's
+     * 1-8. Zero-based because `APTITUDE_GRADES` is an array and an off-by-one
+     * here would print the wrong letter with total confidence.
+     */
+    for (const r of tables.cardAptitudes ?? []) {
+      this.aptitudes.set(r.card_id, {
+        sprint: r.proper_distance_short - 1,
+        mile: r.proper_distance_mile - 1,
+        medium: r.proper_distance_middle - 1,
+        long: r.proper_distance_long - 1,
+        frontRunner: r.proper_running_style_nige - 1,
+        paceChaser: r.proper_running_style_senko - 1,
+        lateSurger: r.proper_running_style_sashi - 1,
+        endCloser: r.proper_running_style_oikomi - 1,
+        turf: r.proper_ground_turf - 1,
+        dirt: r.proper_ground_dirt - 1,
+      });
+    }
+
     /*
      * Factor group -> when its skill fires.
      *
@@ -379,6 +423,17 @@ export class MasterData {
   }
 
   /** Null for a factor id master.mdb has never heard of, so callers can say so. */
+  /**
+   * One aptitude of one card, as a grade index 0-7, or null.
+   *
+   * Null for a card the extract has no row for, which is the honest answer: a
+   * base grade nobody can name cannot be lifted by a number anybody can trust.
+   */
+  aptitude(cardId: number | null, key: AptitudeKey): number | null {
+    if (cardId === null) return null;
+    return this.aptitudes.get(cardId)?.[key] ?? null;
+  }
+
   factor(factorId: number): Factor | null {
     return this.factors.get(factorId) ?? null;
   }

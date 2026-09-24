@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { Portrait } from '../lineage/Portrait';
 import { useCombobox } from '../roster/useCombobox';
 import styles from '../roster/Combobox.module.css';
 
@@ -24,6 +25,14 @@ import styles from '../roster/Combobox.module.css';
 export interface PinOption {
   charaId: number;
   name: string;
+  /**
+   * A card of that character, for the portrait alone.
+   *
+   * The pin matches by CHARACTER, so which card this is does not affect the
+   * search; it is here because an option with a face is recognised faster than
+   * one with a name, and the trainee picker beside it has faces.
+   */
+  cardId: number;
 }
 
 type Choice = PinOption | null;
@@ -67,42 +76,79 @@ export function AncestorPin({
 
   return (
     <div className={styles.wrap} ref={wrap}>
+      {/*
+        THE SAME OBJECT AS THE TRAINEE PICKER, class for class.
+
+        The first cut invented its own names -- `control`, `panel`, `list` --
+        which exist in no stylesheet, so the control rendered as raw browser
+        chrome next to a designed one. Two comboboxes on one screen that do the
+        same job must be the same object; DESIGN.md settles that a control is
+        recognised by its shape here, since the interface has no brand colour to
+        recognise it by.
+      */}
       <button
         type="button"
-        className={styles.control}
+        className={styles.trigger}
+        aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={label}
         onClick={() => setOpen(!open)}
-        onKeyDown={onKeyDown}
       >
-        <span className={styles.value}>{current?.name ?? 'anyone'}</span>
-        <span className={styles.caret}>{open ? '▲' : '▼'}</span>
+        {current ? (
+          <>
+            <span className={styles.triggerPortrait}>
+              <Portrait cardId={current.cardId} name={current.name} />
+            </span>
+            <span className={styles.triggerText}>{current.name}</span>
+          </>
+        ) : (
+          <span className={`${styles.triggerText} ${styles.placeholder}`}>anyone</span>
+        )}
+        <span className={styles.caret}>{open ? '\u25b2' : '\u25bc'}</span>
       </button>
+
       {open && (
-        <div className={styles.panel}>
+        <div className={styles.popup}>
           <input
             ref={search}
             className={styles.search}
             type="text"
             value={query}
+            placeholder="Search by name…"
             aria-label={`Search ${label}`}
             onChange={(e) => onSearch(e.target.value)}
             onKeyDown={onKeyDown}
           />
-          <ul className={styles.list} role="listbox" ref={listbox}>
-            {items.map((item, i) => (
-              <li
-                key={item === null ? 'none' : item.charaId}
-                role="option"
-                aria-selected={(item?.charaId ?? null) === chosen}
-                className={i === active ? `${styles.option} ${styles.active}` : styles.option}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => choose(item)}
-              >
-                {item === null ? 'anyone' : item.name}
-              </li>
-            ))}
-          </ul>
+          {items.length === 0 ? (
+            <p className={styles.none}>No one matches “{query}”.</p>
+          ) : (
+            <ul className={styles.options} role="listbox" ref={listbox}>
+              {items.map((item, i) => (
+                <li
+                  key={item === null ? 'none' : item.charaId}
+                  role="option"
+                  aria-selected={(item?.charaId ?? null) === chosen}
+                  className={`${styles.option} ${i === active ? styles.active : ''}`}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => choose(item)}
+                >
+                  {item === null ? (
+                    <span className={`${styles.optionText} ${styles.placeholder}`}>anyone</span>
+                  ) : (
+                    <>
+                      <span className={styles.optionPortrait}>
+                        <Portrait cardId={item.cardId} name={item.name} />
+                      </span>
+                      <span className={styles.optionText}>
+                        <span className={styles.optionName}>{item.name}</span>
+                      </span>
+                    </>
+                  )}
+                  {(item?.charaId ?? null) === chosen && <span className={styles.chosen}>✓</span>}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

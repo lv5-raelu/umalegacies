@@ -158,6 +158,7 @@ export function summariseSparks(
           onceInCareer: 0,
           twiceInCareer: 0,
           timing: spark.timing,
+          aptitude: null,
           lineageCarriers: 0,
           acquisitionChance: null,
           inheritOnceInCareer: null,

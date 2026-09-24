@@ -29,6 +29,7 @@ export * from './master-data.js';
 export * from './master-json.js';
 export * from './sparks.js';
 export * from './inherit.js';
+export * from './aptitude.js';
 export * from './spark-types.js';
 export * from './error-response.js';
 export * from './citations.js';
