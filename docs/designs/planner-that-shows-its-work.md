@@ -146,9 +146,11 @@ here on the grounds in premise 3, not on a rediscovered gap.
 
 ## Domain Model Corrections
 
-Five errors found in review. Four would have shipped as bugs. The fourth (`card_id`) is
-future-proofing: zero of the 62 distinct `card_id`s in this `data.json` are affected, so it
-is a trap avoided rather than a bug caught.
+Five errors found in review, plus a sixth from the builder on 2026-09-24. Four of the
+first five would have shipped as bugs. The fourth (`card_id`) is future-proofing: zero of
+the 62 distinct `card_id`s in this `data.json` are affected, so it is a trap avoided rather
+than a bug caught. The sixth is different in kind -- nothing was wrong, something was
+MISSING, and the word "inherit" was quietly covering the gap.
 
 1. **Seven base affinities, five bonus affinities — not seven of each.** Bonus affinity is
    +3 per G1 shared between two members that have both raced. The trainee has not raced, so
@@ -178,6 +180,91 @@ WHERE category = 6 AND "index" = ?`). Win-saddle names are `category = 111` (184
    complete. The nullable grandparent tuple stays (the game permits it) but it now has **no
    natural test case**, so `base.absent_ancestor` needs a synthetic fixture. Do not detect
    it via `succession_num`, which is 0 on lineages that are complete.
+
+6. **"INHERITING A SPARK" MEANT TWO DIFFERENT THINGS, and this tool only ever computed
+   one of them.** Raised by the builder on 2026-09-24, and it renames a term used
+   throughout the earlier sections of this document.
+
+   Everything the engine had was about the RUN: a spark activates during an inspiration and
+   hands the trainee a skill hint they can buy with SP. What it never answered is whether
+   the trainee *retires carrying* that spark as one of their own factors, which is the
+   thing that makes them useful as somebody else's parent -- and it is decided by a
+   SEPARATE roll at the end of the career. Having the skill is not having the spark. From
+   here on, "inherits" means the second; the first is "activates".
+
+   **The rule.** Each white spark the trainee could generate rolls independently -- there
+   is no cap on how many a career produces -- and the chance rises with how many of the six
+   ancestors already carry it:
+
+   | ancestors carrying it | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+   |---|---|---|---|---|---|---|---|
+   | chance | 20% | 22.5% | 25% | 27.5% | 30% | 32.5% | 35% |
+
+   **AFFINITY DOES NOT ENTER INTO IT**, which is the substantive difference from every
+   other rate here and the reason it is worth its own column rather than being folded into
+   the existing one. A pair can be excellent at firing a spark and ordinary at passing it
+   on. Source: uma.guide's Sparks & Inheritance tables, the same body of research this
+   project already cites for the activation base rates -- its base-rate table is the one
+   already in `spark-types.ts`, which is why the acquisition table beside it is trusted at
+   the same weight.
+
+   **Whites only.** Blue comes from the trainee's own final stats, pink from their own
+   A-or-better aptitudes, and green IS their own unique skill. No ancestor moves those
+   three, so the tool prints an em dash rather than inventing a number.
+
+   **The preconditions differ by kind, so only one composed figure is honest.** A skill
+   spark needs the skill learned, a race spark needs that G1 won, a scenario spark needs
+   the scenario cleared. Only the first has a route this engine models, so
+   `INHERITS = activates x keeps` exists for skill sparks alone and is null elsewhere. It
+   is a FLOOR: it assumes the hint gets bought, and it counts only the inspiration route,
+   so a skill picked up from a support card falls outside it.
+
+   **A misreading that is invisible here and would not be later.** 2.5 points is exactly an
+   eighth of 20, so `20 + 2.5n` and `20 x (1 + n/8)` are the same number at every n. A
+   secondary Japanese source quotes the upgraded-skill row as 25% -> 44%, which is
+   `25 x 1.75 = 43.75` rounded, and fitting that would have produced a multiplicative model.
+   The primary table ends that row at 40%, i.e. `25 + 6 x 2.5`. No factor this tool can be
+   asked about uses that row: **all 235 white-skill factor groups join through
+   `succession_factor_effect.value_1` to a skill with `skill_data.rarity = 1`**, a plain
+   white skill, which is what "only the White version of the Skill can be generated" means.
+   The engine is right under either reading; the test says so rather than assuming it.
+
+   **MEASURED AGAINST 2,800 REAL LINEAGES, 2026-09-24, following this project's rule about
+   testing rather than recalling.** uma.moe's search returns a veteran together with its
+   two parents' full factor lists, which is exactly the shape needed: for each record, how
+   many of the two observable ancestors carry a spark, and does the veteran carry it.
+
+   Skill factors are unreadable this way and that is itself informative -- the precondition
+   is confounded, because a parent carrying a skill factor both raises the hint odds and
+   signals a build that wanted the skill, so the measured lift (11% -> 31% -> 57%)
+   compounds three effects. **Race factors are the natural experiment**: the record says
+   which G1s the veteran actually won, so conditioning on the win isolates the retirement
+   roll from everything else. Across **45,755 conditioned observations**:
+
+   ```
+     parents carrying it   rate     95% CI          n        documented (2 of 6 visible)
+       0                  23.5%   [23.0, 24.0]   28,526          20.0%
+       1                  26.3%   [25.6, 27.0]   15,046          22.5%
+       2                  27.6%   [25.8, 29.5]    2,183          25.0%
+   ```
+
+   Monotone, ~2 points per observed carrier against a documented 2.5, and per-race values
+   sit in a 22.9-25.0% band across the twelve best-supported G1s, so it is not one race's
+   quirk. A second cut confirms the documented claim that the veteran's own rating sets the
+   spark's STAR level and not whether it is acquired: rate by rating band is **23.3%
+   (B-SS) vs 23.6% (SS-UE)**, flat.
+
+   **The level runs ~3.5 points high and the documented table ships anyway.** Two reasons
+   it should: a uma.moe record cannot show the four GRANDparents the game is also counting,
+   so every "0 carriers" row there is really "0 of the 2 I can see"; and the pool lists
+   only veterans their owners thought worth lending, which biases any rate measured on it
+   upward. Both push the same way. Correcting a published community table on the strength
+   of a knowingly selected sample would be trading a documented number for a biased one.
+   What the measurement earns is confidence in the SHAPE -- monotone, ~2.5 per carrier,
+   flat in rating -- and that is recorded next to the constants in `inherit.ts`.
+
+   Honest caveat, the same one the base rates carry: this is community research, not
+   anything `master.mdb` publishes, and this project has not verified it in game.
 
 ## Approaches Considered
 

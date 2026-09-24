@@ -1,7 +1,14 @@
 import type { SparkSummaryRow } from '@umalegacies/types';
 import { ALL_POSITIONS } from './positions';
 import { positionLabel } from './positions';
-import { SPARK_COLOR, SPARK_GROUP_LABEL, SPARK_KIND_ORDER, isWhite, percent } from './sparks';
+import {
+  SPARK_COLOR,
+  SPARK_GROUP_LABEL,
+  SPARK_KIND_ORDER,
+  isWhite,
+  percent,
+  percentPrecise,
+} from './sparks';
 import styles from './AuditTrail.module.css';
 
 /**
@@ -77,7 +84,7 @@ export function AuditTrail({
 
   return (
     <>
-      {/* Seven columns do not fit a phone. The table scrolls sideways in its
+      {/* Nine columns do not fit a phone. The table scrolls sideways in its
           own region rather than dropping columns: every one of them is part of
           the audit, and the page body must never scroll horizontally. */}
       <div className={styles.scroll}>
@@ -88,9 +95,13 @@ export function AuditTrail({
             <th>SPARK</th>
             <th>STARS</th>
             <th>CARRIERS</th>
+            {/* Beside CARRIERS on purpose: it is a lookup of that column and
+                nothing else, so the working is one glance wide. */}
+            <th className={styles.right}>KEEPS</th>
             <th />
             <th className={styles.right}>ONCE</th>
             <th className={styles.right}>TWICE</th>
+            <th className={styles.right}>INHERITS</th>
           </tr>
         </thead>
         <tbody>
@@ -106,7 +117,7 @@ export function AuditTrail({
             if (group.length === 0 && omitted === 0) return [];
             return [
               <tr key={kind}>
-                <td className={styles.groupTitle} colSpan={7}>
+                <td className={styles.groupTitle} colSpan={9}>
                   {SPARK_GROUP_LABEL[kind]}
                   {group.length > 0 && ` · ${group.length}`}
                   {omitted > 0 && (
@@ -169,6 +180,23 @@ export function AuditTrail({
                       );
                     })}
                   </td>
+                  {/* The retirement roll. Exact for every white, and blank
+                      for the three kinds it does not govern -- a trainee's
+                      blue, pink and green come from their own stats,
+                      aptitudes and unique skill, so no ancestor moves them.
+
+                      percentPrecise, not percent, and it is the only column
+                      here that needs it: the published table steps in halves,
+                      so the rounding that is right for a computed odds turns
+                      22.5% into 23% and makes the column disagree with the
+                      table it is quoting. */}
+                  <td className={styles.pct}>
+                    {row.acquisitionChance === null ? (
+                      <span className={styles.na}>&mdash;</span>
+                    ) : (
+                      percentPrecise(row.acquisitionChance, 1)
+                    )}
+                  </td>
                   <td className={styles.barCell}>
                     <div className={styles.track}>
                       <span
@@ -186,6 +214,18 @@ export function AuditTrail({
                       threw that away AND collided with the em dash that means
                       "unresolved" elsewhere on the same screen. */}
                   <td className={styles.pctFaint}>{percent(row.twiceInCareer)}</td>
+                  {/* Skill sparks only. A race spark needs the trainee to win
+                      that G1 and a scenario spark needs the scenario cleared,
+                      and neither is something this lineage decides, so the
+                      chain stops at KEEPS for them rather than being finished
+                      with a guess. */}
+                  <td className={styles.pct}>
+                    {row.inheritOnceInCareer === null ? (
+                      <span className={styles.na}>&mdash;</span>
+                    ) : (
+                      percent(row.inheritOnceInCareer)
+                    )}
+                  </td>
                 </tr>
               )),
             ];
@@ -197,7 +237,15 @@ export function AuditTrail({
       <p className={styles.note}>
         <b>ONCE</b> is the chance of at least one activation across the two inspirations a career
         gives; <b>TWICE</b> is at least two, which is worth its own column because a doubled spark
-        stacks.{' '}
+        stacks. Those two are about the RUN. <b>KEEPS</b> and <b>INHERITS</b> are about what the
+        trainee walks away with: a spark that fires hands over a skill hint, and only a separate
+        roll at retirement turns that into a spark of the trainee's own. That roll starts at 20%
+        and gains 2.5 points for each of the six ancestors already carrying it, which is what
+        <b> KEEPS</b> reads off the carriers beside it, and affinity does not enter into it.{' '}
+        <b>INHERITS</b> multiplies the two, so it exists only for skill sparks -- a race spark
+        needs the trainee to win that G1 themselves, which no lineage decides. Read it as a floor:
+        it assumes the hint gets bought, and it counts only the inspiration route, so a skill
+        picked up from a support card lands outside it.{' '}
         {certain > 0 && (
           <>
             {certain} blue {certain === 1 ? 'row is' : 'rows are'} omitted for computing to 100%: a

@@ -97,6 +97,39 @@ is one build rather than four separate wishes, and four sparks at 40% each is 2.
 Base rates by star level (1★/2★/3★): blue 70/80/90%, pink 1/3/5%, green 5/10/15%,
 race 1/2/3%, other whites 3/6/9%.
 
+### Firing a spark is not keeping it
+
+Everything above is about the RUN: a spark that activates during an inspiration hands the
+trainee a skill hint they can buy with SP. **It does not hand them the spark.** Whether the
+trainee *retires carrying* it -- which is what makes them useful as somebody else's parent
+-- is decided by a separate roll at the end of the career, and that roll is not scaled by
+affinity at all. It rises with how many of the six ancestors already carry the spark:
+
+| ancestors carrying it | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|---|
+| chance to keep it | 20% | 22.5% | 25% | 27.5% | 30% | 32.5% | 35% |
+
+**Whites only.** The trainee's blue comes from their own final stats, their pink from their
+own A-or-better aptitudes, and their green IS their own unique skill. Nothing an ancestor
+carries moves those three, so the tool prints an em dash rather than a number.
+
+**The roll needs a precondition, and it differs by kind.** A skill spark needs the skill
+learned, a race spark needs that G1 won, a scenario spark needs the scenario cleared. Only
+the first has a route this tool models, so `INHERITS` -- activation × keep -- exists for
+skill sparks alone. Read it as a floor: it assumes the hint gets bought, and it counts only
+the inspiration route, so the same skill learned off a support card falls outside it.
+
+**It is additive, 2.5 points per ancestor, and one plausible misreading is invisible here.**
+2.5 is exactly an eighth of 20, so `20 + 2.5n` and `20 × (1 + n/8)` are the same number at
+every n. They part company on the upgraded-skill row, which starts at 25% and ends at 40%
+rather than 43.75%. No factor this tool can be asked about uses that row: all 235
+white-skill factor groups map to a plain `skill_data.rarity = 1` skill, which is what "only
+the White version of the Skill can be generated" means.
+
+Like the activation rates, this is community research rather than anything `master.mdb`
+publishes. Unlike them, it has been checked here against 2,800 real lineages -- see
+`docs/designs/planner-that-shows-its-work.md`.
+
 ## Getting started
 
 Requires Node 24+. Nothing else: the master data the API needs is committed,

@@ -244,3 +244,15 @@
   font-family: var(--font-data);
   font-size: var(--text-2xs);
 }
+
+/*
+ * The em dash that means "this kind is not acquired that way".
+ *
+ * Faint rather than absent, because an empty cell in a nine-column table reads
+ * as a rendering failure and this one is a fact: a trainee's blue comes from
+ * their own stats, so no lineage number belongs there. Same weight as the
+ * TWICE column so the two quiet columns agree with each other.
+ */
+.na {
+  color: var(--ink-faint);
+}

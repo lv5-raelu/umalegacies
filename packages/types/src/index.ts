@@ -236,6 +236,41 @@ export interface SparkSummaryRow {
   onceInCareer: number;
   /** P(at least two). A doubled spark stacks, so it is worth its own column. */
   twiceInCareer: number;
+  /**
+   * How many DISTINCT ancestors of the six carry this spark, 0-6.
+   *
+   * `carriers.length` is nearly the same number and is not the same question:
+   * that list is one entry per contributing spark, and this is one per uma. The
+   * acquisition table is indexed by umas, so the distinction is load-bearing
+   * the day a patch lets one ancestor hold two factors of one group.
+   */
+  lineageCarriers: number;
+  /**
+   * P(the trainee RETIRES carrying this spark), given its precondition is met.
+   *
+   * A different question from `onceInCareer`, which is whether the spark fires
+   * during a run. This is whether the trainee ends up holding it themselves,
+   * which is what makes them useful as somebody else's parent. Rises with
+   * `lineageCarriers` and is NOT scaled by affinity.
+   *
+   * Null for blue, pink and green: those come from the trainee's own stats,
+   * aptitudes and unique skill, so nothing the ancestors carry moves them.
+   */
+  acquisitionChance: number | null;
+  /**
+   * `onceInCareer x acquisitionChance`, for white SKILL sparks only.
+   *
+   * The end-to-end chance by way of the lineage: an inspiration hands over the
+   * hint, and the retirement roll turns it into a spark. Null for every other
+   * kind, because their preconditions -- winning a G1, clearing a scenario --
+   * are not lineage properties and this engine cannot honestly put a number on
+   * them.
+   *
+   * A FLOOR, not an estimate: it assumes the hint gets bought, and it counts
+   * only the inspiration route, so a skill learned from a support card lands
+   * outside it.
+   */
+  inheritOnceInCareer: number | null;
 }
 
 // ---------------------------------------------------------------- lineage

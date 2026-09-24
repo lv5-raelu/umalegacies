@@ -295,3 +295,68 @@ describe('an ancestor whose card master.mdb does not know', () => {
     expect(parent?.resolution).toEqual({ ok: false, reason: 'unknown_card', id: 999999 });
   });
 });
+
+/**
+ * THE RETIREMENT ROLL, THROUGH THE WHOLE ENGINE AND AGAINST A REAL LINEAGE.
+ *
+ * `inherit.test.ts` pins the table. This pins the WIRING: that the carrier
+ * count summariseSparks hands the table is the count of umas the table means,
+ * that the three kinds it does not govern come back null rather than 20%, and
+ * that the composed figure is only ever built for the one kind whose
+ * precondition this engine models. Every one of those is a place a plausible
+ * edit would produce a number that still looks like a percentage.
+ */
+describe('what the trainee retires carrying', () => {
+  const sparks = lineage('5531').sparks;
+
+  it('counts the carriers the table is indexed by, not the carrier entries', () => {
+    for (const row of sparks) {
+      expect(row.lineageCarriers).toBe(new Set(row.carriers.map((c) => c.position)).size);
+      expect(row.lineageCarriers).toBeGreaterThanOrEqual(1);
+      expect(row.lineageCarriers).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('reads the published table off that count, for every white row', () => {
+    const whites = sparks.filter((row) => row.kind.startsWith('white'));
+    expect(whites.length).toBeGreaterThan(0);
+    for (const row of whites) {
+      expect(row.acquisitionChance).toBeCloseTo(0.2 + 0.025 * row.lineageCarriers, 10);
+    }
+  });
+
+  it('leaves blue, pink and green alone, because the lineage does not decide them', () => {
+    const own = sparks.filter((row) => !row.kind.startsWith('white'));
+    expect(own.length).toBeGreaterThan(0);
+    for (const row of own) {
+      expect(row.acquisitionChance).toBeNull();
+      expect(row.inheritOnceInCareer).toBeNull();
+    }
+  });
+
+  it('composes only for skill sparks, and always below the activation it is built from', () => {
+    for (const row of sparks) {
+      if (row.kind === 'white_skill') {
+        expect(row.inheritOnceInCareer).toBeCloseTo(
+          row.onceInCareer * (row.acquisitionChance as number),
+          10,
+        );
+        // The whole point of the feature: getting the skill is not keeping it.
+        expect(row.inheritOnceInCareer as number).toBeLessThan(row.onceInCareer);
+      } else {
+        expect(row.inheritOnceInCareer).toBeNull();
+      }
+    }
+  });
+
+  it('separates the two axes on a row where they disagree', () => {
+    // A spark can be near-certain to fire and still unlikely to stick, and that
+    // gap is the reason the column exists rather than being folded into ONCE.
+    const loud = sparks
+      .filter((row) => row.kind === 'white_skill')
+      .sort((a, b) => b.onceInCareer - a.onceInCareer)[0];
+    expect(loud).toBeDefined();
+    expect((loud as (typeof sparks)[number]).onceInCareer).toBeGreaterThan(0.7);
+    expect((loud as (typeof sparks)[number]).acquisitionChance as number).toBeLessThan(0.4);
+  });
+});

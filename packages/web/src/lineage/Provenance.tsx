@@ -6,10 +6,11 @@ import type {
   MasterRef,
   SparkSummaryRow,
 } from '@umalegacies/types';
+import { ACQUISITION_BASE, ACQUISITION_STEP, MAX_LINEAGE_CARRIERS } from '@umalegacies/core';
 import { sumByRulePrefix } from './explain-node';
 import { positionLabel } from './positions';
 import { resolutionText } from './resolution';
-import { SPARK_COLOR, isWhite, percent, plural, stars } from './sparks';
+import { SPARK_COLOR, isWhite, percent, percentPrecise, plural, stars } from './sparks';
 import styles from './Provenance.module.css';
 
 /**
@@ -360,8 +361,84 @@ export function SparkProvenance({ row }: { row: SparkSummaryRow }) {
           </tbody>
         </table>
       </div>
+
+      {row.acquisitionChance !== null && (
+        <div className={styles.term}>
+          <div className={styles.termHead}>
+            <span className={styles.termLabel}>
+              {row.inheritOnceInCareer === null
+                ? 'kept at retirement, if the trainee earns it'
+                : 'the trainee retires carrying it'}
+            </span>
+            <span className={styles.value}>
+              {row.inheritOnceInCareer === null
+                ? percentPrecise(row.acquisitionChance, 1)
+                : percent(row.inheritOnceInCareer)}
+            </span>
+          </div>
+          {/* The arithmetic in full, because this is the number the table
+              above cannot show its working for. Two terms, and the second one
+              is the whole reason the section exists: firing is not keeping. */}
+          <dl className={styles.windows}>
+            <div>
+              <dt>ancestors carrying it</dt>
+              <dd>
+                {row.lineageCarriers} of {MAX_LINEAGE_CARRIERS}
+              </dd>
+            </div>
+            {/* Only where it is a SECOND number. With no composed figure the
+                headline above already IS the retirement roll, and printing it
+                twice reads as two facts that happen to agree. */}
+            {row.inheritOnceInCareer !== null && (
+              <div>
+                <dt>retirement roll</dt>
+                <dd>{percentPrecise(row.acquisitionChance, 1)}</dd>
+              </div>
+            )}
+          </dl>
+          <p className={styles.reason}>
+            A spark that fires during a run hands over a skill hint. It does not hand over the
+            spark: a separate roll at retirement decides whether the trainee keeps it as one of
+            their own, and that roll starts at{' '}
+            <code>{percentPrecise(ACQUISITION_BASE, 1)}</code> and gains{' '}
+            {/* POINTS, not per cent. "gains 2.5%" against a 20% base reads as
+                20 x 1.025, and the two are not the same number. */}
+            <code>{(ACQUISITION_STEP * 100).toFixed(1)} points</code> for each of the six
+            ancestors already carrying it, reaching{' '}
+            {percentPrecise(ACQUISITION_BASE + ACQUISITION_STEP * MAX_LINEAGE_CARRIERS, 1)}{' '}
+            with a full lineage. Affinity does not enter into it, which is why a pair can be
+            excellent at firing a spark and ordinary at passing it on.{' '}
+            {row.inheritOnceInCareer === null ? (
+              <>
+                The chain stops here for this kind. {preconditionNote(row.kind)} That is not
+                something the lineage decides, so the figure above is conditional on it rather
+                than a prediction.
+              </>
+            ) : (
+              <>
+                Multiplied through, that is {percent(row.onceInCareer)} to fire ×{' '}
+                {percentPrecise(row.acquisitionChance, 1)} to keep. Read it as a floor: it assumes the hint
+                gets bought with SP, and it counts only the inspiration route, so the same skill
+                learned from a support card lands outside it.
+              </>
+            )}
+          </p>
+        </div>
+      )}
     </section>
   );
+}
+
+/** What the trainee has to do themselves before the retirement roll is taken. */
+function preconditionNote(kind: SparkSummaryRow['kind']): string {
+  switch (kind) {
+    case 'white_race':
+      return 'The trainee has to win that G1 during their own career, and winning it twice does not help.';
+    case 'white_scenario':
+      return "The trainee has to clear the scenario's own condition.";
+    default:
+      return 'The trainee has to learn the skill during their own career.';
+  }
 }
 
 /** The pair total, and the seven links that make it. */
