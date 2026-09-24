@@ -204,18 +204,37 @@ export function AuditTrail({
                       total is the unit the borrow search will filter on and the
                       two must agree. */}
                   <td className={styles.figure}>{row.stars}★</td>
-                  {/* A fixed six-slot grid so the column can still be scanned
-                      downward, but NAMED: the raw position_ids say nothing, and
-                      GP1..GP4 run left to right as the tree draws them. */}
+                  {/*
+                    A fixed six-slot grid so the column can still be scanned
+                    downward, but NAMED: the raw position_ids say nothing, and
+                    GP1..GP4 run left to right as the tree draws them.
+
+                    EACH SLOT CARRIES ITS OWN STAR COUNT above the name. WHERE
+                    the stars sit changes what the column answers: the total
+                    beside the spark says a lineage holds eight, and only this
+                    says whether that is 3+3+2 on the parents or eight ones
+                    scattered over the grandparents. Those are different pairs
+                    and the reader was having to open the row to tell them
+                    apart.
+
+                    Stars rather than a digit, because the row above already
+                    prints "8★" and a column of digits beside it invites adding
+                    the wrong two numbers. Three is the most an uma can carry,
+                    so the line never grows past three glyphs.
+                  */}
                   <td className={styles.carriers}>
                     {ALL_POSITIONS.map((position) => {
-                      const carries = row.carriers.some((c) => c.position === position);
+                      const carrier = row.carriers.find((c) => c.position === position);
                       return (
-                        <span
-                          key={position}
-                          className={carries ? styles.carrierOn : styles.carrierOff}
-                        >
-                          {carries ? positionLabel(position) : '·'}
+                        <span key={position} className={styles.slot}>
+                          <span className={styles.slotStars}>
+                            {carrier === undefined ? '' : '★'.repeat(carrier.stars)}
+                          </span>
+                          <span
+                            className={carrier === undefined ? styles.carrierOff : styles.carrierOn}
+                          >
+                            {carrier === undefined ? '·' : positionLabel(position)}
+                          </span>
                         </span>
                       );
                     })}
