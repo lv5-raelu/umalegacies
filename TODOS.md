@@ -62,7 +62,7 @@ that number exists — it may be unnecessary or insufficient, and which one matt
 
 ---
 
-## 3. uma.moe's rate limit under real load
+## 3. ~~uma.moe's rate limit under real load~~ ANSWERED 2026-09-24: none found
 
 **What.** Unmeasured. The 2026-09-18 spike ran 20 sequential calls, all 200, and found no
 `X-RateLimit` or `Retry-After` headers advertised.
@@ -83,6 +83,71 @@ key for server-to-server access and usage tracking". The key lives at
 transcript on 2026-09-18 and should be rotated.
 
 **Depends on.** Nothing. Can be answered any time before release 2 starts.
+
+**ANSWERED 2026-09-24. No rate limit is reachable at any pressure this project would
+ever apply, and the ceiling that matters turns out to be somewhere else.**
+
+Probed `GET /api/v3/search`, the endpoint release 2 actually uses, at escalating pressure.
+Every call returned 200. Nothing was refused, deferred or slowed:
+
+```
+  15 requests at 1/s                      15 x 200,  median 0.33s
+  20 requests back-to-back (serial)       20 x 200,  10s total  -> 2.0 req/s
+  5 batches x 4 concurrent                20 x 200,  3s total
+  4 batches x 8 concurrent                32 x 200,  3s total   -> ~10.7 req/s
+  12 full pages (limit=100) serial        12 x 200,  13s        -> 92 records/s
+  8 full pages at concurrency 4            8 x 200,  3s         -> 267 records/s
+```
+
+About 140 requests in total across the session, deliberately bounded and aborting on the
+first refusal, which never came. **Latency did not move under concurrency**: full pages
+took ~1.0s each whether fetched one at a time or four at a time, which is the signature of
+no throttle rather than a generous one. No `X-RateLimit`, `Retry-After` or quota header
+appears on any response, and the OpenAPI spec at `/api/docs/openapi.yaml` documents no
+limit either -- it describes the protection as a gate on *who* may call
+(`X-API-Key` or `X-Browser-Proof`), not on how often.
+
+**The real constraints are three other numbers, and they are the ones that decide release
+2's shape.**
+
+1. **`limit` caps at 100.** The spec says `maximum: 100` and the server silently clamps:
+   `limit=500` returns 100 items and the same 205 KB. A record is ~2 KB, so a page is
+   ~205 KB.
+2. **`total: "over 10000"` is a display cap, not the pool.** `total_pages` is
+   `ceil(cap / limit)` -- 101 at `limit=100`, 10001 at `limit=1` -- so it carries no
+   information about the real size. Paging does not stop there: `page=200` returns 100
+   items, distinct from pages 1, 50, 100 and 101 (500 fetched, 500 distinct account ids).
+   Ordering is stable, so paging is safe to parallelise.
+3. **Server-side filters narrow it hard, and the total becomes exact below 10,000.**
+
+```
+  (no filter)                                             over 10000
+  blue_sparks=203                                         over 10000
+  blue_sparks=203 & pink_sparks=1202                           5,866
+  ... & min_white_stars_sum=40                                 1,111
+  white_sparks=1002402 & white_sparks=2005002                  7,114
+```
+
+**So borrowing is a FILTERED SWEEP.** Not a shortlist, because the API will happily serve
+whatever is asked for; and not a whole-pool pull, because that is 10,000+ records and
+~21 MB for a question the server can answer in one query. A realistic filtered pool of
+1,111 records is 12 pages, ~2.4 MB, ~13s serial or ~4s at concurrency 4. That is a
+progress bar, not an architecture.
+
+**What now binds is our own sweep, not their API.** 259 own veterans against 1,111
+borrowed is 287,749 pairs, and at the measured 0.072 ms per pair that is ~21s of scoring.
+The API hands over its half in 4 seconds and then we spend twenty on it. So the
+open performance question for release 2 is the sweep, which makes `TODOS.md` #2
+(per-veteran affinity memoisation) newly relevant -- it was parked on "no problem to solve
+while the sweep meets its budget", and this is the first credible way that budget breaks.
+
+**Politeness note for whoever runs this again.** The probe escalated and aborted on the
+first refusal by construction; it is `uma-moe-probe`-shaped, not a load test. There is no
+reason to re-run it. If release 2 ever does see a 429, the answer is already known to be
+absent from the headers, so back off on the status code alone.
+
+**Still true and still outstanding:** the key at `~/.umalegacies-uma-moe-key` was pasted
+into a chat transcript on 2026-09-18 and should be rotated.
 
 ---
 
