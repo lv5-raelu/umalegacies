@@ -9,8 +9,9 @@ import { ALL_POSITIONS } from './positions';
 import { positionLabel } from './positions';
 import {
   SPARK_COLOR,
-  SPARK_GROUP_LABEL,
-  SPARK_KIND_ORDER,
+  SPARK_GROUP_ORDER,
+  groupKeyOf,
+  groupLabelOf,
   isWhite,
   percent,
   percentPrecise,
@@ -144,10 +145,10 @@ export function AuditTrail({
           </tr>
         </thead>
         <tbody>
-          {SPARK_KIND_ORDER.flatMap((kind) => {
-            const group = shown.filter((row) => row.kind === kind);
+          {SPARK_GROUP_ORDER.flatMap((key) => {
+            const group = shown.filter((row) => groupKeyOf(row) === key);
             const omitted = sparks.filter(
-              (row) => row.kind === kind && !shown.includes(row),
+              (row) => groupKeyOf(row) === key && !shown.includes(row),
             ).length;
             // A group whose rows were ALL dropped still gets its heading, and
             // the heading says why. Without this the category simply vanished:
@@ -155,9 +156,9 @@ export function AuditTrail({
             // and the explanation sat at the foot of fifty rows.
             if (group.length === 0 && omitted === 0) return [];
             return [
-              <tr key={kind}>
+              <tr key={key}>
                 <td className={styles.groupTitle} colSpan={9}>
-                  {SPARK_GROUP_LABEL[kind]}
+                  {groupLabelOf(key)}
                   {group.length > 0 && ` · ${group.length}`}
                   {omitted > 0 && (
                     <span className={styles.omitted}>

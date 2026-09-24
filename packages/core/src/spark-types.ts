@@ -65,6 +65,39 @@ export const BASE_RATES: Readonly<Record<SparkKind, readonly [number, number, nu
  * requirement the search can prune on. Whites are a bag of 231 distinct types,
  * so a criterion naming one is a preference by default -- see `isRequirement`.
  */
+/**
+ * WHEN A SKILL FIRES, as the game itself groups them.
+ *
+ * `skill_data.skill_category` is the game's own field and the pre-race screen's
+ * own headings: it needs no interpreting and no condition-string parsing, which
+ * is the first thing tried here and the wrong thing. Verified against a
+ * screenshot of that screen -- five skills it put under Mid-Race are category 2,
+ * its Late-Race skill is 3, its Anytime skill is 4 -- and against named
+ * examples: Summer Runner and Restraint, which fire at the start with no wit
+ * check, are category 0.
+ *
+ * Category 5 is the unique skills. Those are the GREEN spark and already have a
+ * group of their own, so they are deliberately not one of these.
+ */
+export type SkillTiming = 'passive' | 'early' | 'mid' | 'late' | 'anytime';
+
+export const SKILL_TIMING_BY_CATEGORY: Readonly<Record<number, SkillTiming>> = {
+  0: 'passive',
+  1: 'early',
+  2: 'mid',
+  3: 'late',
+  4: 'anytime',
+};
+
+/** The order the pre-race screen lists them in, and so the order here. */
+export const SKILL_TIMING_ORDER: readonly SkillTiming[] = [
+  'passive',
+  'early',
+  'mid',
+  'late',
+  'anytime',
+];
+
 export const isWhite = (kind: SparkKind): boolean => kind.startsWith('white');
 
 /** The order the audit trail renders its groups in. Structural first, bag last. */

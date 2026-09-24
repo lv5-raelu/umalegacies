@@ -28,6 +28,12 @@ const REQUIRED_TABLES = [
   // The 98 career rank bands. Queried by MasterData.careerRankTier, which is
   // what binds the web app's rank ladder to data with a committed source.
   'single_mode_rank',
+  // Which skill a spark hints at, and when that skill fires. Both are PROJECTED
+  // into the extract rather than copied whole -- skill_data is 78 columns of
+  // race-simulation parameters and only two are read -- so their absence would
+  // not be a missing table so much as a stale build script.
+  'succession_factor_effect',
+  'skill_data',
 ] as const;
 
 export interface MasterMeta {

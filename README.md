@@ -256,8 +256,15 @@ second, portrait-less copy of a real costume.
 
 **`master.mdb` is not in the repository, and is not needed to run the app.**
 `packages/api/data/master-extract.sql` is, and the API serves from it by default.
-The extract holds 6 of `master.mdb`'s 416 tables and 291 of `text_data`'s 54,234
-rows: 315 KB of SQL text against a 16 MB binary, which git stores in ~31 KB.
+The extract holds 11 of `master.mdb`'s 416 tables and 1,775 of `text_data`'s 54,234
+rows, against a 16 MB binary.
+
+Two of those tables are **projected to the columns this app reads** rather than copied
+whole: `skill_data` is 78 columns of race-simulation parameters and only `id`,
+`skill_category` and `rarity` are used, and `succession_factor_effect` collapses to the
+factor-to-skill mapping once its five hint-level rows per factor are deduplicated.
+A projected table gets a `CREATE TABLE` written from the columns asked for, with types
+read back from the source schema so a projection cannot quietly change one.
 
 It is text rather than a `.mdb` on purpose. A game patch produces a reviewable
 line-by-line diff instead of an opaque blob, and it is *smaller in history* than
@@ -336,7 +343,17 @@ that twice.
   not experimental about it: every query this app makes (`prepare`, `all`, `get`,
   `iterate`) is covered by the 228-test suite running against the real extract.
 - **`succession_factor.rarity` is the star count**, 1–3. It is not a rarity tier.
-- **Spark names are `text_data` category 147, keyed by `factor_id`** — not by
+- - **White skills are grouped by WHEN THEY FIRE, and the game supplies the grouping.**
+  `skill_data.skill_category` is the field the pre-race screen groups by: 0 passive,
+  1 early-race, 2 mid-race, 3 late-race, 4 anytime, 5 unique. Verified against that
+  screen and against named examples — Summer Runner and Restraint, which fire at the
+  start with no wit check, are category 0. Do NOT parse `condition_1` for `phase==N`
+  to derive this: that was tried, and it classifies only 119 of 235 white skills while
+  leaving 116 in a bucket that answers nothing. Category 5 is the unique skills, which
+  are the green spark and keep their own group; a race spark grants a skill hint too,
+  so it has a category and must not be filed under it.
+
+**Spark names are `text_data` category 147, keyed by `factor_id`** — not by
   `factor_group_id`. The 1/2/3-star variants of one spark are three `factor_id`s sharing a
   `factor_group_id`, and all three carry the same name (0 of 392 groups disagree). Summarise
   per group; look names up per factor.
