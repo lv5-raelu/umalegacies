@@ -282,3 +282,20 @@
   color: var(--ink);
   white-space: nowrap;
 }
+
+
+/*
+ * "+2 at start" beside a parent's unique.
+ *
+ * Quiet, because it is a second fact about the row rather than a correction to
+ * the number two columns right of it. No colour: DESIGN.md spends the accent
+ * budget on amber-means-added and red-means-unresolved, and this is neither.
+ */
+.atStart {
+  margin-left: var(--space-xs);
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}

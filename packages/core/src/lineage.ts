@@ -1,3 +1,4 @@
+import { APTITUDE_BY_PINK_GROUP, aptitudeLift } from './aptitude.js';
 import { DomainError } from './error-response.js';
 import type { MasterData } from './master-data.js';
 import { ancestorSparks, emptySparkSet, summariseSparks } from './sparks.js';
@@ -90,6 +91,35 @@ function identify(
  * keep asserting against an affinity-only shape, and so a lineage with no
  * `factorIds` anywhere still returns every affinity number.
  */
+/**
+ * Fill in what each PINK does to the trainee's aptitude at career start.
+ *
+ * Done here rather than in `summariseSparks` because it needs two things that
+ * function has no business knowing: who is being trained, and the game data
+ * that says what their card's aptitudes are.
+ *
+ * THE CARD, NOT THE CHARACTER, and no fallback to the base costume. Aptitudes
+ * belong to the costume: Haru Urara's [Bestest Prize] is Mile B and her
+ * [New Year] is Mile A, one step apart, which is exactly one pink threshold.
+ * `traineePortrait` falls back to a base card because any face of the right
+ * character is better than none; doing the same here would print another
+ * costume's grades with total confidence. A request with no card gets null.
+ */
+function withAptitudes(
+  rows: SparkSummaryRow[],
+  request: ExplainRequest,
+  master: MasterData,
+): SparkSummaryRow[] {
+  const cardId = request.traineeCardId ?? null;
+  for (const row of rows) {
+    if (row.kind !== 'pink') continue;
+    const key = APTITUDE_BY_PINK_GROUP[row.groupId];
+    if (key === undefined) continue;
+    row.aptitude = aptitudeLift(master.aptitude(cardId, key), row.stars);
+  }
+  return rows;
+}
+
 export function explainLineage(
   request: ExplainRequest,
   master: MasterData,
@@ -133,6 +163,6 @@ export function explainLineage(
       resolution: traineeResolution(request.traineeCharaId, master),
     },
     ancestors,
-    sparks: summariseSparks(sparksByPosition, ia),
+    sparks: withAptitudes(summariseSparks(sparksByPosition, ia), request, master),
   };
 }

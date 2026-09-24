@@ -138,6 +138,7 @@ export function readTables(db: DatabaseSync): MasterTables {
     ),
     factorSkill: all('SELECT factor_group_id, value_1 FROM succession_factor_effect'),
     skillData: all('SELECT id, skill_category, rarity FROM skill_data'),
+    cardAptitudes: all('SELECT * FROM card_rarity_data'),
   };
 }
 

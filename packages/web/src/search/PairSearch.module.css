@@ -901,3 +901,56 @@
   color: var(--ink);
   background: var(--surface);
 }
+
+/*
+ * WHO HAS TO BE IN THE PAIR, above the filter that says what they must carry.
+ *
+ * Its own row rather than a column inside the spark filter, because it is a
+ * different kind of claim: the filter narrows by QUALITY and this narrows by
+ * COMPOSITION, and the whole reason it exists is that the two had been
+ * collapsed into one control and the odds paid for it.
+ */
+.pins {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-lg);
+  margin-top: var(--space-md);
+}
+.pinsLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+}
+.pin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * THE COMBOBOX NEEDS A WIDTH FROM OUTSIDE IT.
+ *
+ * `Combobox.module.css` gives its wrapper a max-width and its trigger
+ * `width: 100%`, which is right inside the trainee picker's full-width region
+ * and collapses to nothing inside an inline label. The popup is positioned
+ * `left: 0; right: 0` against that wrapper, so a collapsed trigger produced a
+ * list one character wide -- names truncated to "E", "G", "I".
+ *
+ * The child selector rather than the class: the wrapper's name is hashed by CSS
+ * Modules and belongs to another component's stylesheet. Widening it from here
+ * is the one thing this file legitimately knows about it.
+ */
+.pinField {
+  display: block;
+  width: 240px;
+}
+.pinField > * {
+  max-width: none;
+}
+.pinSlot {
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}

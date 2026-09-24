@@ -51,6 +51,20 @@ const inheritsOf = (row: SparkSummaryRow, gold: ReadonlySet<number>): number | n
     tierOf(row.groupId, gold),
   );
 
+/**
+ * Hints a direct parent's unique hands over at career start, or null.
+ *
+ * Greens only, and PARENT slots only: `PARENT_POSITIONS` is 10 and 20, and a
+ * grandparent's unique has to be inspired for. Two parents can carry different
+ * uniques but never the same one -- they are different characters by the pair
+ * rules -- so this is a single carrier's stars rather than a sum.
+ */
+const startGrant = (row: SparkSummaryRow): number | null => {
+  if (row.kind !== 'green') return null;
+  const onParent = row.carriers.find((c) => c.position === 10 || c.position === 20);
+  return onParent?.stars ?? null;
+};
+
 export function AuditTrail({
   sparks,
   onSelect,
@@ -199,7 +213,57 @@ export function AuditTrail({
                       style={isWhite(row.kind) ? undefined : { background: SPARK_COLOR[row.kind] }}
                     />
                   </td>
-                  <td className={styles.name}>{row.name}</td>
+                  {/*
+                    A UNIQUE ON A DIRECT PARENT IS ALREADY YOURS.
+
+                    The game hands it over at the start of the career, at a hint
+                    level equal to its stars; only a GRANDPARENT's unique has to
+                    wait for an inspiration. The odds column is therefore not
+                    wrong -- it answers "will this fire in one of the two April
+                    inspirations", which is exactly the question for the
+                    grandparent copy and for the extra hints a re-fire gives --
+                    but on its own it reads as the whole story, and for a row
+                    like this one the whole story starts with "you have it".
+
+                    So the fact is ADDED, not substituted. Collapsing the row to
+                    "guaranteed" would throw away the grandparent odds, which
+                    readers ask for by name.
+                  */}
+                  <td className={styles.name}>
+                    {row.name}
+                    {/*
+                      A PINK'S REAL ANSWER IS A LETTER, NOT A PERCENTAGE.
+
+                      The career-start grant raises the aptitude by up to four
+                      steps on the lineage's star total, deterministically, and
+                      cannot reach S. "Does this pair get me to A" is therefore
+                      a yes or no, and it was being answered with the odds of an
+                      inspiration firing -- which is a real number about a
+                      different question, the one that takes A to S.
+
+                      "A -> A" is printed rather than hidden when the trainee is
+                      already there: it says the stars are not wasted so much as
+                      unnecessary, which is what a reader choosing between pairs
+                      needs to know.
+                    */}
+                    {row.aptitude !== null && (
+                      <span
+                        className={styles.atStart}
+                        title={
+                          row.aptitude.cappedAtA
+                            ? 'The start of a career raises an aptitude by up to four steps, on 1, 4, 7 and 10 stars across the lineage, and can never reach S. The percentage beside this is the chance of an inspiration firing the spark, which is what takes A to S.'
+                            : 'The start of a career raises an aptitude by up to four steps, on 1, 4, 7 and 10 stars across the lineage.'
+                        }
+                      >
+                        {row.aptitude.from}&rarr;{row.aptitude.to} at start
+                      </span>
+                    )}
+                    {startGrant(row) !== null && (
+                      <span className={styles.atStart} title="A direct parent's unique skill is acquired at the start of the career, guaranteed. The percentage beside it is the chance of it firing in an inspiration, which is what brings a grandparent's copy in and what adds further hints.">
+                        +{startGrant(row)} at start
+                      </span>
+                    )}
+                  </td>
                   {/* The lineage TOTAL, not the best single spark, because that
                       total is the unit the borrow search will filter on and the
                       two must agree. */}
@@ -310,6 +374,16 @@ export function AuditTrail({
         neither of which a lineage decides. Read it as a floor -- it assumes the hint gets bought,
         and it counts only the inspiration route, so a skill picked up from a support card lands
         outside it.{' '}
+        A pink marked <b>D&rarr;A at start</b> is what the career-start grant does to that
+        aptitude: the lineage&rsquo;s stars raise it by one step at 1, two at 4, three at 7 and
+        four at 10, deterministically, and never as far as S. Its percentage is the chance of
+        an inspiration firing the spark, which is the part that takes A to S. An aptitude
+        belongs to the COSTUME rather than the character, so this is blank until a trainee card
+        is chosen.{' '}
+        A green marked <b>+N at start</b> is a unique carried by a DIRECT parent, which the
+        trainee is given outright when the career begins, at N hints. Its percentage is not a
+        correction to that: it is the chance of an inspiration firing the spark, which is what
+        brings a grandparent&rsquo;s copy of the same unique in and what adds further hints.{' '}
         {certain > 0 && (
           <>
             {certain} blue {certain === 1 ? 'row is' : 'rows are'} omitted for computing to 100%: a

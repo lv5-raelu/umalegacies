@@ -105,6 +105,22 @@ export interface PairSweepInput {
   /** In the order the user asked for them; `perSpark` comes back in that order. */
   criteria: readonly SparkCriterion[];
   /**
+   * Keep only pairs that put this character in one of the two PARENT slots.
+   *
+   * A composition filter, not a spark one, and that distinction is the whole
+   * point of it existing. Wanting Seiun Sky as a parent used to mean inventing
+   * a spark criterion she happens to carry -- and that criterion then entered
+   * the joint, so the odds on every row described a build the reader was not
+   * asking about. This narrows which pairs EXIST and touches no figure.
+   *
+   * BY CHARACTER, not by card or by roster entry. A reader who owns three Seiun
+   * Skys wants whichever of them is best, and the ranking is what picks; a
+   * grandparent slot is a card the reader never chose and may not recognise.
+   */
+  requireParentChara?: number | null;
+  /** The same, for the four GRANDPARENT slots. */
+  requireGrandparentChara?: number | null;
+  /**
    * The catalogue lookup. A criterion is a groupId and a threshold; whether it
    * may EXCLUDE depends on its kind, which lives in `RosterSparkOption`.
    *
@@ -152,6 +168,8 @@ export interface PairSweep {
 
 export function sweepPairs(input: PairSweepInput): PairSweep {
   const { veterans, packages, traineeCharaId, criteria, kindOf, master, masterHash } = input;
+  const requireParentChara = input.requireParentChara ?? null;
+  const requireGrandparentChara = input.requireGrandparentChara ?? null;
 
   // Split once, not 30,808 times. Whites that only rank still get measured --
   // they just cannot exclude, so they have no business in the inner loop's
@@ -183,6 +201,11 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       const b = veterans[j] as ResolvedVeteran;
 
       if (!isLegalPair(a, b, traineeCharaId)) continue;
+      // BEFORE `legal` is counted, because a pin says which pairs exist for
+      // this search rather than which of them are any good -- the same thing
+      // choosing a trainee does. Counting pinned-out pairs as legal would make
+      // "258 of 30,808" describe two different populations.
+      if (!hasChara(a, b, requireParentChara, requireGrandparentChara)) continue;
       legal++;
       if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
         input.onProgress(legal, total);
@@ -350,6 +373,34 @@ const carried = (values: readonly (number | null)[]): number => {
   let product = 1;
   for (const v of values) if (v !== null && v > 0) product *= v > 1 ? 1 : v;
   return product;
+};
+
+/**
+ * Does this pair seat the pinned characters where the reader asked for them?
+ *
+ * A pair is six umas in two shapes: the two veterans themselves become the
+ * direct PARENTS, and their own parents become the four GRANDPARENTS. So the
+ * two pins read different fields, and pinning the same character in both is a
+ * legitimate question -- "somewhere in this lineage twice" -- rather than a
+ * contradiction.
+ *
+ * `charaId` is null on a member master.mdb has no card for. Such a member can
+ * never satisfy a pin, which is right: an unresolved slot is not evidence.
+ */
+const hasChara = (
+  a: ResolvedVeteran,
+  b: ResolvedVeteran,
+  parent: number | null,
+  grandparent: number | null,
+): boolean => {
+  if (parent !== null && a.self.charaId !== parent && b.self.charaId !== parent) return false;
+  if (grandparent === null) return true;
+  for (const veteran of [a, b]) {
+    for (const member of veteran.parents) {
+      if (member?.charaId === grandparent) return true;
+    }
+  }
+  return false;
 };
 
 const packageAt = (packages: readonly RosterVeteranInput[], index: number): VeteranPackage => {

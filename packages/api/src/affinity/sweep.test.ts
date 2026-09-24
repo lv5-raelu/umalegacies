@@ -233,3 +233,75 @@ describe('the order it returns them in', () => {
     expect(second).toEqual(first);
   });
 });
+
+/**
+ * PINNING A CHARACTER INTO A SLOT, which is a filter on COMPOSITION.
+ *
+ * Reported by a reader: wanting a particular uma as a parent meant inventing a
+ * spark criterion she happens to carry, and that criterion then entered the
+ * joint -- so every row's odds described a build nobody had asked about. These
+ * pin the two things that makes true: the pair set narrows, and no figure moves.
+ */
+describe('pinning a character into a slot', () => {
+  const GOLD_SHIP_CHARA = 1009;
+  const VODKA_CHARA = 1004;
+
+  const pinned = (pins: { requireParentChara?: number; requireGrandparentChara?: number }) =>
+    sweepPairs({
+      veterans,
+      packages,
+      traineeCharaId: 1002,
+      criteria: [],
+      kindOf,
+      master,
+      masterHash: hash,
+      ...pins,
+    });
+
+  const asParent = (r: PairSearchResult, chara: number) =>
+    veterans[r.a]?.self.charaId === chara || veterans[r.b]?.self.charaId === chara;
+
+  const asGrandparent = (r: PairSearchResult, chara: number) =>
+    [veterans[r.a], veterans[r.b]].some((v) =>
+      v?.parents.some((member) => member?.charaId === chara),
+    );
+
+  it('keeps only pairs seating the character as a PARENT', () => {
+    const { results, legal } = pinned({ requireParentChara: GOLD_SHIP_CHARA });
+    expect(results.length).toBeGreaterThan(0);
+    expect(legal).toBeLessThan(sweep([]).legal);
+    for (const r of results) expect(asParent(r, GOLD_SHIP_CHARA), names(r)).toBe(true);
+  });
+
+  it('keeps only pairs seating the character as a GRANDPARENT', () => {
+    const { results, legal } = pinned({ requireGrandparentChara: VODKA_CHARA });
+    expect(results.length).toBeGreaterThan(0);
+    expect(legal).toBeLessThan(sweep([]).legal);
+    for (const r of results) expect(asGrandparent(r, VODKA_CHARA), names(r)).toBe(true);
+  });
+
+  it('reads the two slots separately rather than as one "somewhere" pin', () => {
+    // Gold Ship is BOTH a veteran and somebody's parent in this roster, so the
+    // two pins select overlapping but different sets. A single "anywhere" pin
+    // could not tell "I want to train off her" from "I want her affinity".
+    const parents = pinned({ requireParentChara: GOLD_SHIP_CHARA }).results.map(names).sort();
+    const grands = pinned({ requireGrandparentChara: GOLD_SHIP_CHARA }).results.map(names).sort();
+    expect(parents).not.toEqual(grands);
+  });
+
+  it('is a filter on composition, so a surviving pair scores EXACTLY as before', () => {
+    // The whole reason the pin exists. If any figure moved, the reader would be
+    // back to reading odds for a build they did not ask about.
+    const before = sweep([]).results;
+    for (const after of pinned({ requireParentChara: GOLD_SHIP_CHARA }).results) {
+      const match = before.find((r) => r.a === after.a && r.b === after.b);
+      expect(match, names(after)).toEqual(after);
+    }
+  });
+
+  it('cannot be satisfied by a slot master.mdb could not resolve', () => {
+    // A null charaId is an unresolved card, not a wildcard. 9999 is nobody.
+    expect(pinned({ requireParentChara: 9999 }).legal).toBe(0);
+    expect(pinned({ requireGrandparentChara: 9999 }).legal).toBe(0);
+  });
+});

@@ -200,6 +200,21 @@ export interface AncestorSparkSet {
   unknownFactorIds: number[];
 }
 
+/** The game's aptitude ladder, G through S. */
+export type AptitudeGrade = 'G' | 'F' | 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
+
+/** What the lineage's pinks do to one aptitude at the START of a career. */
+export interface AptitudeLift {
+  /** What the trainee's own CARD gives them, before any spark. */
+  from: AptitudeGrade;
+  /** What they open the career at, once the lineage's pinks apply. */
+  to: AptitudeGrade;
+  /** 0-4 steps actually gained. */
+  steps: number;
+  /** The lift hit the A ceiling rather than running out of stars; S needs an inspiration. */
+  cappedAtA: boolean;
+}
+
 /** When a white SKILL fires, as the game's own pre-race screen groups them. */
 export type SkillTiming = 'passive' | 'early' | 'mid' | 'late' | 'anytime';
 
@@ -259,6 +274,20 @@ export interface SparkSummaryRow {
    * pre-race screen groups by, so the headings here are the game's headings.
    */
   timing: SkillTiming | null;
+  /**
+   * What this PINK does to the trainee's aptitude at the start of the career.
+   *
+   * Deterministic, and the question readers actually ask of a pink: the start
+   * grant raises an aptitude by up to four steps on cumulative star totals of
+   * 1/4/7/10, and cannot reach S. The percentage beside it is the chance of an
+   * inspiration firing the spark, which is what takes A to S.
+   *
+   * Null for every other kind, and null when the request named no trainee CARD
+   * -- aptitudes belong to the costume, not the character, and Haru Urara's two
+   * cards already differ by one step on Mile. Guessing at a base grade would
+   * print a confident wrong letter.
+   */
+  aptitude: AptitudeLift | null;
   /**
    * P(the trainee FINISHES A CAREER carrying this spark), given its precondition is met.
    *
