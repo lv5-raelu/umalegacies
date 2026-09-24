@@ -1226,7 +1226,11 @@ raise them exist.
      **The integration is sanctioned.** `robots.txt` is fully permissive, `GET /api`
      answers "Bots, scripts, and integrations should use an API key instead", and the
      OpenAPI spec calls `X-API-Key` "API key for server-to-server access and usage
-     tracking". Rate limits are not advertised and remain unmeasured; see `TODOS.md`.
+     tracking". **Rate limits are not advertised and, MEASURED 2026-09-24, are not
+     reachable either**: ~140 requests escalating to 8-way concurrency were all 200, with
+     flat latency under concurrency, which reads as no throttle rather than a generous
+     one. What does bind is `limit` capping at 100 and our own sweep cost, not their
+     API. Worked in `TODOS.md` #3.
 
   **Two constraint scopes, and the second is grounded in mechanics.**
   - *Lineage-wide*: a star total across all six ancestors. "12 Stamina" means twelve stars
@@ -1398,9 +1402,16 @@ raise them exist.
   what is next, and the two places where that list has drifted from this design. This section
   stays the source of truth for *what* and *why*; that one carries *when*.
 
-  Still unresolved, and moved to `TODOS.md` rather than left here: uma.moe's rate limit
-  under real load, per-veteran affinity memoisation in the sweep, and a no-target "what
-  should I breed" mode.
+  Still unresolved, and moved to `TODOS.md` rather than left here: per-veteran affinity
+  memoisation in the sweep, and a no-target "what should I breed" mode.
+
+  **uma.moe's rate limit was on that list and is now answered: there isn't one to find.**
+  The pool is paged 100 at a time, `total: "over 10000"` is a display cap that paging
+  walks straight past, and server-side filters cut a realistic search to ~1,111 records in
+  12 pages. So a borrowed half is a FILTERED SWEEP, settled. The measurement also moved
+  the bottleneck: 259 own against 1,111 borrowed is 287,749 pairs, ~21s at the measured
+  0.072 ms each, so memoisation (`TODOS.md` #2) stops being premature the day release 2
+  starts.
 
   **Whether a veteran the user owns twice can fill both halves was on that list and is now
   answered: no.** 2,500 real inheritance records across 66 characters contain zero pairs
