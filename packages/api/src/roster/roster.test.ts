@@ -39,7 +39,7 @@ describe('resolveRoster: who each veteran is', () => {
   });
 
   it('tags a costume only where the character has more than one card', () => {
-    // 74 of 105 cards need the tag. On the other 31 it would be noise on every
+    // 74 of 107 cards need the tag. On the other 33 it would be noise on every
     // row, and a row is 52px with four other things competing for it.
     const { veterans } = resolveRoster(
       [
@@ -177,9 +177,9 @@ describe('the trainee picker', () => {
   const options = traineeOptions(master);
 
   it('offers every card, not every character, because a card is a costume', () => {
-    // 66 characters span 105 cards, and a costume carries its own unique skill.
-    expect(options.length).toBe(105);
-    expect(new Set(options.map((o) => o.charaId)).size).toBe(66);
+    // 68 characters span 107 cards, and a costume carries its own unique skill.
+    expect(options.length).toBe(107);
+    expect(new Set(options.map((o) => o.charaId)).size).toBe(68);
   });
 
   it('marks the 74 cards whose bare name is ambiguous', () => {

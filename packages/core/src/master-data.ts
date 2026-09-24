@@ -77,7 +77,7 @@ export class MasterData {
   private readonly charaIdByCardId = new Map<number, number>();
   /** chara_id -> its lowest card_id, i.e. the base costume. */
   private readonly baseCardByCharaId = new Map<number, number>();
-  /** chara_id -> every card_id it has, ascending. 35 of 66 characters have more than one. */
+  /** chara_id -> every card_id it has, ascending. 35 of 68 characters have more than one. */
   private readonly cardsByCharaId = new Map<number, number[]>();
   /** card_id -> its bracketed costume label, e.g. "[Special Dreamer]". */
   private readonly costumeByCardId = new Map<number, string>();
@@ -202,7 +202,7 @@ export class MasterData {
    * The ONE place card_id becomes chara_id.
    *
    * The roster and every ancestor carry card_id (101601); succession relations
-   * key on chara_id (1016). `card_id / 100` holds for 103 of 105 cards and
+   * key on chara_id (1016). `card_id / 100` holds for 105 of 107 cards and
    * fails on 9100101 -> 1001 and 9101101 -> 1011. hakuraku inlines the division
    * in at least three functions, which means fixing it means fixing it three
    * times and missing the third. Join, do not divide.
@@ -244,7 +244,7 @@ export class MasterData {
    * The costume label for a card, but ONLY where it is load-bearing.
    *
    * Returns null for a character with a single card, where a tag would be noise
-   * on every row. 74 of 105 cards belong to a character with more than one, and
+   * on every row. 74 of 107 cards belong to a character with more than one, and
    * for those the tag is the only thing separating two otherwise identical rows
    * that carry DIFFERENT unique skills, i.e. different green sparks.
    */

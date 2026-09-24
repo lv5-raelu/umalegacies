@@ -75,7 +75,7 @@ const TABLES = [
   // Category 5 is keyed by CARD id and holds the bracketed costume alone
   // ("[Special Dreamer]"); category 4 is the same label with the character
   // name already appended, which would force splitting a string to get either
-  // half back. All 105 cards have a row in 5, and 74 of them belong to a
+  // half back. All 107 cards have a row in 5, and 74 of them belong to a
   // character with more than one card, so without this the trainee picker
   // lists "Oguri Cap" three times identically.
   // Category 172 holds spark DESCRIPTIONS ("A Spark that increases Guts and max

@@ -178,14 +178,14 @@ redistribution rights. Caching them on the machine that runs the app is a
 different act from shipping them in git history and serving them publicly.
 
 **Keyed by card, not by character.** A card is a costume, and a costume carries
-its own unique skill, which IS the green spark. 35 of the 66 characters have
+its own unique skill, which IS the green spark. 35 of the 68 characters have
 more than one card, and on a real roster 15 appear with two different greens:
 Oguri Cap `100601` is *Triumphant Pulse*, `100602` is *Festive Miracle*. Keying
 by `chara_id` drew one costume's face directly above another costume's spark.
 
 `scripts/fetch-portraits.mjs` reads `card_data` from the committed extract,
 verifies PNG magic bytes rather than trusting a 200, and skips anything already
-on disk, so a re-run after a patch fetches only what is new. 103 of 105 cards,
+on disk, so a re-run after a patch fetches only what is new. 105 of 107 cards,
 about 900 KB. The two misses are `9100101` and `9101101` — the same pair the
 `card_id / 100` gotcha below calls out — which gametora does not host under this
 naming; they render as initials.

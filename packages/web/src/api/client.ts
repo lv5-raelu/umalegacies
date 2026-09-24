@@ -99,7 +99,7 @@ const post = <T>(path: string, body: unknown): Promise<T> =>
  * because the cache they come from is a gitignored directory beside the master
  * extract. A miss is a 404 and the component falls back to initials.
  *
- * Keyed by CARD id, which is the costume. 35 of 66 characters have more than
+ * Keyed by CARD id, which is the costume. 35 of 68 characters have more than
  * one, and a costume carries its own unique skill -- the green spark printed
  * directly under this image.
  */
