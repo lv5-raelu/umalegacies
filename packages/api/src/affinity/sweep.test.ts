@@ -243,7 +243,10 @@ describe('the order it returns them in', () => {
  * pin the two things that makes true: the pair set narrows, and no figure moves.
  */
 describe('pinning a character into a slot', () => {
-  const pinned = (pins: { requireParentCard?: number; requireGrandparentCard?: number }) =>
+  const pinned = (pins: {
+    requireParentCards?: readonly number[];
+    requireGrandparentCards?: readonly number[];
+  }) =>
     sweepPairs({
       veterans,
       packages,
@@ -264,14 +267,14 @@ describe('pinning a character into a slot', () => {
     );
 
   it('keeps only pairs seating the character as a PARENT', () => {
-    const { results, legal } = pinned({ requireParentCard: GOLD_SHIP });
+    const { results, legal } = pinned({ requireParentCards: [GOLD_SHIP] });
     expect(results.length).toBeGreaterThan(0);
     expect(legal).toBeLessThan(sweep([]).legal);
     for (const r of results) expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
   });
 
   it('keeps only pairs seating the character as a GRANDPARENT', () => {
-    const { results, legal } = pinned({ requireGrandparentCard: VODKA });
+    const { results, legal } = pinned({ requireGrandparentCards: [VODKA] });
     expect(results.length).toBeGreaterThan(0);
     expect(legal).toBeLessThan(sweep([]).legal);
     for (const r of results) expect(asGrandparent(r, VODKA), names(r)).toBe(true);
@@ -281,8 +284,8 @@ describe('pinning a character into a slot', () => {
     // Gold Ship is BOTH a veteran and somebody's parent in this roster, so the
     // two pins select overlapping but different sets. A single "anywhere" pin
     // could not tell "I want to train off her" from "I want her affinity".
-    const parents = pinned({ requireParentCard: GOLD_SHIP }).results.map(names).sort();
-    const grands = pinned({ requireGrandparentCard: GOLD_SHIP }).results.map(names).sort();
+    const parents = pinned({ requireParentCards: [GOLD_SHIP] }).results.map(names).sort();
+    const grands = pinned({ requireGrandparentCards: [GOLD_SHIP] }).results.map(names).sort();
     expect(parents).not.toEqual(grands);
   });
 
@@ -290,7 +293,7 @@ describe('pinning a character into a slot', () => {
     // The whole reason the pin exists. If any figure moved, the reader would be
     // back to reading odds for a build they did not ask about.
     const before = sweep([]).results;
-    for (const after of pinned({ requireParentCard: GOLD_SHIP }).results) {
+    for (const after of pinned({ requireParentCards: [GOLD_SHIP] }).results) {
       const match = before.find((r) => r.a === after.a && r.b === after.b);
       expect(match, names(after)).toEqual(after);
     }
@@ -301,8 +304,8 @@ describe('pinning a character into a slot', () => {
     // cards, and a costume is not a skin: the two carry different unique
     // skills, and a direct parent's unique is handed over at career start. A
     // pin that matched the character would accept either and answer neither.
-    const one = pinned({ requireParentCard: OGURI_STARLIGHT });
-    const other = pinned({ requireParentCard: OGURI_ASHEN });
+    const one = pinned({ requireParentCards: [OGURI_STARLIGHT] });
+    const other = pinned({ requireParentCards: [OGURI_ASHEN] });
     expect(one.results.length).toBeGreaterThan(0);
     expect(other.results.length).toBeGreaterThan(0);
     for (const r of one.results) expect(asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
@@ -313,10 +316,41 @@ describe('pinning a character into a slot', () => {
     expect(other.results.some((r) => both.has(names(r)))).toBe(false);
   });
 
+  it('takes a shortlist and means ANY of it', () => {
+    // A reader shortlisting three umas for a slot is asking one question, not
+    // three searches -- and three searches could not be ranked against each
+    // other, which is the thing the sweep is for.
+    const alone = pinned({ requireParentCards: [GOLD_SHIP] }).results.map(names);
+    const also = pinned({ requireParentCards: [GOLD_SHIP, OGURI_STARLIGHT] }).results.map(names);
+    expect(also.length).toBeGreaterThan(alone.length);
+    for (const n of alone) expect(also).toContain(n);
+    for (const r of pinned({ requireParentCards: [GOLD_SHIP, OGURI_STARLIGHT] }).results) {
+      expect(asParent(r, GOLD_SHIP) || asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
+    }
+  });
+
+  it('treats an empty shortlist as no constraint, not as an impossible one', () => {
+    // A reader who cleared the list is asking for everything back.
+    expect(pinned({ requireParentCards: [] }).legal).toBe(sweep([]).legal);
+    expect(pinned({ requireGrandparentCards: [] }).legal).toBe(sweep([]).legal);
+  });
+
+  it('requires BOTH lists when both are given', () => {
+    // Separate constraints: any of the parent list AND any of the grandparent
+    // list. Not a single "somewhere in the lineage" pool.
+    for (const r of pinned({
+      requireParentCards: [GOLD_SHIP],
+      requireGrandparentCards: [VODKA],
+    }).results) {
+      expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
+      expect(asGrandparent(r, VODKA), names(r)).toBe(true);
+    }
+  });
+
   it('cannot be satisfied by a slot master.mdb could not resolve', () => {
     // A null charaId is an unresolved card, not a wildcard. 9999 is nobody.
-    expect(pinned({ requireParentCard: 9999 }).legal).toBe(0);
-    expect(pinned({ requireGrandparentCard: 9999 }).legal).toBe(0);
+    expect(pinned({ requireParentCards: [9999] }).legal).toBe(0);
+    expect(pinned({ requireGrandparentCards: [9999] }).legal).toBe(0);
   });
 });
 

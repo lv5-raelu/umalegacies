@@ -119,10 +119,15 @@ export interface PairSweepInput {
    * "Oguri Cap" without saying which costume would not answer which green the
    * run opens with. Aptitudes can differ too: Haru Urara's two cards are a step
    * apart on Mile.
+   *
+   * A LIST, AND IT MEANS "ANY OF THESE". A reader shortlisting three umas for
+   * a slot is asking one question, not three searches -- and three searches
+   * could not be ranked against each other anyway, which is the thing the
+   * sweep is for. Empty means no constraint, which is also what absent means.
    */
-  requireParentCard?: number | null;
+  requireParentCards?: readonly number[];
   /** The same, for the four GRANDPARENT slots. */
-  requireGrandparentCard?: number | null;
+  requireGrandparentCards?: readonly number[];
   /**
    * The catalogue lookup. A criterion is a groupId and a threshold; whether it
    * may EXCLUDE depends on its kind, which lives in `RosterSparkOption`.
@@ -171,8 +176,15 @@ export interface PairSweep {
 
 export function sweepPairs(input: PairSweepInput): PairSweep {
   const { veterans, packages, traineeCharaId, criteria, kindOf, master, masterHash } = input;
-  const requireParentCard = input.requireParentCard ?? null;
-  const requireGrandparentCard = input.requireGrandparentCard ?? null;
+  /*
+   * Sets, built once. The inner loop asks these up to 30,808 times and an
+   * `includes` over a shortlist would be a linear scan every time.
+   *
+   * Empty is the same as absent: a reader who cleared the list is asking for
+   * no constraint, not for a slot nothing can fill.
+   */
+  const parentCards = new Set(input.requireParentCards ?? []);
+  const grandparentCards = new Set(input.requireGrandparentCards ?? []);
 
   // Split once, not 30,808 times. Whites that only rank still get measured --
   // they just cannot exclude, so they have no business in the inner loop's
@@ -216,7 +228,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       // this search rather than which of them are any good -- the same thing
       // choosing a trainee does. Counting pinned-out pairs as legal would make
       // "258 of 30,808" describe two different populations.
-      if (!seats(a, b, requireParentCard, requireGrandparentCard)) continue;
+      if (!seats(a, b, parentCards, grandparentCards)) continue;
       legal++;
       if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
         input.onProgress(legal, total);
@@ -398,19 +410,26 @@ const carried = (values: readonly (number | null)[]): number => {
  * `charaId` is null on a member master.mdb has no card for. Such a member can
  * never satisfy a pin, which is right: an unresolved slot is not evidence.
  */
+/**
+ * Does this pair seat one of the shortlisted cards in each pinned slot?
+ *
+ * ANY of the parent list in a parent slot, and ANY of the grandparent list in
+ * a grandparent slot. The two lists are separate constraints and both must be
+ * met; within a list the members are alternatives.
+ */
 const seats = (
   a: ResolvedVeteran,
   b: ResolvedVeteran,
-  parentCard: number | null,
-  grandparentCard: number | null,
+  parentCards: ReadonlySet<number>,
+  grandparentCards: ReadonlySet<number>,
 ): boolean => {
-  if (parentCard !== null && a.self.cardId !== parentCard && b.self.cardId !== parentCard) {
+  if (parentCards.size > 0 && !parentCards.has(a.self.cardId) && !parentCards.has(b.self.cardId)) {
     return false;
   }
-  if (grandparentCard === null) return true;
+  if (grandparentCards.size === 0) return true;
   for (const veteran of [a, b]) {
     for (const member of veteran.parents) {
-      if (member?.cardId === grandparentCard) return true;
+      if (member !== null && grandparentCards.has(member.cardId)) return true;
     }
   }
   return false;
