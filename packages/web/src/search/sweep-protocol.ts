@@ -25,14 +25,14 @@ export interface SweepRequest {
   traineeCardId?: number;
   criteria: SparkCriterion[];
   /**
-   * The exact card the reader pinned into each slot.
+   * The cards shortlisted for each slot, meaning ANY of them.
    *
    * Composition rather than sparks: these narrow which pairs the sweep builds
-   * and touch no figure it reports. Plain numbers, so they cross the worker
-   * boundary without ceremony.
+   * and touch no figure it reports. Plain number arrays, so they cross the
+   * worker boundary without ceremony.
    */
-  requireParentCard?: number;
-  requireGrandparentCard?: number;
+  requireParentCards?: number[];
+  requireGrandparentCards?: number[];
   /**
    * The catalogue, flattened.
    *

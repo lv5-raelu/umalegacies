@@ -126,8 +126,8 @@ export function PairSearch({
    * beside them: a pin re-runs the sweep, so it belongs on the same commit as
    * everything else rather than firing on selection.
    */
-  const [pins, setPins] = useState<Pins>({ parent: null, grandparent: null });
-  const [appliedPins, setAppliedPins] = useState<Pins>({ parent: null, grandparent: null });
+  const [pins, setPins] = useState<Pins>({ parent: [], grandparent: [] });
+  const [appliedPins, setAppliedPins] = useState<Pins>({ parent: [], grandparent: [] });
   const detail = usePairDetail(
     packages,
     trainee?.charaId ?? null,
@@ -307,7 +307,20 @@ export function PairSearch({
           */}
           <div className={styles.pins}>
             <span className={styles.pinsLabel}>MUST INCLUDE</span>
-            <label className={styles.pin}>
+            {/*
+              A SPAN, NOT A LABEL, and the difference is a real bug.
+
+              A `<label>` forwards any click inside it to its first labelable
+              descendant, and a `<button>` is labelable -- so every click on an
+              option in the popup was ALSO a click on the trigger, which toggles
+              the list shut. Single-select hid it, because the list closed on a
+              pick anyway. Multi-select could not: picking a second uma was
+              impossible.
+
+              Nothing is lost by dropping the element: `AncestorPin` carries its
+              own `aria-label`, so the control is named without one.
+            */}
+            <span className={styles.pin}>
               <span className={styles.pinSlot}>as a parent</span>
               <span className={styles.pinField}>
                 <AncestorPin
@@ -317,8 +330,8 @@ export function PairSearch({
                   onChoose={(parent) => setPins((p) => ({ ...p, parent }))}
                 />
               </span>
-            </label>
-            <label className={styles.pin}>
+            </span>
+            <span className={styles.pin}>
               <span className={styles.pinSlot}>as a grandparent</span>
               <span className={styles.pinField}>
                 <AncestorPin
@@ -328,7 +341,7 @@ export function PairSearch({
                   onChoose={(grandparent) => setPins((p) => ({ ...p, grandparent }))}
                 />
               </span>
-            </label>
+            </span>
           </div>
 
           <div className={styles.searchRow}>
@@ -503,10 +516,16 @@ function SearchProgress({ status }: { status: SearchStatus }) {
  * ranked before a row renders -- so this paces the DOM, not the search, and
  * "show 80 more" costs a slice rather than a re-sweep.
  */
-/** The card that has to be in the pair, per slot kind. Null is "anyone". */
+/**
+ * The cards shortlisted for each slot. Empty is "anyone".
+ *
+ * A list rather than one card: shortlisting three umas for a slot is one
+ * question, and its answer is a ranking across all three. Within a slot the
+ * members are alternatives; the two slots are separate constraints.
+ */
 interface Pins {
-  parent: number | null;
-  grandparent: number | null;
+  parent: number[];
+  grandparent: number[];
 }
 
 export const PAGE = 80;

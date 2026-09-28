@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { Portrait } from '../lineage/Portrait';
+import { pinSummary, togglePin } from './pin-list';
 import { useCombobox } from '../roster/useCombobox';
 import styles from '../roster/Combobox.module.css';
 
@@ -16,6 +17,13 @@ import styles from '../roster/Combobox.module.css';
  * and carries four of the seven affinity links, while a grandparent is a third
  * of the star totals and one link. A reader who wants Seiun's affinity is not
  * asking the same thing as one who wants her sparks at distance.
+ *
+ * MANY PER SLOT, MEANING "ANY OF THESE". Shortlisting three umas for a slot is
+ * one question, and the answer is a ranking across all three -- which three
+ * separate searches could not give, because their results cannot be compared.
+ * The list therefore stays open while choices accumulate, and the query
+ * survives a pick so narrowing to "oguri" and taking two of her costumes is
+ * one search rather than two.
  *
  * BY CARD, because a costume is not a skin. Cards of one character carry
  * different unique skills and so different GREEN sparks, and a direct parent's
@@ -42,10 +50,11 @@ export function AncestorPin({
 }: {
   label: string;
   options: readonly PinOption[];
-  chosen: number | null;
-  onChoose: (cardId: number | null) => void;
+  chosen: readonly number[];
+  onChoose: (cardIds: number[]) => void;
 }) {
-  const current = options.find((o) => o.cardId === chosen) ?? null;
+  const picked = new Set(chosen);
+  const current = options.filter((o) => picked.has(o.cardId));
 
   const { items, open, setOpen, query, onSearch, active, setActive, wrap, search, listbox, onKeyDown, choose } =
     useCombobox<Choice>({
@@ -69,10 +78,17 @@ export function AncestorPin({
       // other combobox here: a list of 68 characters should show you where you
       // already are.
       activeIndexOf: useCallback(
-        (items: readonly Choice[]) => items.findIndex((o) => (o?.cardId ?? null) === chosen),
-        [chosen],
+        (items: readonly Choice[]) => items.findIndex((o) => o !== null && picked.has(o.cardId)),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [chosen.join(',')],
       ),
-      onChoose: useCallback((choice: Choice) => onChoose(choice?.cardId ?? null), [onChoose]),
+      // Null is the clear row; anything else toggles. Toggling rather than
+      // adding, so the way to remove one is the way you added it.
+      onChoose: useCallback(
+        (choice: Choice) => onChoose(choice === null ? [] : togglePin(chosen, choice.cardId)),
+        [onChoose, chosen],
+      ),
+      keepOpen: true,
     });
 
   return (
@@ -95,18 +111,28 @@ export function AncestorPin({
         aria-label={label}
         onClick={() => setOpen(!open)}
       >
-        {current ? (
+        {/* ONE is named with its face, because that is the case where the
+            costume matters and there is room to show it. SEVERAL is a count:
+            three names would not fit, and a truncated first name reads as the
+            only choice. NONE says "anyone", which is what no pin means. */}
+        {current.length === 1 && current[0] !== undefined ? (
           <>
             <span className={styles.triggerPortrait}>
-              <Portrait cardId={current.cardId} name={current.name} />
+              <Portrait cardId={current[0].cardId} name={current[0].name} />
             </span>
             <span className={styles.triggerText}>
-              {current.name}
-              {current.costume ? ` ${current.costume}` : ''}
+              {current[0].name}
+              {current[0].costume ? ` ${current[0].costume}` : ''}
             </span>
           </>
         ) : (
-          <span className={`${styles.triggerText} ${styles.placeholder}`}>anyone</span>
+          <span
+            className={
+              current.length === 0 ? `${styles.triggerText} ${styles.placeholder}` : styles.triggerText
+            }
+          >
+            {pinSummary(current.map((o) => o.name))}
+          </span>
         )}
         <span className={styles.caret}>{open ? '\u25b2' : '\u25bc'}</span>
       </button>
@@ -131,13 +157,15 @@ export function AncestorPin({
                 <li
                   key={item === null ? 'none' : item.cardId}
                   role="option"
-                  aria-selected={(item?.cardId ?? null) === chosen}
+                  aria-selected={item === null ? chosen.length === 0 : picked.has(item.cardId)}
                   className={`${styles.option} ${i === active ? styles.active : ''}`}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(item)}
                 >
                   {item === null ? (
-                    <span className={`${styles.optionText} ${styles.placeholder}`}>anyone</span>
+                    <span className={`${styles.optionText} ${styles.placeholder}`}>
+                      anyone {chosen.length > 0 ? '— clear the list' : ''}
+                    </span>
                   ) : (
                     <>
                       <span className={styles.optionPortrait}>
@@ -151,7 +179,9 @@ export function AncestorPin({
                       </span>
                     </>
                   )}
-                  {(item?.cardId ?? null) === chosen && <span className={styles.chosen}>✓</span>}
+                  {(item === null ? chosen.length === 0 : picked.has(item.cardId)) && (
+                    <span className={styles.chosen}>✓</span>
+                  )}
                 </li>
               ))}
             </ul>

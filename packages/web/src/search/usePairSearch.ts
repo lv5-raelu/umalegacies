@@ -41,8 +41,8 @@ export function usePairSearch(
   traineeCharaId: number | null,
   traineeCardId: number | null,
   criteria: readonly SparkCriterion[],
-  /** The card pinned into each slot. Composition, not sparks; see `SweepRequest`. */
-  pins: { parent: number | null; grandparent: number | null },
+  /** The cards shortlisted per slot. Composition, not sparks; see `SweepRequest`. */
+  pins: { parent: readonly number[]; grandparent: readonly number[] },
 ): SearchStatus {
   const clientRef = useRef<SweepClient | null>(null);
   const [status, setStatus] = useState<SearchStatus>({ kind: 'idle' });
@@ -77,8 +77,8 @@ export function usePairSearch(
           traineeCharaId,
           ...(traineeCardId === null ? {} : { traineeCardId }),
           criteria: [...criteria],
-          ...(pins.parent === null ? {} : { requireParentCard: pins.parent }),
-          ...(pins.grandparent === null ? {} : { requireGrandparentCard: pins.grandparent }),
+          requireParentCards: [...pins.parent],
+          requireGrandparentCards: [...pins.grandparent],
           kinds,
           masterHash: roster.masterHash,
         },
@@ -103,8 +103,9 @@ export function usePairSearch(
     };
     // `pins` is an object literal at the call site, so its identity changes on
     // every render; the two numbers inside it are what the sweep depends on.
-    // `pins` is an object literal at the call site, so its identity changes on
-    // every render; the two card ids inside it are what the sweep depends on.
+    // `pins` holds two ARRAYS, whose identity changes on every render even when
+    // nothing was picked. Joining them gives the effect a value to compare, so
+    // a re-render does not re-run a 2.4s sweep.
   }, [
     roster,
     packages,
@@ -112,8 +113,8 @@ export function usePairSearch(
     traineeCardId,
     criteria,
     kinds,
-    pins.parent,
-    pins.grandparent,
+    pins.parent.join(','),
+    pins.grandparent.join(','),
   ]);
 
   // The worker outlives every search but not the screen.

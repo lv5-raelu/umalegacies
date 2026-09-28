@@ -19,6 +19,7 @@ export function useCombobox<T>({
   filter,
   activeIndexOf,
   onChoose,
+  keepOpen = false,
 }: {
   /**
    * Query to matching options. The hook owns the query, so the caller cannot be
@@ -29,6 +30,16 @@ export function useCombobox<T>({
   /** Where to put the highlight when the list opens. -1 for the top. */
   activeIndexOf: (items: readonly T[]) => number;
   onChoose: (item: T) => void;
+  /**
+   * Stay open after a choice, for a list where choices ACCUMULATE.
+   *
+   * A single-select list closes because the choice is the end of the
+   * interaction; a multi-select one closes only when the reader says so, and
+   * reopening it per uma would make picking three a nine-click job. The query
+   * survives too: narrowing to "oguri" and picking two of her costumes is one
+   * search, not two.
+   */
+  keepOpen?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -61,10 +72,11 @@ export function useCombobox<T>({
   const choose = useCallback(
     (item: T): void => {
       onChoose(item);
+      if (keepOpen) return;
       setOpen(false);
       setQuery('');
     },
-    [onChoose],
+    [onChoose, keepOpen],
   );
 
   const onKeyDown = (e: KeyboardEvent): void => {
