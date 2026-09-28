@@ -307,7 +307,20 @@ export function PairSearch({
           */}
           <div className={styles.pins}>
             <span className={styles.pinsLabel}>MUST INCLUDE</span>
-            <label className={styles.pin}>
+            {/*
+              A SPAN, NOT A LABEL, and the difference is a real bug.
+
+              A `<label>` forwards any click inside it to its first labelable
+              descendant, and a `<button>` is labelable -- so every click on an
+              option in the popup was ALSO a click on the trigger, which toggles
+              the list shut. Single-select hid it, because the list closed on a
+              pick anyway. Multi-select could not: picking a second uma was
+              impossible.
+
+              Nothing is lost by dropping the element: `AncestorPin` carries its
+              own `aria-label`, so the control is named without one.
+            */}
+            <span className={styles.pin}>
               <span className={styles.pinSlot}>as a parent</span>
               <span className={styles.pinField}>
                 <AncestorPin
@@ -317,8 +330,8 @@ export function PairSearch({
                   onChoose={(parent) => setPins((p) => ({ ...p, parent }))}
                 />
               </span>
-            </label>
-            <label className={styles.pin}>
+            </span>
+            <span className={styles.pin}>
               <span className={styles.pinSlot}>as a grandparent</span>
               <span className={styles.pinField}>
                 <AncestorPin
@@ -328,7 +341,7 @@ export function PairSearch({
                   onChoose={(grandparent) => setPins((p) => ({ ...p, grandparent }))}
                 />
               </span>
-            </label>
+            </span>
           </div>
 
           <div className={styles.searchRow}>
