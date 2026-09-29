@@ -458,18 +458,51 @@ concentrates affinity links that the game would never let you have. Shipping wit
 this would not have produced a subtly wrong ranking; it would have produced a top row
 the player cannot select in the game.
 
-Two ways to close it, and the choice is not obvious:
+**CLOSED, by widening the predicates rather than by manufacturing a roster row.** The
+two options were: resolve borrowed halves into `ResolvedVeteran` at the adapter, giving
+them a synthetic `index`; or widen the predicates to the narrow shape both can satisfy.
+The builder chose the second, and the reason is the one that made `ParentPick` a
+discriminated union in the first place -- an `index` is a position in the array that was
+SENT, and it is the one thing a borrowed veteran does not have. Inventing one to satisfy
+a predicate would have quietly reintroduced exactly what that union exists to prevent.
 
-1. **Resolve borrowed halves into `ResolvedVeteran` at the adapter**, giving them a
-   synthetic `index` and a looked-up `charaId`. Every existing predicate then works
-   unchanged, including `pickBlock` and the sweep's own `isLegalPair`.
-2. **Widen the predicates to take a narrower shape** -- `{ index, charaId }` -- which
-   both a resolved veteran and an adapted borrow can satisfy.
+`PairSide` is now what `isLegalPair` and `pickBlock` take:
 
-(1) is less code and keeps one type flowing through the sweep; (2) avoids inventing an
-`index` for something that has no position in any file the user uploaded, which is
-precisely the objection that made `ParentPick` a union in the first place. Decide before
-the sweep task, not during it.
+```ts
+export interface PairSide {
+  index: string | number;
+  self: { charaId: number | null };
+}
+```
+
+A `ResolvedVeteran` satisfies it structurally, so **not one existing call site changed**
+and nothing is allocated per comparison, which matters at 33,411 of them.
+
+**`index` IS `string | number`, AND THAT IS THE WHOLE DESIGN.** It is an identity, not
+an ordinal: the only question ever asked of it is "are these two the same candidate".
+The borrow sweep compares own veterans against borrowed ones in one run, so numbering
+both from 0 would make own veteran 5 equal borrowed veteran 5 and `isLegalPair` would
+refuse a legal pair -- silently, and only for the pairs whose numbers happened to line
+up, which is the hardest kind of bug to notice. A borrowed half carries
+`borrowed:<n>`, which can never equal a roster row's number, so the collision is
+impossible rather than merely avoided. Pinned by a test that pairs roster row 0 with
+borrowed 0 and expects it to be legal.
+
+Re-run live through the shipped predicate, which agreed exactly with the hand-rolled
+check above:
+
+```
+  naive pairs formed                              150
+  refused: a parent IS the trainee's character     51
+  refused: both parents the same character          6
+  legal pairs left                                 93
+  best legal pair                                 427, rank 3, Stamina 18*
+```
+
+(The counts move by one or two between runs because the pool is live.) The best pair
+that run has the trainee's own character, Oguri Cap, sitting as a GRANDparent -- which
+is legal and modelled deliberately, and is a useful demonstration that rule 1 is narrow:
+it bars the parent slot only.
 
 ## The open question release 2 now has to answer
 
