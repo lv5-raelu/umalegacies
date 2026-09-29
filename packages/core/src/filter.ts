@@ -337,3 +337,27 @@ export function pickBlock(
 
 const isChara = (veteran: ResolvedVeteran, charaId: number | null): boolean =>
   charaId !== null && veteran.self.charaId === charaId;
+
+/**
+ * Does this criterion take part in the odds the screen reports?
+ *
+ * ONE PREDICATE, FOUR PLACES. The reader ticks "exclude spark activation" on a
+ * pink they already get at career start -- Oguri Cap at A in End Closer is
+ * granted before the first inspiration -- and from that one tick four things
+ * have to follow together: the spark leaves the activation product, it leaves
+ * the inherit product, it leaves the DENOMINATOR those products are labelled
+ * with, and it leaves the search row's band. Each was written out longhand as
+ * `c.excludeFromOdds !== true` in the sweep, the row and the compare pane, and
+ * "5 of 6 activate" printed above six chips is precisely what a fifth
+ * open-coded copy buys.
+ *
+ * So the agreement is a function call rather than a convention, for the same
+ * reason `matchesCriterion` and `matchesPair` live in this file.
+ *
+ * It is NOT a filter predicate and must never be used as one. The criterion
+ * still decides which pairs qualify; the tick is about what the aggregate
+ * counts and what the row prints, and a pair that only matched because of this
+ * spark is still a legitimate result.
+ */
+export const countsTowardOdds = (criterion: SparkCriterion): boolean =>
+  criterion.excludeFromOdds !== true;

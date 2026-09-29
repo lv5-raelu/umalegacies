@@ -6,7 +6,7 @@ import type {
   SparkKind,
   VeteranPackage,
 } from '@umalegacies/types';
-import { isLegalPair, isRequirement, matchesPair } from './filter.js';
+import { countsTowardOdds, isLegalPair, isRequirement, matchesPair } from './filter.js';
 import { inheritOnceInCareer } from './inherit.js';
 import { jointOdds } from './joint.js';
 import { lineageFromPair } from './pair.js';
@@ -208,10 +208,11 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
   /*
    * Which criteria the COMBINED figures count, computed once.
    *
-   * A criterion the reader excluded still filters and still reports its own
-   * percentage; it simply leaves the product. See `SparkCriterion.excludeFromOdds`.
+   * A criterion the reader excluded still filters -- it still decides which
+   * pairs qualify -- and simply leaves the product. `countsTowardOdds` is
+   * shared with the row band and the compare pane so all three cannot drift.
    */
-  const counted = criteria.map((c) => c.excludeFromOdds !== true);
+  const counted = criteria.map(countsTowardOdds);
 
   const results: PairSearchResult[] = [];
   let legal = 0;

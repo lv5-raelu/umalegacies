@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PackageSpark, ResolvedVeteran, SparkCriterion, SparkKind } from '@umalegacies/types';
 import {
+  countsTowardOdds,
   filterVeterans,
   isLegalPair,
   isRequirement,
@@ -590,5 +591,41 @@ describe('isLegalPair: the sweep asks the same rules a different way', () => {
     // And the picked half stays unselectable-away, which is what makes the
     // state recoverable at all.
     expect(pickBlock(oguriStarlight, [oguriStarlight], OGURI)).toBeNull();
+  });
+});
+
+describe('countsTowardOdds: the tick that changes what is reported, not what qualifies', () => {
+  const stamina = (over: Partial<SparkCriterion> = {}): SparkCriterion => ({
+    groupId: STAMINA,
+    minStars: 1,
+    scope: 'package',
+    ...over,
+  });
+
+  it('counts a criterion nobody excluded', () => {
+    expect(countsTowardOdds(stamina())).toBe(true);
+    // Absent and false are the same answer. The flag is optional on the wire
+    // and an unticked box round-trips as either, depending on which build
+    // wrote the stored selection.
+    expect(countsTowardOdds(stamina({ excludeFromOdds: false }))).toBe(true);
+  });
+
+  it('drops one the reader excluded', () => {
+    expect(countsTowardOdds(stamina({ excludeFromOdds: true }))).toBe(false);
+  });
+
+  it('is not a filter predicate, and the sweep still prunes on the excluded spark', () => {
+    // The trap this exists to prevent. "Exclude from the odds" is about what
+    // the row prints and what the product multiplies; a pair that qualifies
+    // ONLY because of this spark is still a legitimate result, so the
+    // requirement test must not consult it.
+    const excluded = stamina({ minStars: 3, excludeFromOdds: true });
+    expect(isRequirement(excluded, 'blue')).toBe(true);
+    // And a white it excludes still prunes exactly when `mustHave` says so,
+    // which is the other flag on the same criterion and a different question.
+    expect(isRequirement(excluded, 'white_skill')).toBe(false);
+    expect(isRequirement({ ...excluded, mustHave: true }, 'white_skill')).toBe(true);
+    expect(matchesCriterion(veteran([3, 0, 0]), excluded)).toBe(true);
+    expect(matchesCriterion(veteran([1, 0, 0]), excluded)).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ import type {
 import {
   acquisitionChance,
   carriedCount,
+  countsTowardOdds,
   hasAcquisitionRoll,
   inheritOnceInCareer,
   jointOdds,
@@ -236,7 +237,10 @@ function Result({
    * its chip; it is out of the product, and so out of the product's
    * denominator.
    */
-  const countedWanted = wanted.filter((_, i) => criteria[i]?.excludeFromOdds !== true);
+  const countedWanted = wanted.filter((_, i) => {
+    const c = criteria[i];
+    return c !== undefined && countsTowardOdds(c);
+  });
   const joint = jointOdds(countedWanted.map(({ row }) => (row ? valueFor(row, view) : null)));
 
   /*
@@ -253,7 +257,7 @@ function Result({
    * search sees the gold number here on the pair they picked.
    */
   const inheritValues = criteria
-    .filter((c) => c.excludeFromOdds !== true)
+    .filter(countsTowardOdds)
     .map((c) => {
       const row = lineage.sparks.find((s) => s.groupId === c.groupId);
       if (row === undefined) {
@@ -276,7 +280,7 @@ function Result({
   const jointInherit = jointOdds(inheritValues);
   const skillCriteria = criteria.filter(
     (c) =>
-      c.excludeFromOdds !== true &&
+      countsTowardOdds(c) &&
       sparkOptions.find((o) => o.groupId === c.groupId)?.kind === 'white_skill',
   ).length;
 
