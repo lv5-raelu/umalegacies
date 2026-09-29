@@ -420,14 +420,56 @@ the same `lineageFromPair` + `explainLineage` the compare pane calls:
 ```
   pool total (their word)   542
   packages adapted          300 of 300     unusable 0
-  pages fetched             3              1.9 s
-  six ancestors resolved    6/6
+  pages fetched             3              2.0 s
+  legal pairs               91 of 150      (see below)
+  every pair 6/6 ancestors  true
   unknown factor ids        0
-  best pair                 624, relation rank 3, Stamina 18*
+  best legal pair           438, relation rank 3, Stamina 18*
 ```
 
 18 stars of Stamina is the pair ceiling, which is what a filter asking for 9 per lineage
-on both halves should produce.
+on both halves should produce. Scoring cost 0.36 ms a pair.
+
+## What the end-to-end caught, which is why it exists
+
+**The first run put Oguri Cap x Oguri Cap at the top of the list, for a trainee
+who is also Oguri Cap.** Illegal twice over: the game forbids two parents of the same
+character (`TODOS.md` #4, 0 counterexamples in 2,500 real records) and forbids a parent
+being the trainee's own character.
+
+The demo script had simply not called `isLegalPair`, but the reason it COULD not is the
+real finding. `isLegalPair` takes a `ResolvedVeteran` and reads `index` and
+`self.charaId`; a borrowed half is a `VeteranPackage`, which carries `cardId` and
+nothing else. **So none of the legality rules the own-roster sweep enforces currently
+reach a borrowed half.**
+
+Applied by hand against `MasterData.charaIdFor`, on the same 300-record pool:
+
+```
+  naive pairs formed                              150
+  refused: a parent IS the trainee's character     52
+  refused: both parents the same character          7
+  legal pairs left                                 91
+```
+
+39% of pairs illegal, and the illegal ones were WINNING -- the naive best was 525 and
+the legal best is 438, because a lineage that reuses the trainee's own character
+concentrates affinity links that the game would never let you have. Shipping without
+this would not have produced a subtly wrong ranking; it would have produced a top row
+the player cannot select in the game.
+
+Two ways to close it, and the choice is not obvious:
+
+1. **Resolve borrowed halves into `ResolvedVeteran` at the adapter**, giving them a
+   synthetic `index` and a looked-up `charaId`. Every existing predicate then works
+   unchanged, including `pickBlock` and the sweep's own `isLegalPair`.
+2. **Widen the predicates to take a narrower shape** -- `{ index, charaId }` -- which
+   both a resolved veteran and an adapted borrow can satisfy.
+
+(1) is less code and keeps one type flowing through the sweep; (2) avoids inventing an
+`index` for something that has no position in any file the user uploaded, which is
+precisely the objection that made `ParentPick` a union in the first place. Decide before
+the sweep task, not during it.
 
 ## The open question release 2 now has to answer
 
