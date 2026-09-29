@@ -5,6 +5,7 @@
   "type": "module",
   "description": "React + Vite web app. Renders and inputs; no domain logic.",
   "scripts": {
+    "predev": "npm run build --workspace @umalegacies/core --prefix ../..",
     "dev": "vite",
     "prebuild": "npm run build --workspace @umalegacies/core --prefix ../..",
     "build": "tsc -p tsconfig.json --noEmit && vite build",

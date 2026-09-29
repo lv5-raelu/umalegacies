@@ -9,7 +9,7 @@ import type {
   SparkKind,
   TraineeOption,
 } from '@umalegacies/types';
-import { carriedCount } from '@umalegacies/core';
+import { carriedCount, countsTowardOdds } from '@umalegacies/core';
 import { AncestorPin, type PinOption } from './AncestorPin';
 import { Portrait } from '../lineage/Portrait';
 import { rankGlyph } from '../lineage/pair-total';
@@ -600,19 +600,25 @@ const PairRow = memo(function PairRow({
   const asked = new Set(criteria.map((c) => c.groupId));
 
   /*
-   * THE AGGREGATES COUNT ONLY WHAT THE READER LEFT IN.
+   * THE ROW SHOWS ONLY WHAT THE READER LEFT IN.
    *
-   * A criterion marked "exclude spark activation" still filters and still
-   * prints its own percentage on the row; it is out of the product and
-   * therefore out of the product's denominator too. "5 of 6 activate" beside a figure computed from
-   * five criteria would be the same lie the label was added to prevent.
+   * A criterion marked "exclude spark activation" still FILTERS -- it is still
+   * why this pair is on the screen -- but on the row itself it is gone: no
+   * chip, out of the product, and out of the product's denominator. All three
+   * follow from one mask, which is the point: "5 of 6 activate" above six
+   * chips would be the same lie the label was added to prevent, and the way to
+   * be sure the label and the chips agree is to derive them from the same
+   * predicate rather than to keep two in step.
    *
    * Positional: `perSpark` is index-aligned with `criteria`, so the mask has to
    * be applied by index rather than by filtering values.
    */
-  const countedCriteria = criteria.filter((c) => c.excludeFromOdds !== true);
+  const countedCriteria = criteria.filter(countsTowardOdds);
   const counted = <T,>(values: readonly T[]): T[] =>
-    values.filter((_, i) => criteria[i]?.excludeFromOdds !== true);
+    values.filter((_, i) => {
+      const c = criteria[i];
+      return c !== undefined && countsTowardOdds(c);
+    });
 
   /*
    * THE WHOLE ROW IS THE CONTROL, because the whole row is the thing you pick.
@@ -682,7 +688,7 @@ const PairRow = memo(function PairRow({
         count. The builder could not read the notation, which settles it: a
         notation that needs a legend is a puzzle.
       */}
-      {criteria.length > 0 && (
+      {countedCriteria.length > 0 && (
         <div className={styles.wants}>
           {/*
             THE TWO JOINTS, PINNED TOP RIGHT, WITH THE SPARKS FLOWING ROUND THEM.
@@ -745,6 +751,29 @@ const PairRow = memo(function PairRow({
           */}
           {criteria
             .map((criterion, c) => ({ criterion, c }))
+            /*
+             * EXCLUDED MEANS GONE FROM HERE, not merely out of the product.
+             *
+             * Changed on the builder's call. The first cut kept the chip and
+             * printed its percentage, on the reasoning that the reader was
+             * "excluding it from a total, not hiding it". That reasoning misread
+             * what the tick is FOR. Somebody who wants Oguri Cap at A in End
+             * Closer already has it at career start; the activation figure
+             * answers a question they have declared they are not asking, and
+             * leaving it on the row invites exactly the arithmetic the label
+             * was rewritten to prevent -- four chips above a figure computed
+             * from three.
+             *
+             * It stays in the audit log, where the same pink carries the one
+             * fact that makes excluding it worth doing: `B->A at start`. The
+             * row band has no room for that and shows only the percentage, so
+             * here there is nothing left to keep.
+             *
+             * The ORIGINAL index is captured above and travels through, because
+             * `row.stars` and `row.perSpark` are positional and this filter must
+             * not shift what each chip reads.
+             */
+            .filter(({ criterion }) => countsTowardOdds(criterion))
             .sort((x, y) => {
               const kx = catalogue.get(x.criterion.groupId)?.kind;
               const ky = catalogue.get(y.criterion.groupId)?.kind;
