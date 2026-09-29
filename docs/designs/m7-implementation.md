@@ -517,3 +517,104 @@ Which makes the translation a CORRECTNESS problem before it is a performance one
 requirement of N stars across the lineage cannot be pushed to one half as N: the other
 half can supply up to 9, so the sound server-side threshold is `N - (the most any own
 veteran contributes)`. Anything tighter drops valid pairs silently. Next task.
+
+## The filter translation, and what measuring it changed
+
+`packages/api/src/borrow/query.ts`. Turning the reader's `SparkCriterion[]` into a
+uma.moe query, and it is a correctness problem before it is a performance one.
+
+**A criterion describes a PAIR; their server filters ONE veteran.** "Stamina >= 12
+across the lineage" is a pair requirement, and a borrowed half carries at most 9. Sending
+`>= 12` asks for something no record can have and returns nothing -- wrong in the
+direction nobody notices, because an empty pool reads as "nobody is lending a veteran
+like that".
+
+So a server-side filter may only express a NECESSARY condition. Per scope, with the pair
+being one own veteran and one borrowed:
+
+```
+  package     sum across the pair      borrowed >= N - bestOwn      ceiling 9
+  parent      sum, one uma per half    borrowed >= N - bestOwnSelf  ceiling 3
+  one-parent  MAX across the pair      if any own veteran reaches N alone, SEND NOTHING
+```
+
+The third is the one a subtraction gets wrong: a max is satisfied by either side, so
+filtering one side assumes both. Whites without `mustHave` are not sent at all, read
+through `isRequirement` rather than reimplemented -- a pair lacking a preferred white
+still qualifies, and pushing it would delete candidates the local sweep would have kept.
+
+**Pinned by an exhaustive soundness search**, ~30,000 cases over every scope, threshold,
+own roster and borrowed half: if the filter rejects a half, no pair containing it
+qualifies locally. The converse is deliberately not asserted -- a prefilter is allowed to
+be loose. Mutation-tested by breaking the implementation three ways; each break failed
+the property and named its counterexample:
+
+```
+  treat one-parent's max as a sum          2 tests fail
+  OR list starts one star too high         8 tests fail
+  ignore the own roster                    6 tests fail
+```
+
+### THE PREFILTER IS WEAK ON A STRONG ROSTER, and that is the bound being honest
+
+Measured on the builder's real 260-veteran roster, asking Stamina >= 12, Medium >= 6,
+must-have Uma Stan >= 6, Nimble Navigator >= 4:
+
+```
+  Stamina            pair needs 12  ->  borrowed half needs 3    blue_sparks
+  Medium             not sent: own-roster-covers-it
+  Uma Stan           not sent: own-roster-covers-it
+  Nimble Navigator   not sent: ranks-only
+  pool, filtered     over 10000
+```
+
+Two of four dropped out because the roster can already supply them alone. That is not a
+bug: a prefilter may only express what is NECESSARY, and a strong roster necessitates
+very little of its partner. The tightest sound single query is the per-criterion maximum
+over the roster, and on a good roster that is close to no filter.
+
+### So the slice matters more than the filter, and it is worth 13x
+
+The pool stays above the display cap, so we take a slice. Same filter, same 1,000
+records, four orderings:
+
+```
+  arbitrary (sort_by=last_updated asc)       26 qualifying pairs, best 352
+  their default order                       221 qualifying pairs, best 428
+  default + player_chara_id = our trainee   337 qualifying pairs, best 428
+  sort_by=white_stars_sum desc              247 qualifying pairs, best 417
+```
+
+Their default sort is `affinity_score` descending, and `player_chara_id` makes that score
+relative to OUR trainee rather than to nobody. So it is always sent. **Their affinity is
+never treated as our number** -- ours is base plus bonus over seven links with a
+derivation the compare pane can show. It decides what to look at first; our engine still
+ranks.
+
+**`optional_white_sparks` is not usable.** The spec calls it "Preferred white sparks
+(soft filter)", which is exactly the whites-that-rank case. It returns 0 for any value,
+alone or in a list, against a query otherwise returning "over 10000". Recorded so the
+next reader does not find it again the hard way.
+
+### The performance worry was the wrong one
+
+Full end-to-end, real roster, live API:
+
+```
+  fetch               2,000 records, 20 pages, 6.4 s
+  legal pairs         395,785
+  qualifying pairs    332
+  sweep               123 ms
+  best                428, rank 3, Narita Brian (yours) x Special Week (borrowed)
+```
+
+395,785 pairs in 123 ms, because `matchesPair` prunes before `explainLineage` and only
+332 reached it. **The sweep is not the bottleneck; the FETCH is**, at 6.4 s against
+0.12 s. That revises the note above: `TODOS.md` #2 (per-veteran affinity memoisation)
+stays parked, and what wants attention is paging concurrency and how many records are
+worth taking.
+
+The exception is a search with NO hard constraint -- the whites-only case the builder
+named as the real target. Nothing prunes there, every pair reaches `explainLineage` at
+~0.4 ms, and 395,785 of them is about three minutes. That, not memoisation, is the
+number release 2 has to design around.
