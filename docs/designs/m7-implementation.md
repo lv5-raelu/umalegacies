@@ -302,3 +302,218 @@ Neither blocks the chain; both land on T10, which is the last UI task.
 `TODOS.md` carries the four: a no-target "what should I breed" mode, per-veteran affinity
 memoisation, uma.moe's rate limit under load, and (answered) the own-twice question. Release 2
 is the uma.moe borrow source, which reuses release 1's sweep and scoring unchanged.
+
+---
+
+# M7 release 2: the uma.moe borrow source
+
+Started 2026-09-29. Release 1 answers "which pair of MY veterans"; release 2 adds the
+half a player does not own. Everything below about their API was measured against the
+live service on 2026-09-29, because the published spec turned out to describe a
+different, smaller thing.
+
+## Their API, as it actually behaves
+
+**The published spec understates the record, and the difference is the whole
+integration.** `/api/docs/openapi.yaml` documents `Inheritance` with three ids and four
+flat spark arrays. A live record also carries a full per-slot decomposition:
+
+```
+  main_parent_id / parent_left_id / parent_right_id     three card ids
+  {main,left,right}_{blue,pink,green}_factors           ONE factor id each, despite
+                                                        the plural name and despite
+                                                        the spec calling the matching
+                                                        filter a "count"
+  {main,left,right}_white_factors                       arrays
+  {main,left,right}_win_saddles                         arrays
+```
+
+Without the per-slot split a record is a bag of sparks with no way to say which uma
+holds them, and affinity is entirely about which uma holds what. With it, one record IS
+a `VeteranPackage`.
+
+**`main_` is the veteran, `left_`/`right_` are its parents.** Not assumed. A green spark
+is a card's own unique skill, so a slot's green group id must equal that slot's card id.
+Across 500 live records, 1,487 of the 1,500 slots carried a resolvable green:
+
+```
+  green group == that slot's own card id     1487/1487
+  matched a DIFFERENT slot's card id               0
+  no usable green                                 13
+```
+
+Getting this backwards would seat a grandparent as a parent, and with parent IA median
+138 against a grandparent's 36 that is a large, silent error.
+
+**The flat arrays are lineage SUMS, encoded as `groupId * 100 + stars`.** A record whose
+three umas each carry Stamina 3 reports `blue_sparks: [209]` and `blue_stars_sum: 9`.
+Verified by rebuilding all four arrays from the per-slot factor ids:
+
+```
+  records                       500
+  card ids resolved             1500/1500
+  factor ids resolved           21386/21386   (0 unknown in our extract)
+  our star sums == theirs       500/500
+  our summed ids == theirs      500/500
+```
+
+That last line is what licenses the filter translation, which has to speak in their
+summed ids rather than ours.
+
+**THE STAR SUFFIX IS AN EXACT MATCH, NOT A MINIMUM.** The trap, and it is not
+documented. Counts against the same secondary filter:
+
+```
+  blue_sparks=203   5861        blue_sparks=207    289
+  blue_sparks=205   1160        blue_sparks=208    366
+  blue_sparks=206   1048        blue_sparks=209    542
+```
+
+Not monotone -- 9 stars is commoner than 7, because 3+3+3 is what people build -- so
+`blue_sparks=207` means "exactly seven", and pushing our `minStars: 7` down as that
+would silently drop every stronger lineage.
+
+**COMMA IS OR, A REPEATED KEY IS AND.** Also undocumented, and together they are what
+make `minStars` expressible server-side:
+
+```
+  blue_sparks=207                       289
+  blue_sparks=209                       542
+  blue_sparks=207&blue_sparks=209         0     <- AND, an impossible conjunction
+  blue_sparks=207,209                   831     <- OR, and exactly 289 + 542
+  blue_sparks=207,208,209              1197     <- exactly 289 + 366 + 542
+```
+
+So `>= 7 across the lineage` is `blue_sparks=207,208,209`, and several different sparks
+are several repeated keys. Confirmed on whites too: `1002406..1002409` gave 17 + 3 + 0 +
+0 and the OR list gave 20.
+
+**`/api/v3/count` ignores its filters.** The spec says "same filters as search"; it
+returns global pool totals whatever is passed. Use `search` with `limit=1` and read
+`total`, which is exact below the display cap.
+
+## What was built
+
+`packages/api/src/borrow/`, no UI yet, and nothing in `packages/core` changed.
+
+- **`api-key.ts`** -- the key, from `UMA_MOE_API_KEY` or `~/.umalegacies-uma-moe-key`,
+  read at call time so rotation is a one-file swap with no restart. It lives in the API
+  package and `packages/web/src/no-api-imports.test.ts` already fails the build if web
+  reaches into it, which makes "the key never reaches the client" a property of the
+  module graph.
+- **`record.ts`** -- the live wire shape, and `packageFromRecord`. Drops `account_id`,
+  `trainer_name` and `follower_num` at the boundary: nothing downstream can leak what it
+  never received.
+- **`client.ts`** -- paging at concurrency 4 (half what the probe reached), `maxRecords`
+  2,000, no retry. The probe established that no `Retry-After` or `X-RateLimit` header
+  is ever sent, so a status code is the entire signal.
+- **`fixture.ts`** -- one real record with every trace of the person removed. Kept
+  because an invented one would only test the adapter against its author's beliefs; this
+  one carries TWO different blue types, so `blue_sparks` is `[305, 503]` and an adapter
+  assuming one blue per lineage would have passed every hand-written fixture.
+
+## Verified end to end, against the live API
+
+Filter `blue_sparks=209 & pink_sparks=1202`, trainee Oguri Cap [Starlight Beat], through
+the same `lineageFromPair` + `explainLineage` the compare pane calls:
+
+```
+  pool total (their word)   542
+  packages adapted          300 of 300     unusable 0
+  pages fetched             3              2.0 s
+  legal pairs               91 of 150      (see below)
+  every pair 6/6 ancestors  true
+  unknown factor ids        0
+  best legal pair           438, relation rank 3, Stamina 18*
+```
+
+18 stars of Stamina is the pair ceiling, which is what a filter asking for 9 per lineage
+on both halves should produce. Scoring cost 0.36 ms a pair.
+
+## What the end-to-end caught, which is why it exists
+
+**The first run put Oguri Cap x Oguri Cap at the top of the list, for a trainee
+who is also Oguri Cap.** Illegal twice over: the game forbids two parents of the same
+character (`TODOS.md` #4, 0 counterexamples in 2,500 real records) and forbids a parent
+being the trainee's own character.
+
+The demo script had simply not called `isLegalPair`, but the reason it COULD not is the
+real finding. `isLegalPair` takes a `ResolvedVeteran` and reads `index` and
+`self.charaId`; a borrowed half is a `VeteranPackage`, which carries `cardId` and
+nothing else. **So none of the legality rules the own-roster sweep enforces currently
+reach a borrowed half.**
+
+Applied by hand against `MasterData.charaIdFor`, on the same 300-record pool:
+
+```
+  naive pairs formed                              150
+  refused: a parent IS the trainee's character     52
+  refused: both parents the same character          7
+  legal pairs left                                 91
+```
+
+39% of pairs illegal, and the illegal ones were WINNING -- the naive best was 525 and
+the legal best is 438, because a lineage that reuses the trainee's own character
+concentrates affinity links that the game would never let you have. Shipping without
+this would not have produced a subtly wrong ranking; it would have produced a top row
+the player cannot select in the game.
+
+**CLOSED, by widening the predicates rather than by manufacturing a roster row.** The
+two options were: resolve borrowed halves into `ResolvedVeteran` at the adapter, giving
+them a synthetic `index`; or widen the predicates to the narrow shape both can satisfy.
+The builder chose the second, and the reason is the one that made `ParentPick` a
+discriminated union in the first place -- an `index` is a position in the array that was
+SENT, and it is the one thing a borrowed veteran does not have. Inventing one to satisfy
+a predicate would have quietly reintroduced exactly what that union exists to prevent.
+
+`PairSide` is now what `isLegalPair` and `pickBlock` take:
+
+```ts
+export interface PairSide {
+  index: string | number;
+  self: { charaId: number | null };
+}
+```
+
+A `ResolvedVeteran` satisfies it structurally, so **not one existing call site changed**
+and nothing is allocated per comparison, which matters at 33,411 of them.
+
+**`index` IS `string | number`, AND THAT IS THE WHOLE DESIGN.** It is an identity, not
+an ordinal: the only question ever asked of it is "are these two the same candidate".
+The borrow sweep compares own veterans against borrowed ones in one run, so numbering
+both from 0 would make own veteran 5 equal borrowed veteran 5 and `isLegalPair` would
+refuse a legal pair -- silently, and only for the pairs whose numbers happened to line
+up, which is the hardest kind of bug to notice. A borrowed half carries
+`borrowed:<n>`, which can never equal a roster row's number, so the collision is
+impossible rather than merely avoided. Pinned by a test that pairs roster row 0 with
+borrowed 0 and expects it to be legal.
+
+Re-run live through the shipped predicate, which agreed exactly with the hand-rolled
+check above:
+
+```
+  naive pairs formed                              150
+  refused: a parent IS the trainee's character     51
+  refused: both parents the same character          6
+  legal pairs left                                 93
+  best legal pair                                 427, rank 3, Stamina 18*
+```
+
+(The counts move by one or two between runs because the pool is live.) The best pair
+that run has the trainee's own character, Oguri Cap, sitting as a GRANDparent -- which
+is legal and modelled deliberately, and is a useful demonstration that rule 1 is narrow:
+it bars the parent slot only.
+
+## The open question release 2 now has to answer
+
+**Fully scoring a pair costs ~0.44 ms, not the 0.072 ms the release 1 sweep averages.**
+The two are not the same measurement: 0.072 ms is the whole sweep including pruning,
+where most pairs never reach `explainLineage`. What the borrow case adds is a much
+larger candidate count -- 259 own against a filtered pool -- so the sweep's budget now
+depends entirely on how many survive pruning, and pruning depends on the filter
+translation being tight.
+
+Which makes the translation a CORRECTNESS problem before it is a performance one. A pair
+requirement of N stars across the lineage cannot be pushed to one half as N: the other
+half can supply up to 9, so the sound server-side threshold is `N - (the most any own
+veteran contributes)`. Anything tighter drops valid pairs silently. Next task.

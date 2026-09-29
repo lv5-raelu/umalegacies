@@ -266,13 +266,52 @@ export const filterVeterans = (
  */
 export type PickBlock = 'is-trainee' | 'same-uma' | 'pair-full';
 
+/**
+ * THE TWO THINGS A LEGALITY RULE ACTUALLY READS, and nothing else.
+ *
+ * WIDENED 2026-09-29, because the rules were not reaching half the candidates.
+ * These predicates took a `ResolvedVeteran`, which is a roster row: it has a
+ * position in the uploaded file and a resolved character. A BORROWED half is a
+ * `VeteranPackage` -- card ids, win saddles and spark ids, no position in any
+ * file the user uploaded -- so it could not be passed to any of them, and the
+ * borrow release's first live run put Oguri Cap x Oguri Cap at the top of the
+ * list for a trainee who is also Oguri Cap. Illegal twice over, and WINNING:
+ * 525 against a legal best of 438, because a lineage reusing the trainee's own
+ * character concentrates affinity links the game would never allow.
+ *
+ * The alternative was to manufacture a `ResolvedVeteran` for each borrowed
+ * half, which means manufacturing an `index` -- and `ParentPick` is a
+ * discriminated union precisely because an index is the one thing a borrowed
+ * veteran does not have. Widening the input instead leaves both callers alone:
+ * a `ResolvedVeteran` satisfies this structurally, so not one existing call
+ * site changed and nothing is allocated per comparison, which matters at
+ * 33,411 of them.
+ *
+ * `index` IS `string | number` FOR ONE SPECIFIC REASON, and it is the trap this
+ * whole change could have walked into. It is an IDENTITY, not an ordinal: the
+ * only question asked of it is "are these two the same candidate". Number it
+ * from 0 on both sides and own veteran 5 would equal borrowed veteran 5, and
+ * `isLegalPair` would refuse a perfectly legal pair -- silently, and only for
+ * the pairs whose indices happened to line up. A borrowed half therefore
+ * carries a STRING key, which can never equal a roster row's number, so the
+ * collision is impossible rather than merely avoided.
+ */
+export interface PairSide {
+  /**
+   * Identity within one search, unique ACROSS sources. A roster row's position
+   * for an owned veteran; a namespaced string for anything else.
+   */
+  index: string | number;
+  /** Null when the master extract has no such card. Never blocks a pair. */
+  self: { charaId: number | null };
+}
+
 /** Rule 1: a parent cannot be the trainee. Compared by character, not card. */
-const isTrainee = (veteran: ResolvedVeteran, traineeCharaId: number | null): boolean =>
+const isTrainee = (veteran: PairSide, traineeCharaId: number | null): boolean =>
   isChara(veteran, traineeCharaId);
 
 /** Rule 2: the two parents cannot be the same character, whatever costume each wears. */
-const sameCharacter = (a: ResolvedVeteran, b: ResolvedVeteran): boolean =>
-  isChara(a, b.self.charaId);
+const sameCharacter = (a: PairSide, b: PairSide): boolean => isChara(a, b.self.charaId);
 
 /**
  * May these two veterans be the parents of this trainee?
@@ -301,8 +340,8 @@ const sameCharacter = (a: ResolvedVeteran, b: ResolvedVeteran): boolean =>
  * user for a stale extract rather than for anything about their roster.
  */
 export function isLegalPair(
-  a: ResolvedVeteran,
-  b: ResolvedVeteran,
+  a: PairSide,
+  b: PairSide,
   traineeCharaId: number | null,
 ): boolean {
   if (a.index === b.index) return false;
@@ -318,8 +357,8 @@ export function isLegalPair(
  * actionable each reason is, and the two branches the game has no opinion about.
  */
 export function pickBlock(
-  veteran: ResolvedVeteran,
-  picked: readonly ResolvedVeteran[],
+  veteran: PairSide,
+  picked: readonly PairSide[],
   traineeCharaId: number | null,
 ): PickBlock | null {
   // Not a rule: the already-picked card stays clickable so it can be
@@ -335,7 +374,7 @@ export function pickBlock(
   return null;
 }
 
-const isChara = (veteran: ResolvedVeteran, charaId: number | null): boolean =>
+const isChara = (veteran: PairSide, charaId: number | null): boolean =>
   charaId !== null && veteran.self.charaId === charaId;
 
 /**
