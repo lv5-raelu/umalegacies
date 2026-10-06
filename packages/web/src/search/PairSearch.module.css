@@ -910,23 +910,83 @@
  * COMPOSITION, and the whole reason it exists is that the two had been
  * collapsed into one control and the odds paid for it.
  */
+/*
+ * TWO SIDES, EACH A SMALL FAMILY TREE: "parent [ ]" above "grandparents [ ]
+ * and [ ]", with a hairline between the sides.
+ *
+ * Each side is its own four-column grid -- words, picker, "and", picker -- so
+ * the parent's picker sits directly above the first of the two she was bred
+ * from, the same shape the lineage tree draws. The two sides do not need to
+ * share columns: they hold the same words, so they come out the same width.
+ */
 .pins {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm) var(--space-lg);
+  flex-direction: column;
+  gap: var(--space-sm);
   margin-top: var(--space-md);
+}
+.pinSides {
+  display: flex;
+  align-items: flex-start;
+}
+.pinSide {
+  display: grid;
+  grid-template-columns: max-content 200px max-content 200px;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.pinSide + .pinSide {
+  border-left: 1px solid var(--rule);
+  margin-left: var(--space-lg);
+  padding-left: var(--space-lg);
+}
+/* "grandparents" starts the second row: a column behind the cursor forces the wrap. */
+.pinGrandparents {
+  grid-column: 1;
+}
+/* Words hug their own picker rather than the column's left edge. */
+.pinSlot {
+  justify-self: end;
+}
+
+/*
+ * Two sides need ~1,100px. Under that they stack, the hairline turning from a
+ * column rule into a row rule, and each side keeps its tree shape.
+ */
+@media (max-width: 1180px) {
+  .pinSides {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  .pinSide + .pinSide {
+    border-left: 0;
+    margin-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: var(--space-md);
+  }
+}
+
+/*
+ * A phone cannot hold two pickers on one line, so every seat gets its own:
+ * parent, grandparents, and. The pickers take whatever width is left.
+ */
+@media (max-width: 600px) {
+  .pinSides {
+    align-items: stretch;
+  }
+  .pinSide {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+  .pinAnd {
+    grid-column: 1;
+  }
 }
 .pinsLabel {
   font-family: var(--font-data);
   font-size: var(--text-3xs);
   letter-spacing: var(--tracking-label);
   color: var(--ink-faint);
-}
-.pin {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
 }
 
 /*
@@ -940,11 +1000,12 @@
  *
  * The child selector rather than the class: the wrapper's name is hashed by CSS
  * Modules and belongs to another component's stylesheet. Widening it from here
- * is the one thing this file legitimately knows about it.
+ * is the one thing this file legitimately knows about it. The width itself
+ * comes from the `.pinSide` grid column the field sits in.
  */
 .pinField {
   display: block;
-  width: 240px;
+  min-width: 0;
 }
 .pinField > * {
   max-width: none;

@@ -12,11 +12,13 @@ import styles from '../roster/Combobox.module.css';
  * joint, so every row's odds described a build they were not asking about. A
  * pin narrows which pairs EXIST and touches no figure at all.
  *
- * TWO OF THESE, one per slot kind, rather than one "somewhere in the lineage".
- * The two are different questions: a direct parent is who you are training off
- * and carries four of the seven affinity links, while a grandparent is a third
- * of the star totals and one link. A reader who wants Seiun's affinity is not
- * asking the same thing as one who wants her sparks at distance.
+ * SIX OF THESE, ONE PER SEAT, laid out as two sides of the pair: a parent and
+ * the two she was bred from. Parent and grandparent are different questions --
+ * a direct parent is who you are training off and carries four of the seven
+ * affinity links, while a grandparent is a third of the star totals and one
+ * link -- and a single "somewhere in the lineage" list could say neither
+ * "Maruzensky beside Bourbon" nor "Vodka under Gold Ship". One picker per seat
+ * can say both.
  *
  * MANY PER SLOT, MEANING "ANY OF THESE". Shortlisting three umas for a slot is
  * one question, and the answer is a ranking across all three -- which three

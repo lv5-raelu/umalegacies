@@ -1,5 +1,5 @@
 import type { ResolvedVeteran, RosterVeteranInput, SparkCriterion, SparkKind } from '@umalegacies/types';
-import type { PairSweep } from '@umalegacies/core';
+import type { PairSweep, PinnedSide } from '@umalegacies/core';
 
 /**
  * WHAT CROSSES THE WORKER BOUNDARY.
@@ -25,14 +25,14 @@ export interface SweepRequest {
   traineeCardId?: number;
   criteria: SparkCriterion[];
   /**
-   * The cards shortlisted for each slot, meaning ANY of them.
+   * Who has to be in the pair: up to two sides, each a parent and her own two
+   * parents, matched in either order. See `PinnedSide`.
    *
    * Composition rather than sparks: these narrow which pairs the sweep builds
-   * and touch no figure it reports. Plain number arrays, so they cross the
-   * worker boundary without ceremony.
+   * and touch no figure it reports. Plain number arrays all the way down, so
+   * they cross the worker boundary without ceremony.
    */
-  requireParentCards?: number[];
-  requireGrandparentCards?: number[];
+  pins?: PinnedSide[];
   /**
    * The catalogue, flattened.
    *

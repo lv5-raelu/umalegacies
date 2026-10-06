@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RosterMemberInput, RosterVeteranInput, SparkCriterion } from '@umalegacies/types';
-import { sweepPairs, type PairSearchResult } from '@umalegacies/core';
+import { sweepPairs, type PairSearchResult, type PinnedSide } from '@umalegacies/core';
 import { extractHash, extractMaster } from '../master/master-extract.js';
 import { resolveRoster } from '../roster/roster.js';
 
@@ -235,18 +235,26 @@ describe('the order it returns them in', () => {
 });
 
 /**
- * PINNING A CHARACTER INTO A SLOT, which is a filter on COMPOSITION.
+ * PINNING WHO IS IN THE PAIR, which is a filter on COMPOSITION.
  *
  * Reported by a reader: wanting a particular uma as a parent meant inventing a
  * spark criterion she happens to carry, and that criterion then entered the
  * joint -- so every row's odds described a build nobody had asked about. These
  * pin the two things that makes true: the pair set narrows, and no figure moves.
+ *
+ * A pin is up to two SIDES, each a parent and that parent's own two parents.
+ * In this roster: Gold Ship is bred from Vodka and Daiwa, Oguri [Starlight]
+ * from Suzuka and Vodka, Oguri [Ashen] and Daiwa are the two bred from Gold
+ * Ship, and Suzuka is the trainee, so never a parent.
  */
-describe('pinning a character into a slot', () => {
-  const pinned = (pins: {
-    requireParentCards?: readonly number[];
-    requireGrandparentCards?: readonly number[];
-  }) =>
+describe('pinning who is in the pair', () => {
+  const side = (
+    parent: readonly number[] = [],
+    first: readonly number[] = [],
+    second: readonly number[] = [],
+  ): PinnedSide => ({ parent, grandparents: [first, second] });
+
+  const pinned = (...pins: PinnedSide[]) =>
     sweepPairs({
       veterans,
       packages,
@@ -255,102 +263,150 @@ describe('pinning a character into a slot', () => {
       kindOf,
       master,
       masterHash: hash,
-      ...pins,
+      pins,
     });
 
-  const asParent = (r: PairSearchResult, card: number) =>
-    veterans[r.a]?.self.cardId === card || veterans[r.b]?.self.cardId === card;
+  const cardsOf = (r: PairSearchResult) =>
+    [veterans[r.a]?.self.cardId, veterans[r.b]?.self.cardId].sort();
 
-  const asGrandparent = (r: PairSearchResult, card: number) =>
-    [veterans[r.a], veterans[r.b]].some((v) =>
-      v?.parents.some((member) => member?.cardId === card),
+  const asParent = (r: PairSearchResult, card: number) => cardsOf(r).includes(card);
+
+  /** Is one veteran of the pair bred from `grandparent`, and the other from `elsewhere`? */
+  const bredFrom = (v: (typeof veterans)[number] | undefined, grandparent: number) =>
+    v?.parents.some((m) => m?.cardId === grandparent) ?? false;
+
+  /** Is some veteran in the pair this parent (or anyone, for null), bred from these? */
+  const hasSide = (r: PairSearchResult, parent: number | null, ...grandparents: number[]) =>
+    [veterans[r.a], veterans[r.b]].some(
+      (v) =>
+        v !== undefined &&
+        (parent === null || v.self.cardId === parent) &&
+        grandparents.every((g) => bredFrom(v, g)),
     );
 
   it('keeps only pairs seating the character as a PARENT', () => {
-    const { results, legal } = pinned({ requireParentCards: [GOLD_SHIP] });
+    const { results, legal } = pinned(side([GOLD_SHIP]));
     expect(results.length).toBeGreaterThan(0);
     expect(legal).toBeLessThan(sweep([]).legal);
     for (const r of results) expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
   });
 
-  it('keeps only pairs seating the character as a GRANDPARENT', () => {
-    const { results, legal } = pinned({ requireGrandparentCards: [VODKA] });
+  it('pins BOTH parents when both sides name one', () => {
+    // The report that started this: Maruzensky and Bourbon in a single list
+    // came back as "either of them beside anyone". One per side is one of each.
+    const { results } = pinned(side([GOLD_SHIP]), side([OGURI_STARLIGHT]));
     expect(results.length).toBeGreaterThan(0);
-    expect(legal).toBeLessThan(sweep([]).legal);
-    for (const r of results) expect(asGrandparent(r, VODKA), names(r)).toBe(true);
+    for (const r of results) {
+      expect(cardsOf(r), names(r)).toEqual([GOLD_SHIP, OGURI_STARLIGHT].sort());
+    }
+    expect(results.length).toBeLessThan(pinned(side([GOLD_SHIP])).results.length);
   });
 
-  it('reads the two slots separately rather than as one "somewhere" pin', () => {
-    // Gold Ship is BOTH a veteran and somebody's parent in this roster, so the
-    // two pins select overlapping but different sets. A single "anywhere" pin
-    // could not tell "I want to train off her" from "I want her affinity".
-    const parents = pinned({ requireParentCards: [GOLD_SHIP] }).results.map(names).sort();
-    const grands = pinned({ requireGrandparentCards: [GOLD_SHIP] }).results.map(names).sort();
-    expect(parents).not.toEqual(grands);
+  it('reads the two sides in either order', () => {
+    // The game does not label its parent slots; "A beside B" is "B beside A".
+    const forward = pinned(side([GOLD_SHIP]), side([OGURI_STARLIGHT])).results.map(names);
+    const reverse = pinned(side([OGURI_STARLIGHT]), side([GOLD_SHIP])).results.map(names);
+    expect(reverse).toEqual(forward);
+  });
+
+  it('does not let one veteran fill both sides', () => {
+    // Gold Ship on each side asks for two Gold Ships, which the game refuses.
+    // Reading the sides independently would accept Gold Ship beside anyone.
+    expect(pinned(side([GOLD_SHIP]), side([GOLD_SHIP])).legal).toBe(0);
+  });
+
+  it('keeps a shortlist on a side meaning ANY of it', () => {
+    const alone = pinned(side([GOLD_SHIP])).results.map(names);
+    const also = pinned(side([GOLD_SHIP, OGURI_STARLIGHT]));
+    expect(also.results.length).toBeGreaterThan(alone.length);
+    for (const n of alone) expect(also.results.map(names)).toContain(n);
+    for (const r of also.results) {
+      expect(asParent(r, GOLD_SHIP) || asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
+    }
+  });
+
+  it('tells two costumes of one character apart', () => {
+    // THE REASON THE PIN IS A CARD. A costume is not a skin: the two Oguri
+    // cards carry different unique skills, and a direct parent's unique is
+    // handed over at career start.
+    const one = pinned(side([OGURI_STARLIGHT]));
+    const other = pinned(side([OGURI_ASHEN]));
+    expect(one.results.length).toBeGreaterThan(0);
+    expect(other.results.length).toBeGreaterThan(0);
+    for (const r of one.results) expect(asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
+    for (const r of other.results) expect(asParent(r, OGURI_ASHEN), names(r)).toBe(true);
+    // Disjoint: the game refuses a pair holding two cards of one character.
+    const both = new Set(one.results.map(names));
+    expect(other.results.some((r) => both.has(names(r)))).toBe(false);
+  });
+
+  it('pins a grandparent UNDER the parent on her side', () => {
+    // What the side shape is for. Gold Ship is bred from Vodka and Daiwa, so
+    // Vodka under Gold Ship is satisfiable and Suzuka under Gold Ship is not --
+    // even though Suzuka is a grandparent in plenty of pairs Gold Ship is in.
+    const under = pinned(side([GOLD_SHIP], [VODKA]));
+    expect(under.results.length).toBeGreaterThan(0);
+    for (const r of under.results) expect(hasSide(r, GOLD_SHIP, VODKA), names(r)).toBe(true);
+    expect(pinned(side([GOLD_SHIP], [SUZUKA])).legal).toBe(0);
+  });
+
+  it('pins both grandparents under one parent, in either seat', () => {
+    const both = pinned(side([GOLD_SHIP], [VODKA], [DAIWA])).results.map(names);
+    expect(both.length).toBeGreaterThan(0);
+    expect(pinned(side([GOLD_SHIP], [DAIWA], [VODKA])).results.map(names)).toEqual(both);
+  });
+
+  it('does not let one ancestor fill both grandparent seats', () => {
+    // Vodka in both seats asks for a veteran bred from two Vodkas.
+    expect(pinned(side([], [VODKA], [VODKA])).legal).toBe(0);
+  });
+
+  it('pins a grandparent under ANY parent when the side names no parent', () => {
+    // The old "somewhere among the grandparents" pin, as a special case: only
+    // Oguri [Ashen] and Daiwa are bred from Gold Ship.
+    const { results, legal } = pinned(side([], [GOLD_SHIP]));
+    expect(results.length).toBeGreaterThan(0);
+    expect(legal).toBeLessThan(sweep([]).legal);
+    for (const r of results) expect(hasSide(r, null, GOLD_SHIP), names(r)).toBe(true);
+  });
+
+  it('puts grandparents pinned on different sides under different parents', () => {
+    // Suzuka on one side and Gold Ship on the other: one veteran bred from
+    // Suzuka beside a different one bred from Gold Ship.
+    const { results } = pinned(side([], [SUZUKA]), side([], [GOLD_SHIP]));
+    expect(results.length).toBeGreaterThan(0);
+    for (const r of results) {
+      const [a, b] = [veterans[r.a], veterans[r.b]];
+      const crossed =
+        (bredFrom(a, SUZUKA) && bredFrom(b, GOLD_SHIP)) ||
+        (bredFrom(b, SUZUKA) && bredFrom(a, GOLD_SHIP));
+      expect(crossed, names(r)).toBe(true);
+    }
   });
 
   it('is a filter on composition, so a surviving pair scores EXACTLY as before', () => {
     // The whole reason the pin exists. If any figure moved, the reader would be
     // back to reading odds for a build they did not ask about.
     const before = sweep([]).results;
-    for (const after of pinned({ requireParentCards: [GOLD_SHIP] }).results) {
+    for (const after of pinned(side([GOLD_SHIP], [VODKA])).results) {
       const match = before.find((r) => r.a === after.a && r.b === after.b);
       expect(match, names(after)).toEqual(after);
     }
   });
 
-  it('tells two costumes of one character apart', () => {
-    // THE REASON THE PIN IS A CARD. Oguri Cap is in this roster twice, as two
-    // cards, and a costume is not a skin: the two carry different unique
-    // skills, and a direct parent's unique is handed over at career start. A
-    // pin that matched the character would accept either and answer neither.
-    const one = pinned({ requireParentCards: [OGURI_STARLIGHT] });
-    const other = pinned({ requireParentCards: [OGURI_ASHEN] });
-    expect(one.results.length).toBeGreaterThan(0);
-    expect(other.results.length).toBeGreaterThan(0);
-    for (const r of one.results) expect(asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
-    for (const r of other.results) expect(asParent(r, OGURI_ASHEN), names(r)).toBe(true);
-    // Disjoint: the game refuses a pair holding two cards of one character, so
-    // no pair can satisfy both.
-    const both = new Set(one.results.map(names));
-    expect(other.results.some((r) => both.has(names(r)))).toBe(false);
-  });
-
-  it('takes a shortlist and means ANY of it', () => {
-    // A reader shortlisting three umas for a slot is asking one question, not
-    // three searches -- and three searches could not be ranked against each
-    // other, which is the thing the sweep is for.
-    const alone = pinned({ requireParentCards: [GOLD_SHIP] }).results.map(names);
-    const also = pinned({ requireParentCards: [GOLD_SHIP, OGURI_STARLIGHT] }).results.map(names);
-    expect(also.length).toBeGreaterThan(alone.length);
-    for (const n of alone) expect(also).toContain(n);
-    for (const r of pinned({ requireParentCards: [GOLD_SHIP, OGURI_STARLIGHT] }).results) {
-      expect(asParent(r, GOLD_SHIP) || asParent(r, OGURI_STARLIGHT), names(r)).toBe(true);
-    }
-  });
-
-  it('treats an empty shortlist as no constraint, not as an impossible one', () => {
-    // A reader who cleared the list is asking for everything back.
-    expect(pinned({ requireParentCards: [] }).legal).toBe(sweep([]).legal);
-    expect(pinned({ requireGrandparentCards: [] }).legal).toBe(sweep([]).legal);
-  });
-
-  it('requires BOTH lists when both are given', () => {
-    // Separate constraints: any of the parent list AND any of the grandparent
-    // list. Not a single "somewhere in the lineage" pool.
-    for (const r of pinned({
-      requireParentCards: [GOLD_SHIP],
-      requireGrandparentCards: [VODKA],
-    }).results) {
-      expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
-      expect(asGrandparent(r, VODKA), names(r)).toBe(true);
-    }
+  it('treats no pins, and a side with nothing chosen, as no constraint', () => {
+    const all = sweep([]).legal;
+    expect(pinned().legal).toBe(all);
+    expect(pinned(side()).legal).toBe(all);
+    expect(pinned(side(), side()).legal).toBe(all);
+    // An empty side beside a filled one is the filled one alone.
+    expect(pinned(side(), side([GOLD_SHIP])).legal).toBe(pinned(side([GOLD_SHIP])).legal);
   });
 
   it('cannot be satisfied by a slot master.mdb could not resolve', () => {
     // A null charaId is an unresolved card, not a wildcard. 9999 is nobody.
-    expect(pinned({ requireParentCards: [9999] }).legal).toBe(0);
-    expect(pinned({ requireGrandparentCards: [9999] }).legal).toBe(0);
+    expect(pinned(side([9999])).legal).toBe(0);
+    expect(pinned(side([], [9999])).legal).toBe(0);
   });
 });
 

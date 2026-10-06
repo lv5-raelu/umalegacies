@@ -120,14 +120,14 @@ export function PairSearch({
   const [applied, setApplied] = useState<readonly SparkCriterion[]>(criteria);
   const [sortBy, setSortBy] = useState<SortBy>('activate');
   /*
-   * WHO HAS TO BE IN THE PAIR, by character, in each of the two slot kinds.
+   * WHO HAS TO BE IN THE PAIR, by card, side by side.
    *
    * Edited freely and APPLIED by the Search button, like the spark criteria
    * beside them: a pin re-runs the sweep, so it belongs on the same commit as
    * everything else rather than firing on selection.
    */
-  const [pins, setPins] = useState<Pins>({ parent: [], grandparent: [] });
-  const [appliedPins, setAppliedPins] = useState<Pins>({ parent: [], grandparent: [] });
+  const [pins, setPins] = useState<Pins>(NO_PINS);
+  const [appliedPins, setAppliedPins] = useState<Pins>(NO_PINS);
   const detail = usePairDetail(
     packages,
     trainee?.charaId ?? null,
@@ -308,40 +308,33 @@ export function PairSearch({
           <div className={styles.pins}>
             <span className={styles.pinsLabel}>MUST INCLUDE</span>
             {/*
-              A SPAN, NOT A LABEL, and the difference is a real bug.
+              TWO SIDES, EACH A SMALL FAMILY TREE: a parent, and the two umas
+              that parent was bred from.
 
-              A `<label>` forwards any click inside it to its first labelable
-              descendant, and a `<button>` is labelable -- so every click on an
-              option in the popup was ALSO a click on the trigger, which toggles
-              the list shut. Single-select hid it, because the list closed on a
-              pick anyway. Multi-select could not: picking a second uma was
-              impossible.
+              It used to be one parent list and one grandparent list, each
+              meaning "any of these, anywhere", and readers hit the wall twice.
+              Maruzensky and Mihono Bourbon in the parent list came back as
+              "either of them beside anyone", and a grandparent could not be put
+              under a particular parent. A side answers both by being filled in.
 
-              Nothing is lost by dropping the element: `AncestorPin` carries its
-              own `aria-label`, so the control is named without one.
+              The sides are interchangeable -- the game does not label its two
+              parent slots -- so a result may show either side as half A.
+              Anything left empty is "anyone", so filling only one side's parent
+              is the old single pin.
             */}
-            <span className={styles.pin}>
-              <span className={styles.pinSlot}>as a parent</span>
-              <span className={styles.pinField}>
-                <AncestorPin
-                  label="Character that must be a parent"
-                  options={pinOptions.parent}
-                  chosen={pins.parent}
-                  onChoose={(parent) => setPins((p) => ({ ...p, parent }))}
+            <div className={styles.pinSides}>
+              {pins.map((side, i) => (
+                <PinSideFields
+                  key={i}
+                  side={side}
+                  which={i === 0 ? 'first' : 'second'}
+                  options={pinOptions}
+                  onChange={(next) =>
+                    setPins((p) => (i === 0 ? [next, p[1]] : [p[0], next]))
+                  }
                 />
-              </span>
-            </span>
-            <span className={styles.pin}>
-              <span className={styles.pinSlot}>as a grandparent</span>
-              <span className={styles.pinField}>
-                <AncestorPin
-                  label="Character that must be a grandparent"
-                  options={pinOptions.grandparent}
-                  chosen={pins.grandparent}
-                  onChoose={(grandparent) => setPins((p) => ({ ...p, grandparent }))}
-                />
-              </span>
-            </span>
+              ))}
+            </div>
           </div>
 
           <div className={styles.searchRow}>
@@ -517,15 +510,75 @@ function SearchProgress({ status }: { status: SearchStatus }) {
  * "show 80 more" costs a slice rather than a re-sweep.
  */
 /**
- * The cards shortlisted for each slot. Empty is "anyone".
+ * The cards shortlisted for each seat, by side. Empty is "anyone".
  *
- * A list rather than one card: shortlisting three umas for a slot is one
- * question, and its answer is a ranking across all three. Within a slot the
- * members are alternatives; the two slots are separate constraints.
+ * A list rather than one card: shortlisting three umas for a seat is one
+ * question, and its answer is a ranking across all three. Mutable copies of
+ * core's `PinnedSide`, because this is the state the pickers edit.
  */
-interface Pins {
+interface SidePins {
   parent: number[];
-  grandparent: number[];
+  grandparents: [number[], number[]];
+}
+type Pins = [SidePins, SidePins];
+
+const NO_SIDE: SidePins = { parent: [], grandparents: [[], []] };
+const NO_PINS: Pins = [NO_SIDE, NO_SIDE];
+
+/**
+ * One side of the pair: "parent [ ]", then "grandparents [ ] and [ ]" --
+ * the two umas that parent was bred from.
+ *
+ * The words sit BESIDE the pickers as spans, never wrapping them in a
+ * `<label>`. A label forwards any click inside it to its first labelable
+ * descendant, and a `<button>` is labelable -- so every click on an option in
+ * the popup was ALSO a click on the trigger, which toggled the list shut and
+ * made picking a second uma impossible. `AncestorPin` names itself with an
+ * `aria-label` instead.
+ */
+function PinSideFields({
+  side,
+  which,
+  options,
+  onChange,
+}: {
+  side: SidePins;
+  which: 'first' | 'second';
+  options: { parent: readonly PinOption[]; grandparent: readonly PinOption[] };
+  onChange: (side: SidePins) => void;
+}) {
+  const [first, second] = side.grandparents;
+  return (
+    <div className={styles.pinSide}>
+      <span className={styles.pinSlot}>parent</span>
+      <span className={styles.pinField}>
+        <AncestorPin
+          label={`Parent on the ${which} side`}
+          options={options.parent}
+          chosen={side.parent}
+          onChoose={(parent) => onChange({ ...side, parent })}
+        />
+      </span>
+      <span className={`${styles.pinSlot} ${styles.pinGrandparents}`}>grandparents</span>
+      <span className={styles.pinField}>
+        <AncestorPin
+          label={`One grandparent on the ${which} side`}
+          options={options.grandparent}
+          chosen={first}
+          onChoose={(cards) => onChange({ ...side, grandparents: [cards, second] })}
+        />
+      </span>
+      <span className={`${styles.pinSlot} ${styles.pinAnd}`}>and</span>
+      <span className={styles.pinField}>
+        <AncestorPin
+          label={`The other grandparent on the ${which} side`}
+          options={options.grandparent}
+          chosen={second}
+          onChoose={(cards) => onChange({ ...side, grandparents: [first, cards] })}
+        />
+      </span>
+    </div>
+  );
 }
 
 export const PAGE = 80;
