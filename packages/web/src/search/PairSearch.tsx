@@ -126,8 +126,8 @@ export function PairSearch({
    * beside them: a pin re-runs the sweep, so it belongs on the same commit as
    * everything else rather than firing on selection.
    */
-  const [pins, setPins] = useState<Pins>({ parent: [], grandparent: [] });
-  const [appliedPins, setAppliedPins] = useState<Pins>({ parent: [], grandparent: [] });
+  const [pins, setPins] = useState<Pins>(NO_PINS);
+  const [appliedPins, setAppliedPins] = useState<Pins>(NO_PINS);
   const detail = usePairDetail(
     packages,
     trainee?.charaId ?? null,
@@ -331,6 +331,28 @@ export function PairSearch({
                 />
               </span>
             </span>
+            {/*
+              THE OTHER SEAT, and the reason there are two parent pickers.
+
+              Readers put Maruzensky and Mihono Bourbon in the one list and got
+              "either of them beside anyone", because a list means ANY of its
+              members. What they wanted was one in each seat. So each picker
+              claims one seat: fill one and it is the old question, fill both
+              and the pair's composition is fixed -- with a shortlist still
+              allowed on either side. Empty reads "paired with anyone", which
+              is exactly what it means.
+            */}
+            <span className={styles.pin}>
+              <span className={styles.pinSlot}>paired with</span>
+              <span className={styles.pinField}>
+                <AncestorPin
+                  label="Character that must be the other parent"
+                  options={pinOptions.parent}
+                  chosen={pins.otherParent}
+                  onChoose={(otherParent) => setPins((p) => ({ ...p, otherParent }))}
+                />
+              </span>
+            </span>
             <span className={styles.pin}>
               <span className={styles.pinSlot}>as a grandparent</span>
               <span className={styles.pinField}>
@@ -521,12 +543,18 @@ function SearchProgress({ status }: { status: SearchStatus }) {
  *
  * A list rather than one card: shortlisting three umas for a slot is one
  * question, and its answer is a ranking across all three. Within a slot the
- * members are alternatives; the two slots are separate constraints.
+ * members are alternatives; the slots are separate constraints.
+ *
+ * TWO PARENT LISTS, one per seat. `parent` and `otherParent` must be met by
+ * DIFFERENT veterans, in either order -- see `seats` in core's sweep.
  */
 interface Pins {
   parent: number[];
+  otherParent: number[];
   grandparent: number[];
 }
+
+const NO_PINS: Pins = { parent: [], otherParent: [], grandparent: [] };
 
 export const PAGE = 80;
 

@@ -126,6 +126,21 @@ export interface PairSweepInput {
    * sweep is for. Empty means no constraint, which is also what absent means.
    */
   requireParentCards?: readonly number[];
+  /**
+   * Keep only pairs whose OTHER parent is one of these.
+   *
+   * Reported by readers: shortlisting Maruzensky and Mihono Bourbon in the one
+   * parent list returned "Maruzensky or Bourbon, beside anyone" -- because
+   * that list asks for ANY of its members in EITHER seat. The question they
+   * meant was "Maruzensky in one seat AND Bourbon in the other", and no single
+   * list can say that, since "any of" is exactly what shortlisting is for.
+   *
+   * So each list claims ONE seat, in either order. One list given is the old
+   * behaviour unchanged; both given pins the pair's whole composition, and a
+   * shortlist on either side still means any of it -- "Maruzensky with Bourbon
+   * or Oguri" is one search. Empty means no constraint, as above.
+   */
+  requireOtherParentCards?: readonly number[];
   /** The same, for the four GRANDPARENT slots. */
   requireGrandparentCards?: readonly number[];
   /**
@@ -184,6 +199,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
    * no constraint, not for a slot nothing can fill.
    */
   const parentCards = new Set(input.requireParentCards ?? []);
+  const otherParentCards = new Set(input.requireOtherParentCards ?? []);
   const grandparentCards = new Set(input.requireGrandparentCards ?? []);
 
   // Split once, not 30,808 times. Whites that only rank still get measured --
@@ -229,7 +245,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       // this search rather than which of them are any good -- the same thing
       // choosing a trainee does. Counting pinned-out pairs as legal would make
       // "258 of 30,808" describe two different populations.
-      if (!seats(a, b, parentCards, grandparentCards)) continue;
+      if (!seats(a, b, parentCards, otherParentCards, grandparentCards)) continue;
       legal++;
       if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
         input.onProgress(legal, total);
@@ -400,33 +416,40 @@ const carried = (values: readonly (number | null)[]): number => {
 };
 
 /**
- * Does this pair seat the pinned characters where the reader asked for them?
+ * Does this pair seat one of the shortlisted cards in each pinned slot?
  *
  * A pair is six umas in two shapes: the two veterans themselves become the
  * direct PARENTS, and their own parents become the four GRANDPARENTS. So the
- * two pins read different fields, and pinning the same character in both is a
- * legitimate question -- "somewhere in this lineage twice" -- rather than a
- * contradiction.
+ * parent and grandparent pins read different fields, and pinning the same
+ * character in both is a legitimate question -- "somewhere in this lineage
+ * twice" -- rather than a contradiction.
+ *
+ * The two PARENT lists each claim one seat, in either order: one veteran must
+ * fit the first and the OTHER veteran the second. That is an assignment, not
+ * two independent checks, because one veteran cannot fill both seats -- with
+ * Maruzensky in each list, Maruzensky beside a stranger satisfies only one. An
+ * empty list fits anyone, so a single list reduces to "either veteran is on
+ * it", which is what the parent pin has always meant.
+ *
+ * Within a list the members are alternatives; the grandparent list is a
+ * separate constraint and must also be met.
  *
  * `charaId` is null on a member master.mdb has no card for. Such a member can
  * never satisfy a pin, which is right: an unresolved slot is not evidence.
- */
-/**
- * Does this pair seat one of the shortlisted cards in each pinned slot?
- *
- * ANY of the parent list in a parent slot, and ANY of the grandparent list in
- * a grandparent slot. The two lists are separate constraints and both must be
- * met; within a list the members are alternatives.
  */
 const seats = (
   a: ResolvedVeteran,
   b: ResolvedVeteran,
   parentCards: ReadonlySet<number>,
+  otherParentCards: ReadonlySet<number>,
   grandparentCards: ReadonlySet<number>,
 ): boolean => {
-  if (parentCards.size > 0 && !parentCards.has(a.self.cardId) && !parentCards.has(b.self.cardId)) {
-    return false;
-  }
+  const fits = (cards: ReadonlySet<number>, veteran: ResolvedVeteran) =>
+    cards.size === 0 || cards.has(veteran.self.cardId);
+  const seated =
+    (fits(parentCards, a) && fits(otherParentCards, b)) ||
+    (fits(parentCards, b) && fits(otherParentCards, a));
+  if (!seated) return false;
   if (grandparentCards.size === 0) return true;
   for (const veteran of [a, b]) {
     for (const member of veteran.parents) {

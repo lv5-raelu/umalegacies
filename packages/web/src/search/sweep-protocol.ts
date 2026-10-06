@@ -32,6 +32,8 @@ export interface SweepRequest {
    * worker boundary without ceremony.
    */
   requireParentCards?: number[];
+  /** The OTHER parent seat: with both lists, one veteran from each. */
+  requireOtherParentCards?: number[];
   requireGrandparentCards?: number[];
   /**
    * The catalogue, flattened.

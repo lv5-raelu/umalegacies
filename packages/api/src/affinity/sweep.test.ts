@@ -245,6 +245,7 @@ describe('the order it returns them in', () => {
 describe('pinning a character into a slot', () => {
   const pinned = (pins: {
     requireParentCards?: readonly number[];
+    requireOtherParentCards?: readonly number[];
     requireGrandparentCards?: readonly number[];
   }) =>
     sweepPairs({
@@ -345,6 +346,63 @@ describe('pinning a character into a slot', () => {
       expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
       expect(asGrandparent(r, VODKA), names(r)).toBe(true);
     }
+  });
+
+  it('pins BOTH parents when the other-parent list is given', () => {
+    // Reported by readers: Maruzensky and Bourbon in the one parent list came
+    // back as "either of them beside anyone". With one in each list, every
+    // surviving pair is exactly those two, in whichever order the sweep met them.
+    const { results } = pinned({
+      requireParentCards: [GOLD_SHIP],
+      requireOtherParentCards: [OGURI_STARLIGHT],
+    });
+    expect(results.length).toBeGreaterThan(0);
+    for (const r of results) {
+      const cards = [veterans[r.a]?.self.cardId, veterans[r.b]?.self.cardId].sort();
+      expect(cards, names(r)).toEqual([GOLD_SHIP, OGURI_STARLIGHT].sort());
+    }
+    // Strictly narrower than either list alone: Gold Ship beside a stranger is gone.
+    expect(results.length).toBeLessThan(pinned({ requireParentCards: [GOLD_SHIP] }).results.length);
+  });
+
+  it('reads the order of the two lists as irrelevant', () => {
+    // The seats are not labelled in the game; "A beside B" is "B beside A".
+    const forward = pinned({ requireParentCards: [GOLD_SHIP], requireOtherParentCards: [OGURI_STARLIGHT] });
+    const reverse = pinned({ requireParentCards: [OGURI_STARLIGHT], requireOtherParentCards: [GOLD_SHIP] });
+    expect(reverse.results.map(names)).toEqual(forward.results.map(names));
+  });
+
+  it('keeps a shortlist on the other side meaning ANY of it', () => {
+    // "Gold Ship with either Oguri" is one search, which the single list
+    // could not express: it would also admit an Oguri beside
+    // anyone at all.
+    const { results } = pinned({
+      requireParentCards: [GOLD_SHIP],
+      requireOtherParentCards: [OGURI_STARLIGHT, OGURI_ASHEN],
+    });
+    expect(results.length).toBeGreaterThan(0);
+    for (const r of results) {
+      expect(asParent(r, GOLD_SHIP), names(r)).toBe(true);
+      expect(asParent(r, OGURI_STARLIGHT) || asParent(r, OGURI_ASHEN), names(r)).toBe(true);
+    }
+  });
+
+  it('does not let one veteran fill both seats', () => {
+    // Gold Ship in BOTH lists asks for two Gold Ships, which the game refuses
+    // as one character twice. A check that read each list independently would
+    // accept Gold Ship beside anyone.
+    expect(
+      pinned({ requireParentCards: [GOLD_SHIP], requireOtherParentCards: [GOLD_SHIP] }).legal,
+    ).toBe(0);
+  });
+
+  it('leaves the single list exactly as it was when the other is empty', () => {
+    const before = pinned({ requireParentCards: [GOLD_SHIP] });
+    const after = pinned({ requireParentCards: [GOLD_SHIP], requireOtherParentCards: [] });
+    expect(after.legal).toBe(before.legal);
+    expect(after.results.map(names)).toEqual(before.results.map(names));
+    // And either list alone is the same question.
+    expect(pinned({ requireOtherParentCards: [GOLD_SHIP] }).legal).toBe(before.legal);
   });
 
   it('cannot be satisfied by a slot master.mdb could not resolve', () => {

@@ -42,7 +42,11 @@ export function usePairSearch(
   traineeCardId: number | null,
   criteria: readonly SparkCriterion[],
   /** The cards shortlisted per slot. Composition, not sparks; see `SweepRequest`. */
-  pins: { parent: readonly number[]; grandparent: readonly number[] },
+  pins: {
+    parent: readonly number[];
+    otherParent: readonly number[];
+    grandparent: readonly number[];
+  },
 ): SearchStatus {
   const clientRef = useRef<SweepClient | null>(null);
   const [status, setStatus] = useState<SearchStatus>({ kind: 'idle' });
@@ -78,6 +82,7 @@ export function usePairSearch(
           ...(traineeCardId === null ? {} : { traineeCardId }),
           criteria: [...criteria],
           requireParentCards: [...pins.parent],
+          requireOtherParentCards: [...pins.otherParent],
           requireGrandparentCards: [...pins.grandparent],
           kinds,
           masterHash: roster.masterHash,
@@ -103,7 +108,7 @@ export function usePairSearch(
     };
     // `pins` is an object literal at the call site, so its identity changes on
     // every render; the two numbers inside it are what the sweep depends on.
-    // `pins` holds two ARRAYS, whose identity changes on every render even when
+    // `pins` holds three ARRAYS, whose identity changes on every render even when
     // nothing was picked. Joining them gives the effect a value to compare, so
     // a re-render does not re-run a 2.4s sweep.
   }, [
@@ -114,6 +119,7 @@ export function usePairSearch(
     criteria,
     kinds,
     pins.parent.join(','),
+    pins.otherParent.join(','),
     pins.grandparent.join(','),
   ]);
 

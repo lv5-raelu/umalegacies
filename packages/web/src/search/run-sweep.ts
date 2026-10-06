@@ -38,6 +38,7 @@ export async function runSweep(
     traineeCharaId: request.traineeCharaId,
     criteria: request.criteria,
     requireParentCards: request.requireParentCards ?? [],
+    requireOtherParentCards: request.requireOtherParentCards ?? [],
     requireGrandparentCards: request.requireGrandparentCards ?? [],
     kindOf: (groupId: number) => kinds.get(groupId),
     master,

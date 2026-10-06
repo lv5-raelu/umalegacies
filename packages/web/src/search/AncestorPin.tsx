@@ -18,6 +18,11 @@ import styles from '../roster/Combobox.module.css';
  * of the star totals and one link. A reader who wants Seiun's affinity is not
  * asking the same thing as one who wants her sparks at distance.
  *
+ * AND TWO FOR THE PARENTS, one per seat. A single list could not say
+ * "Maruzensky beside Bourbon" -- it means any of its members in either seat --
+ * so the second picker claims the other seat and the sweep requires a
+ * different veteran for each.
+ *
  * MANY PER SLOT, MEANING "ANY OF THESE". Shortlisting three umas for a slot is
  * one question, and the answer is a ranking across all three -- which three
  * separate searches could not give, because their results cannot be compared.
