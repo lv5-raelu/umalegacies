@@ -1,3 +1,4 @@
+import { ROSTER, SEARCH, TREE, followLink } from './route';
 import styles from './SiteNav.module.css';
 
 /**
@@ -9,13 +10,13 @@ import styles from './SiteNav.module.css';
  * roster but not the search, and nothing told the reader how many screens there
  * were or which one they were on. Three ad-hoc exits are not navigation.
  *
- * A ROUTE THE READER CANNOT USE IS SHOWN, NOT HIDDEN, and says why. "Optimize
- * Parents" before a roster is loaded and "Breakdown" before a pair is picked are
- * both preconditions rather than absences, and a menu that grows items as you
- * go gives no sense of the whole. They are `aria-disabled` and titled with what
- * is missing -- the same treatment the roster list already gives a veteran that
- * cannot be picked right now, which DESIGN.md settles as "a card is information
- * whether or not it can be selected".
+ * A ROUTE THE READER CANNOT USE IS SHOWN, NOT HIDDEN, and says why. "Roster"
+ * and "Optimize Parents" before a roster is loaded, and "Breakdown" before a
+ * pair is picked, are both preconditions rather than absences, and a menu that
+ * grows items as you go gives no sense of the whole. They are `aria-disabled`
+ * and titled with what is missing -- the same treatment the roster list already
+ * gives a veteran that cannot be picked right now, which DESIGN.md settles as
+ * "a card is information whether or not it can be selected".
  *
  * Achromatic, like every other control here. DESIGN.md: the interface has no
  * brand colour, and a coloured control would read as a datum. The current
@@ -23,7 +24,7 @@ import styles from './SiteNav.module.css';
  */
 
 export interface NavTarget {
-  hash: string;
+  path: string;
   label: string;
   /** Null when reachable; otherwise what the reader has to do first. */
   blocked: string | null;
@@ -33,19 +34,20 @@ export function SiteNav({ current, targets }: { current: string; targets: readon
   return (
     <nav className={styles.nav} aria-label="Screens">
       {targets.map((target) => {
-        const here = target.hash === current;
+        const here = target.path === current;
         if (target.blocked !== null) {
           return (
-            <span key={target.hash} className={styles.blocked} aria-disabled title={target.blocked}>
+            <span key={target.path} className={styles.blocked} aria-disabled title={target.blocked}>
               {target.label}
             </span>
           );
         }
         return (
           <a
-            key={target.hash}
+            key={target.path}
             className={here ? styles.here : styles.link}
-            href={target.hash === '' ? '#' : target.hash}
+            href={target.path}
+            onClick={(event) => followLink(event, target.path)}
             aria-current={here ? 'page' : undefined}
           >
             {target.label}
@@ -71,14 +73,18 @@ export function navTargets({
   hasLineage: boolean;
 }): NavTarget[] {
   return [
-    { hash: '', label: 'Roster', blocked: null },
     {
-      hash: '#search',
+      path: ROSTER,
+      label: 'Roster',
+      blocked: hasRoster ? null : 'Load your veteran data first',
+    },
+    {
+      path: SEARCH,
       label: 'Optimize Parents',
       blocked: hasRoster ? null : 'Load your veteran data first',
     },
     {
-      hash: '#tree',
+      path: TREE,
       label: 'Breakdown',
       blocked: hasLineage ? null : 'Pick a trainee and two parents first',
     },
