@@ -37,25 +37,20 @@ import {
 } from './roster/cache';
 import { picksToCache, restoreSelection } from './roster/selection';
 import { PairSearch, PAGE } from './search/PairSearch';
+import { ROOT, SEARCH, TREE, navigate, usePath } from './route';
 import styles from './App.module.css';
 
 /**
- * THE SCREENS, ONE HASH EACH. The root is only the landing: the drop zone
- * before a roster exists, and Optimize Parents once one does.
+ * THE ROOT IS ONLY THE LANDING: the drop zone before a roster exists, and
+ * Optimize Parents once one does.
  *
  * The roster list used to BE the root, so every upload landed on it -- while
  * most readers went straight on to the pair search. The search is now where an
- * upload goes and what the root shows, and the list keeps a hash of its own.
+ * upload goes and what the root shows, and the list has a path of its own.
+ *
+ * `replace`, so "back" skips a root that would only redirect again.
  */
-const SEARCH_HASH = '#search';
-const TREE_HASH = '#tree';
-
-/**
- * Leave the root for the search without a history entry. `location.replace`
- * fires `hashchange` like an assignment does, but "back" then skips the root,
- * which would only redirect again.
- */
-const toSearch = (): void => location.replace(SEARCH_HASH);
+const toSearch = (): void => navigate(SEARCH, { replace: true });
 
 /**
  * M3: your own roster, on screen, with two veterans compared.
@@ -111,11 +106,11 @@ export function App() {
   const [lineage, setLineage] = useState<LineageResponse | null>(null);
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
-  const [hash, setHash] = useState(() => location.hash);
-  const onTreePage = hash === TREE_HASH;
+  const path = usePath();
+  const onTreePage = path === TREE;
   // The root counts as the search the moment there is a roster, so the screen
   // is right on the first render and the effect below only fixes the address.
-  const onSearch = hash === SEARCH_HASH || (hash === '' && roster !== null);
+  const onSearch = path === SEARCH || (path === ROOT && roster !== null);
   const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
   /** How many result rows are rendered. The sweep is complete; the LIST is paged. */
@@ -174,26 +169,19 @@ export function App() {
   // the first measure after the roster replaces the drop zone.
   }, [roster]);
 
-  /*
-   * NO GUARD LIKE #tree's for #search or #roster. The tree hash is meaningless
+  /**
+   * NO GUARD LIKE /tree's for /search or /roster. The tree is meaningless
    * without a lineage and has to disarm itself; these only need a ROSTER, and
    * arriving at one with none is a state the app already handles well -- the
    * drop zone renders, and the upload carries on to the search.
-   */
-  useEffect(() => {
-    const sync = (): void => setHash(location.hash);
-    addEventListener('hashchange', sync);
-    return () => removeEventListener('hashchange', sync);
-  }, []);
-
-  /**
+   *
    * The root with a roster behind it is the search; say so in the address bar.
    * Covers a reload restoring a roster, a bookmark of the bare URL, and the
    * tree guard below dropping back to the root.
    */
   useEffect(() => {
-    if (hash === '' && roster !== null) toSearch();
-  }, [hash, roster]);
+    if (path === ROOT && roster !== null) toSearch();
+  }, [path, roster]);
 
   /**
    * #tree IS ONLY MEANINGFUL WITH A LINEAGE BEHIND IT, and this is the one rule
@@ -201,24 +189,22 @@ export function App() {
    * reported.
    *
    * The roster lives only in memory, so a reload, a bookmark, a pasted link or a
-   * hand-typed `#tree` all reach a hash with nothing to draw. Left alone the
+   * hand-typed `/tree` all reach a screen with nothing to draw. Left alone the
    * flag sat armed and INVISIBLE: the drop zone and the roster looked completely
    * normal, and then the moment a second parent was picked the app jumped
    * straight to the tree, skipping the compare pane the whole screen exists for.
    *
-   * Guarding at mount only fixed the reload; typing the hash afterwards fires a
-   * hashchange and armed it again. Reacting to the STATE rather than to any one
+   * Guarding at mount only fixed the reload; typing the address afterwards
+   * armed it again. Reacting to the STATE rather than to any one
    * route in covers all of them, including a pick being invalidated while the
    * tree is open -- switching the trainee to one of the picked umas nulls the
    * lineage, and the tree has nothing left to show.
    *
-   * replaceState rather than assigning location.hash: no extra history entry to
-   * go "back" into, and no leftover bare '#' in the address bar.
+   * Replaced rather than pushed: no extra history entry to go "back" into.
    */
   useEffect(() => {
     if (!onTreePage || lineage !== null) return;
-    history.replaceState(null, '', location.pathname + location.search);
-    setHash('');
+    navigate(ROOT, { replace: true });
   }, [onTreePage, lineage]);
 
   /**
@@ -316,8 +302,7 @@ export function App() {
     setSaveError(null);
     seenMasterHash.current = undefined;
     // Back to the landing: with nothing loaded, the root is the drop zone.
-    history.replaceState(null, '', location.pathname + location.search);
-    setHash('');
+    navigate(ROOT, { replace: true });
   }, []);
 
   const loadFile = useCallback(async (file: File) => {
@@ -599,11 +584,11 @@ export function App() {
            * window rather than racing it.
            */
           if (explained !== null) setLineage(explained);
-          location.hash = TREE_HASH;
+          navigate(TREE);
         }}
         nav={
           <SiteNav
-            current={SEARCH_HASH}
+            current={SEARCH}
             targets={navTargets({ hasRoster: true, hasLineage: lineage !== null })}
           />
         }
@@ -616,7 +601,7 @@ export function App() {
       <TreePage
         lineage={lineage}
         criteria={pairCriteria}
-        nav={<SiteNav current={TREE_HASH} targets={navTargets({ hasRoster: true, hasLineage: true })} />}
+        nav={<SiteNav current={TREE} targets={navTargets({ hasRoster: true, hasLineage: true })} />}
       />
     );
   }
@@ -642,7 +627,7 @@ export function App() {
     <main className={`${styles.shell} ${roster ? styles.wide : styles.landing}`}>
       <header className={styles.top}>
         <h1 className={styles.wordmark}>Uma Legacies</h1>
-        <SiteNav current={hash} targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null })} />
+        <SiteNav current={path} targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null })} />
       </header>
 
       {masterChanged && (
@@ -742,7 +727,7 @@ export function App() {
                 pickedCount={picks.length}
                 onClearPicks={() => setPicks([])}
                 onOpenTree={() => {
-                  location.hash = TREE_HASH;
+                  navigate(TREE);
                 }}
               />
             </div>

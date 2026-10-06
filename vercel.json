@@ -8,7 +8,13 @@
       "root": "packages/web",
       "framework": "vite",
       "buildCommand": "npm run build",
-      "outputDirectory": "dist"
+      "outputDirectory": "dist",
+      "rewrites": [
+        {
+          "source": "/(search|roster|tree)",
+          "destination": "/index.html"
+        }
+      ]
     },
     "api": {
       "root": "packages/api",

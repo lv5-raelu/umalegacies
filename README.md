@@ -174,6 +174,13 @@ everything else to the static build. That is why `API_BASE` in
 CORS configuration anywhere: there is no cross-origin request to allow, in
 either place.
 
+The screens are real paths -- `/search`, `/roster`, `/tree` -- so a reload asks
+the server for one. Vite's dev server answers any of them with `index.html` on
+its own; the deployment needs the `web` service's rewrite in `vercel.json` to do
+the same. That rewrite names the three paths rather than catching everything, so
+a missing portrait is still a 404 and not the app. A new screen needs adding in
+both `src/route.ts` and there.
+
 Hitting `http://localhost:3000` directly still works and is useful for curling
 the API, but it is not how the app runs.
 

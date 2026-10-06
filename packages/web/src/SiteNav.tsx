@@ -1,3 +1,4 @@
+import { ROSTER, SEARCH, TREE, followLink } from './route';
 import styles from './SiteNav.module.css';
 
 /**
@@ -23,7 +24,7 @@ import styles from './SiteNav.module.css';
  */
 
 export interface NavTarget {
-  hash: string;
+  path: string;
   label: string;
   /** Null when reachable; otherwise what the reader has to do first. */
   blocked: string | null;
@@ -33,19 +34,20 @@ export function SiteNav({ current, targets }: { current: string; targets: readon
   return (
     <nav className={styles.nav} aria-label="Screens">
       {targets.map((target) => {
-        const here = target.hash === current;
+        const here = target.path === current;
         if (target.blocked !== null) {
           return (
-            <span key={target.hash} className={styles.blocked} aria-disabled title={target.blocked}>
+            <span key={target.path} className={styles.blocked} aria-disabled title={target.blocked}>
               {target.label}
             </span>
           );
         }
         return (
           <a
-            key={target.hash}
+            key={target.path}
             className={here ? styles.here : styles.link}
-            href={target.hash}
+            href={target.path}
+            onClick={(event) => followLink(event, target.path)}
             aria-current={here ? 'page' : undefined}
           >
             {target.label}
@@ -72,17 +74,17 @@ export function navTargets({
 }): NavTarget[] {
   return [
     {
-      hash: '#roster',
+      path: ROSTER,
       label: 'Roster',
       blocked: hasRoster ? null : 'Load your veteran data first',
     },
     {
-      hash: '#search',
+      path: SEARCH,
       label: 'Optimize Parents',
       blocked: hasRoster ? null : 'Load your veteran data first',
     },
     {
-      hash: '#tree',
+      path: TREE,
       label: 'Breakdown',
       blocked: hasLineage ? null : 'Pick a trainee and two parents first',
     },
