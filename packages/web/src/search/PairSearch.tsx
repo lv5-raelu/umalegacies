@@ -526,7 +526,8 @@ const NO_SIDE: SidePins = { parent: [], grandparents: [[], []] };
 const NO_PINS: Pins = [NO_SIDE, NO_SIDE];
 
 /**
- * One side of the pair: "parent [ ]", then "bred from [ ] and [ ]".
+ * One side of the pair: "parent [ ]", then "grandparents [ ] and [ ]" --
+ * the two umas that parent was bred from.
  *
  * The words sit BESIDE the pickers as spans, never wrapping them in a
  * `<label>`. A label forwards any click inside it to its first labelable
@@ -558,10 +559,10 @@ function PinSideFields({
           onChoose={(parent) => onChange({ ...side, parent })}
         />
       </span>
-      <span className={`${styles.pinSlot} ${styles.pinBredFrom}`}>bred from</span>
+      <span className={`${styles.pinSlot} ${styles.pinGrandparents}`}>grandparents</span>
       <span className={styles.pinField}>
         <AncestorPin
-          label={`One parent of the ${which} side's parent`}
+          label={`One grandparent on the ${which} side`}
           options={options.grandparent}
           chosen={first}
           onChoose={(cards) => onChange({ ...side, grandparents: [cards, second] })}
@@ -570,7 +571,7 @@ function PinSideFields({
       <span className={`${styles.pinSlot} ${styles.pinAnd}`}>and</span>
       <span className={styles.pinField}>
         <AncestorPin
-          label={`The other parent of the ${which} side's parent`}
+          label={`The other grandparent on the ${which} side`}
           options={options.grandparent}
           chosen={second}
           onChoose={(cards) => onChange({ ...side, grandparents: [first, cards] })}

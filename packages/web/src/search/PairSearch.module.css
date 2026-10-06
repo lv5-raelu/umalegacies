@@ -911,8 +911,8 @@
  * collapsed into one control and the odds paid for it.
  */
 /*
- * TWO SIDES, EACH A SMALL FAMILY TREE: "parent [ ]" above "bred from [ ] and
- * [ ]", with a hairline between the sides.
+ * TWO SIDES, EACH A SMALL FAMILY TREE: "parent [ ]" above "grandparents [ ]
+ * and [ ]", with a hairline between the sides.
  *
  * Each side is its own four-column grid -- words, picker, "and", picker -- so
  * the parent's picker sits directly above the first of the two she was bred
@@ -940,8 +940,8 @@
   margin-left: var(--space-lg);
   padding-left: var(--space-lg);
 }
-/* "bred from" starts the second row: a column behind the cursor forces the wrap. */
-.pinBredFrom {
+/* "grandparents" starts the second row: a column behind the cursor forces the wrap. */
+.pinGrandparents {
   grid-column: 1;
 }
 /* Words hug their own picker rather than the column's left edge. */
@@ -969,7 +969,7 @@
 
 /*
  * A phone cannot hold two pickers on one line, so every seat gets its own:
- * parent, bred from, and. The pickers take whatever width is left.
+ * parent, grandparents, and. The pickers take whatever width is left.
  */
 @media (max-width: 600px) {
   .pinSides {
