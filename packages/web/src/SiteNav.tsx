@@ -9,13 +9,13 @@ import styles from './SiteNav.module.css';
  * roster but not the search, and nothing told the reader how many screens there
  * were or which one they were on. Three ad-hoc exits are not navigation.
  *
- * A ROUTE THE READER CANNOT USE IS SHOWN, NOT HIDDEN, and says why. "Optimize
- * Parents" before a roster is loaded and "Breakdown" before a pair is picked are
- * both preconditions rather than absences, and a menu that grows items as you
- * go gives no sense of the whole. They are `aria-disabled` and titled with what
- * is missing -- the same treatment the roster list already gives a veteran that
- * cannot be picked right now, which DESIGN.md settles as "a card is information
- * whether or not it can be selected".
+ * A ROUTE THE READER CANNOT USE IS SHOWN, NOT HIDDEN, and says why. "Roster"
+ * and "Optimize Parents" before a roster is loaded, and "Breakdown" before a
+ * pair is picked, are both preconditions rather than absences, and a menu that
+ * grows items as you go gives no sense of the whole. They are `aria-disabled`
+ * and titled with what is missing -- the same treatment the roster list already
+ * gives a veteran that cannot be picked right now, which DESIGN.md settles as
+ * "a card is information whether or not it can be selected".
  *
  * Achromatic, like every other control here. DESIGN.md: the interface has no
  * brand colour, and a coloured control would read as a datum. The current
@@ -45,7 +45,7 @@ export function SiteNav({ current, targets }: { current: string; targets: readon
           <a
             key={target.hash}
             className={here ? styles.here : styles.link}
-            href={target.hash === '' ? '#' : target.hash}
+            href={target.hash}
             aria-current={here ? 'page' : undefined}
           >
             {target.label}
@@ -71,7 +71,11 @@ export function navTargets({
   hasLineage: boolean;
 }): NavTarget[] {
   return [
-    { hash: '', label: 'Roster', blocked: null },
+    {
+      hash: '#roster',
+      label: 'Roster',
+      blocked: hasRoster ? null : 'Load your veteran data first',
+    },
     {
       hash: '#search',
       label: 'Optimize Parents',
