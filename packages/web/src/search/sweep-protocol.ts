@@ -35,6 +35,8 @@ export interface SweepRequest {
   /** The OTHER parent seat: with both lists, one veteran from each. */
   requireOtherParentCards?: number[];
   requireGrandparentCards?: number[];
+  /** The other grandparent seat, read the same way. */
+  requireOtherGrandparentCards?: number[];
   /**
    * The catalogue, flattened.
    *

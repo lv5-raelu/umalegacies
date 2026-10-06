@@ -910,12 +910,56 @@
  * COMPOSITION, and the whole reason it exists is that the two had been
  * collapsed into one control and the odds paid for it.
  */
+/*
+ * TWO ROWS, PARENTS ABOVE GRANDPARENTS, EACH WITH TWO SEATS -- and the seats
+ * line up in columns, so "paired with" reads as the same control in both.
+ *
+ * One grid, with the rows and seats flattened into it by `display: contents`.
+ * Separate grids per row would size their columns separately, and "as a
+ * grandparent" is wider than "as a parent", so the two rows' pickers would
+ * start at different x. The label takes column 1 of the first row only; every
+ * row's first seat is sent to column 2 so the second row does not slide under it.
+ */
 .pins {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: max-content max-content 240px max-content 240px;
   align-items: center;
   gap: var(--space-sm) var(--space-lg);
   margin-top: var(--space-md);
+}
+.pinRows,
+.pinRow,
+.pin {
+  display: contents;
+}
+.pinRow > .pin:first-child > .pinSlot {
+  grid-column: 2;
+}
+/* Slot words hug their own picker rather than the column's left edge. */
+.pinSlot {
+  justify-self: end;
+}
+
+/*
+ * Five columns need ~900px. Under that the rows stack and each wraps, seat by
+ * seat, which is how the single row behaved before it had a second line.
+ */
+@media (max-width: 960px) {
+  .pins,
+  .pinRows {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+  .pinRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm) var(--space-lg);
+  }
+  .pin {
+    display: inline-flex;
+  }
 }
 .pinsLabel {
   font-family: var(--font-data);
@@ -923,8 +967,8 @@
   letter-spacing: var(--tracking-label);
   color: var(--ink-faint);
 }
+/* Read only in the stacked layout; in the grid, `.pin` is `display: contents`. */
 .pin {
-  display: inline-flex;
   align-items: center;
   gap: var(--space-sm);
 }

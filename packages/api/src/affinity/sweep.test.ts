@@ -247,6 +247,7 @@ describe('pinning a character into a slot', () => {
     requireParentCards?: readonly number[];
     requireOtherParentCards?: readonly number[];
     requireGrandparentCards?: readonly number[];
+    requireOtherGrandparentCards?: readonly number[];
   }) =>
     sweepPairs({
       veterans,
@@ -403,6 +404,59 @@ describe('pinning a character into a slot', () => {
     expect(after.results.map(names)).toEqual(before.results.map(names));
     // And either list alone is the same question.
     expect(pinned({ requireOtherParentCards: [GOLD_SHIP] }).legal).toBe(before.legal);
+  });
+
+  /** The four grandparent cards of a pair, unresolved seats left out. */
+  const grandparentsOf = (r: PairSearchResult): number[] =>
+    [veterans[r.a], veterans[r.b]].flatMap((v) =>
+      (v?.parents ?? []).flatMap((member) => (member === null ? [] : [member.cardId])),
+    );
+
+  /*
+   * Two DIFFERENT grandparent cards that share some legal pair, found rather
+   * than hard-coded, so the test below cannot pass by finding nothing.
+   */
+  const [GP_ONE, GP_OTHER] = (() => {
+    for (const r of sweep([]).results) {
+      const [first, ...rest] = grandparentsOf(r);
+      const second = rest.find((c) => c !== first);
+      if (first !== undefined && second !== undefined) return [first, second];
+    }
+    throw new Error('fixture has no pair with two different grandparents');
+  })();
+
+  it('pins TWO grandparents when the other-grandparent list is given', () => {
+    const { results } = pinned({
+      requireGrandparentCards: [GP_ONE],
+      requireOtherGrandparentCards: [GP_OTHER],
+    });
+    expect(results.length).toBeGreaterThan(0);
+    for (const r of results) {
+      const seats = grandparentsOf(r);
+      expect(seats, names(r)).toContain(GP_ONE);
+      expect(seats, names(r)).toContain(GP_OTHER);
+    }
+    expect(results.length).toBeLessThan(
+      pinned({ requireGrandparentCards: [GP_ONE] }).results.length,
+    );
+  });
+
+  it('needs the same grandparent card in two seats when it is in both lists', () => {
+    // One grandparent cannot fill both seats -- the rule that stops Gold Ship
+    // beside a stranger satisfying Gold Ship x Gold Ship among the parents.
+    for (const r of pinned({
+      requireGrandparentCards: [GP_ONE],
+      requireOtherGrandparentCards: [GP_ONE],
+    }).results) {
+      expect(grandparentsOf(r).filter((c) => c === GP_ONE).length, names(r)).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('leaves the single grandparent list exactly as it was when the other is empty', () => {
+    const before = pinned({ requireGrandparentCards: [VODKA] });
+    const after = pinned({ requireGrandparentCards: [VODKA], requireOtherGrandparentCards: [] });
+    expect(after.results.map(names)).toEqual(before.results.map(names));
+    expect(pinned({ requireOtherGrandparentCards: [VODKA] }).legal).toBe(before.legal);
   });
 
   it('cannot be satisfied by a slot master.mdb could not resolve', () => {

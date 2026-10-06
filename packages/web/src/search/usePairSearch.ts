@@ -46,6 +46,7 @@ export function usePairSearch(
     parent: readonly number[];
     otherParent: readonly number[];
     grandparent: readonly number[];
+    otherGrandparent: readonly number[];
   },
 ): SearchStatus {
   const clientRef = useRef<SweepClient | null>(null);
@@ -84,6 +85,7 @@ export function usePairSearch(
           requireParentCards: [...pins.parent],
           requireOtherParentCards: [...pins.otherParent],
           requireGrandparentCards: [...pins.grandparent],
+          requireOtherGrandparentCards: [...pins.otherGrandparent],
           kinds,
           masterHash: roster.masterHash,
         },
@@ -108,7 +110,7 @@ export function usePairSearch(
     };
     // `pins` is an object literal at the call site, so its identity changes on
     // every render; the two numbers inside it are what the sweep depends on.
-    // `pins` holds three ARRAYS, whose identity changes on every render even when
+    // `pins` holds four ARRAYS, whose identity changes on every render even when
     // nothing was picked. Joining them gives the effect a value to compare, so
     // a re-render does not re-run a 2.4s sweep.
   }, [
@@ -121,6 +123,7 @@ export function usePairSearch(
     pins.parent.join(','),
     pins.otherParent.join(','),
     pins.grandparent.join(','),
+    pins.otherGrandparent.join(','),
   ]);
 
   // The worker outlives every search but not the screen.

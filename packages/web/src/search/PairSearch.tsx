@@ -308,62 +308,54 @@ export function PairSearch({
           <div className={styles.pins}>
             <span className={styles.pinsLabel}>MUST INCLUDE</span>
             {/*
-              A SPAN, NOT A LABEL, and the difference is a real bug.
+              ONE ROW PER SLOT KIND, EACH WITH TWO SEATS.
 
-              A `<label>` forwards any click inside it to its first labelable
-              descendant, and a `<button>` is labelable -- so every click on an
-              option in the popup was ALSO a click on the trigger, which toggles
-              the list shut. Single-select hid it, because the list closed on a
-              pick anyway. Multi-select could not: picking a second uma was
-              impossible.
+              Readers put Maruzensky and Mihono Bourbon in one list and got
+              "either of them beside anyone", because a list means ANY of its
+              members. What they wanted was one in each seat. So each row's
+              second picker claims a different seat: fill one and it is the old
+              question, fill both and that part of the lineage is fixed -- with
+              a shortlist still allowed on either side. Empty reads "paired
+              with anyone", which is exactly what it means.
 
-              Nothing is lost by dropping the element: `AncestorPin` carries its
-              own `aria-label`, so the control is named without one.
+              Rows rather than one line because the grandparents' pair is a
+              separate question from the parents' one, and stacking them lines
+              the two pickers of each up in columns.
             */}
-            <span className={styles.pin}>
-              <span className={styles.pinSlot}>as a parent</span>
-              <span className={styles.pinField}>
-                <AncestorPin
+            <div className={styles.pinRows}>
+              <div className={styles.pinRow}>
+                <PinSeat
+                  slot="as a parent"
                   label="Character that must be a parent"
                   options={pinOptions.parent}
                   chosen={pins.parent}
                   onChoose={(parent) => setPins((p) => ({ ...p, parent }))}
                 />
-              </span>
-            </span>
-            {/*
-              THE OTHER SEAT, and the reason there are two parent pickers.
-
-              Readers put Maruzensky and Mihono Bourbon in the one list and got
-              "either of them beside anyone", because a list means ANY of its
-              members. What they wanted was one in each seat. So each picker
-              claims one seat: fill one and it is the old question, fill both
-              and the pair's composition is fixed -- with a shortlist still
-              allowed on either side. Empty reads "paired with anyone", which
-              is exactly what it means.
-            */}
-            <span className={styles.pin}>
-              <span className={styles.pinSlot}>paired with</span>
-              <span className={styles.pinField}>
-                <AncestorPin
+                <PinSeat
+                  slot="paired with"
                   label="Character that must be the other parent"
                   options={pinOptions.parent}
                   chosen={pins.otherParent}
                   onChoose={(otherParent) => setPins((p) => ({ ...p, otherParent }))}
                 />
-              </span>
-            </span>
-            <span className={styles.pin}>
-              <span className={styles.pinSlot}>as a grandparent</span>
-              <span className={styles.pinField}>
-                <AncestorPin
+              </div>
+              <div className={styles.pinRow}>
+                <PinSeat
+                  slot="as a grandparent"
                   label="Character that must be a grandparent"
                   options={pinOptions.grandparent}
                   chosen={pins.grandparent}
                   onChoose={(grandparent) => setPins((p) => ({ ...p, grandparent }))}
                 />
-              </span>
-            </span>
+                <PinSeat
+                  slot="paired with"
+                  label="Character that must be another grandparent"
+                  options={pinOptions.grandparent}
+                  chosen={pins.otherGrandparent}
+                  onChoose={(otherGrandparent) => setPins((p) => ({ ...p, otherGrandparent }))}
+                />
+              </div>
+            </div>
           </div>
 
           <div className={styles.searchRow}>
@@ -552,9 +544,44 @@ interface Pins {
   parent: number[];
   otherParent: number[];
   grandparent: number[];
+  otherGrandparent: number[];
 }
 
-const NO_PINS: Pins = { parent: [], otherParent: [], grandparent: [] };
+const NO_PINS: Pins = { parent: [], otherParent: [], grandparent: [], otherGrandparent: [] };
+
+/**
+ * One seat: its slot words and its picker.
+ *
+ * A SPAN, NOT A LABEL, and the difference is a real bug. A `<label>` forwards
+ * any click inside it to its first labelable descendant, and a `<button>` is
+ * labelable -- so every click on an option in the popup was ALSO a click on
+ * the trigger, which toggles the list shut. Single-select hid it, because the
+ * list closed on a pick anyway; multi-select could not, and picking a second
+ * uma was impossible. Nothing is lost by dropping the element: `AncestorPin`
+ * carries its own `aria-label`.
+ */
+function PinSeat({
+  slot,
+  label,
+  options,
+  chosen,
+  onChoose,
+}: {
+  slot: string;
+  label: string;
+  options: readonly PinOption[];
+  chosen: readonly number[];
+  onChoose: (cardIds: number[]) => void;
+}) {
+  return (
+    <span className={styles.pin}>
+      <span className={styles.pinSlot}>{slot}</span>
+      <span className={styles.pinField}>
+        <AncestorPin label={label} options={options} chosen={chosen} onChoose={onChoose} />
+      </span>
+    </span>
+  );
+}
 
 export const PAGE = 80;
 

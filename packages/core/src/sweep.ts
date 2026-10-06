@@ -144,6 +144,14 @@ export interface PairSweepInput {
   /** The same, for the four GRANDPARENT slots. */
   requireGrandparentCards?: readonly number[];
   /**
+   * The other-seat list for the GRANDPARENTS, read exactly as the parents'
+   * one: a grandparent from this list AND a different grandparent from the
+   * first. Any two of the four slots, in either half -- "Maruzensky and
+   * Bourbon somewhere among the grandparents" is the question, and which
+   * veteran each sits under is the parent pins' business, not this one's.
+   */
+  requireOtherGrandparentCards?: readonly number[];
+  /**
    * The catalogue lookup. A criterion is a groupId and a threshold; whether it
    * may EXCLUDE depends on its kind, which lives in `RosterSparkOption`.
    *
@@ -201,6 +209,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
   const parentCards = new Set(input.requireParentCards ?? []);
   const otherParentCards = new Set(input.requireOtherParentCards ?? []);
   const grandparentCards = new Set(input.requireGrandparentCards ?? []);
+  const otherGrandparentCards = new Set(input.requireOtherGrandparentCards ?? []);
 
   // Split once, not 30,808 times. Whites that only rank still get measured --
   // they just cannot exclude, so they have no business in the inner loop's
@@ -245,7 +254,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       // this search rather than which of them are any good -- the same thing
       // choosing a trainee does. Counting pinned-out pairs as legal would make
       // "258 of 30,808" describe two different populations.
-      if (!seats(a, b, parentCards, otherParentCards, grandparentCards)) continue;
+      if (!seats(a, b, parentCards, otherParentCards, grandparentCards, otherGrandparentCards)) continue;
       legal++;
       if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
         input.onProgress(legal, total);
@@ -422,17 +431,7 @@ const carried = (values: readonly (number | null)[]): number => {
  * direct PARENTS, and their own parents become the four GRANDPARENTS. So the
  * parent and grandparent pins read different fields, and pinning the same
  * character in both is a legitimate question -- "somewhere in this lineage
- * twice" -- rather than a contradiction.
- *
- * The two PARENT lists each claim one seat, in either order: one veteran must
- * fit the first and the OTHER veteran the second. That is an assignment, not
- * two independent checks, because one veteran cannot fill both seats -- with
- * Maruzensky in each list, Maruzensky beside a stranger satisfies only one. An
- * empty list fits anyone, so a single list reduces to "either veteran is on
- * it", which is what the parent pin has always meant.
- *
- * Within a list the members are alternatives; the grandparent list is a
- * separate constraint and must also be met.
+ * twice" -- rather than a contradiction. Both shapes must be satisfied.
  *
  * `charaId` is null on a member master.mdb has no card for. Such a member can
  * never satisfy a pin, which is right: an unresolved slot is not evidence.
@@ -443,17 +442,43 @@ const seats = (
   parentCards: ReadonlySet<number>,
   otherParentCards: ReadonlySet<number>,
   grandparentCards: ReadonlySet<number>,
+  otherGrandparentCards: ReadonlySet<number>,
 ): boolean => {
-  const fits = (cards: ReadonlySet<number>, veteran: ResolvedVeteran) =>
-    cards.size === 0 || cards.has(veteran.self.cardId);
-  const seated =
-    (fits(parentCards, a) && fits(otherParentCards, b)) ||
-    (fits(parentCards, b) && fits(otherParentCards, a));
-  if (!seated) return false;
-  if (grandparentCards.size === 0) return true;
+  if (!pinnedPair([a.self.cardId, b.self.cardId], parentCards, otherParentCards)) return false;
+  if (grandparentCards.size === 0 && otherGrandparentCards.size === 0) return true;
+  const grandparents: number[] = [];
   for (const veteran of [a, b]) {
-    for (const member of veteran.parents) {
-      if (member !== null && grandparentCards.has(member.cardId)) return true;
+    for (const member of veteran.parents) if (member !== null) grandparents.push(member.cardId);
+  }
+  return pinnedPair(grandparents, grandparentCards, otherGrandparentCards);
+};
+
+/**
+ * Do two DIFFERENT seats among `members` hold one card from each list?
+ *
+ * Each list claims one seat, in either order. That is an assignment rather
+ * than two independent checks, because one uma cannot fill both seats: with
+ * Maruzensky in each list, Maruzensky beside a stranger satisfies only one.
+ *
+ * Readers asked for it after putting Maruzensky and Mihono Bourbon in a single
+ * list and getting "either of them beside anyone" -- a list means ANY of its
+ * members, so "one of each" needed a second list. An empty list is "anyone",
+ * so with one list given this reduces to "some seat holds one of it", which is
+ * what a single pin has always meant.
+ *
+ * Quadratic in `members`, which is two or four.
+ */
+const pinnedPair = (
+  members: readonly number[],
+  one: ReadonlySet<number>,
+  other: ReadonlySet<number>,
+): boolean => {
+  if (other.size === 0) return one.size === 0 || members.some((m) => one.has(m));
+  if (one.size === 0) return members.some((m) => other.has(m));
+  for (let i = 0; i < members.length; i++) {
+    if (!one.has(members[i] as number)) continue;
+    for (let j = 0; j < members.length; j++) {
+      if (j !== i && other.has(members[j] as number)) return true;
     }
   }
   return false;
