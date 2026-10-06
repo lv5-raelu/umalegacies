@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PairSweep } from '@umalegacies/core';
+import type { PairSweep, PinnedSide } from '@umalegacies/core';
 import type { RosterResolveResponse, RosterVeteranInput, SparkCriterion } from '@umalegacies/types';
 import { SweepClient, type SweepProgress } from './sweep-client';
 
@@ -41,13 +41,8 @@ export function usePairSearch(
   traineeCharaId: number | null,
   traineeCardId: number | null,
   criteria: readonly SparkCriterion[],
-  /** The cards shortlisted per slot. Composition, not sparks; see `SweepRequest`. */
-  pins: {
-    parent: readonly number[];
-    otherParent: readonly number[];
-    grandparent: readonly number[];
-    otherGrandparent: readonly number[];
-  },
+  /** Who has to be in the pair, by side. Composition, not sparks; see `SweepRequest`. */
+  pins: readonly PinnedSide[],
 ): SearchStatus {
   const clientRef = useRef<SweepClient | null>(null);
   const [status, setStatus] = useState<SearchStatus>({ kind: 'idle' });
@@ -82,10 +77,10 @@ export function usePairSearch(
           traineeCharaId,
           ...(traineeCardId === null ? {} : { traineeCardId }),
           criteria: [...criteria],
-          requireParentCards: [...pins.parent],
-          requireOtherParentCards: [...pins.otherParent],
-          requireGrandparentCards: [...pins.grandparent],
-          requireOtherGrandparentCards: [...pins.otherGrandparent],
+          pins: pins.map((side) => ({
+            parent: [...side.parent],
+            grandparents: [[...side.grandparents[0]], [...side.grandparents[1]]],
+          })),
           kinds,
           masterHash: roster.masterHash,
         },
@@ -108,11 +103,10 @@ export function usePairSearch(
       // cancel-on-next-search stops the work.
       live = false;
     };
-    // `pins` is an object literal at the call site, so its identity changes on
-    // every render; the two numbers inside it are what the sweep depends on.
-    // `pins` holds four ARRAYS, whose identity changes on every render even when
-    // nothing was picked. Joining them gives the effect a value to compare, so
-    // a re-render does not re-run a 2.4s sweep.
+    // `pins` is nested arrays, whose identity can change on a render that
+    // picked nothing. Serialising gives the effect a value to compare, so a
+    // re-render does not re-run a 2.4s sweep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     roster,
     packages,
@@ -120,10 +114,7 @@ export function usePairSearch(
     traineeCardId,
     criteria,
     kinds,
-    pins.parent.join(','),
-    pins.otherParent.join(','),
-    pins.grandparent.join(','),
-    pins.otherGrandparent.join(','),
+    JSON.stringify(pins),
   ]);
 
   // The worker outlives every search but not the screen.

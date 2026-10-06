@@ -105,7 +105,8 @@ export interface PairSweepInput {
   /** In the order the user asked for them; `perSpark` comes back in that order. */
   criteria: readonly SparkCriterion[];
   /**
-   * Keep only pairs that seat this uma in one of the two PARENT slots.
+   * WHO HAS TO BE IN THE PAIR, side by side: up to two `PinnedSide`s, matched
+   * to the two veterans in either order.
    *
    * A composition filter, not a spark one, and that distinction is the whole
    * point of it existing. Wanting Seiun Sky as a parent used to mean inventing
@@ -113,44 +114,16 @@ export interface PairSweepInput {
    * the joint, so the odds on every row described a build the reader was not
    * asking about. This narrows which pairs EXIST and touches no figure.
    *
-   * BY CARD, because a costume is not a skin. Cards of one `chara_id` carry
-   * different unique skills and so different GREEN sparks, and a direct
-   * parent's unique is handed to the trainee at career start -- so pinning
-   * "Oguri Cap" without saying which costume would not answer which green the
-   * run opens with. Aptitudes can differ too: Haru Urara's two cards are a step
-   * apart on Mile.
+   * BY SIDE, because that is how a lineage is shaped. It began as one parent
+   * list and one grandparent list, each meaning "any of these, anywhere", and
+   * readers hit the wall twice: Maruzensky and Mihono Bourbon in the parent
+   * list came back as "either of them beside anyone", and a grandparent list
+   * could not say WHICH parent she should sit under. A side is one veteran and
+   * her own two parents, so both questions are just filling in a side.
    *
-   * A LIST, AND IT MEANS "ANY OF THESE". A reader shortlisting three umas for
-   * a slot is asking one question, not three searches -- and three searches
-   * could not be ranked against each other anyway, which is the thing the
-   * sweep is for. Empty means no constraint, which is also what absent means.
+   * Absent, empty, or a side with nothing chosen all mean no constraint.
    */
-  requireParentCards?: readonly number[];
-  /**
-   * Keep only pairs whose OTHER parent is one of these.
-   *
-   * Reported by readers: shortlisting Maruzensky and Mihono Bourbon in the one
-   * parent list returned "Maruzensky or Bourbon, beside anyone" -- because
-   * that list asks for ANY of its members in EITHER seat. The question they
-   * meant was "Maruzensky in one seat AND Bourbon in the other", and no single
-   * list can say that, since "any of" is exactly what shortlisting is for.
-   *
-   * So each list claims ONE seat, in either order. One list given is the old
-   * behaviour unchanged; both given pins the pair's whole composition, and a
-   * shortlist on either side still means any of it -- "Maruzensky with Bourbon
-   * or Oguri" is one search. Empty means no constraint, as above.
-   */
-  requireOtherParentCards?: readonly number[];
-  /** The same, for the four GRANDPARENT slots. */
-  requireGrandparentCards?: readonly number[];
-  /**
-   * The other-seat list for the GRANDPARENTS, read exactly as the parents'
-   * one: a grandparent from this list AND a different grandparent from the
-   * first. Any two of the four slots, in either half -- "Maruzensky and
-   * Bourbon somewhere among the grandparents" is the question, and which
-   * veteran each sits under is the parent pins' business, not this one's.
-   */
-  requireOtherGrandparentCards?: readonly number[];
+  pins?: readonly PinnedSide[];
   /**
    * The catalogue lookup. A criterion is a groupId and a threshold; whether it
    * may EXCLUDE depends on its kind, which lives in `RosterSparkOption`.
@@ -203,13 +176,10 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
    * Sets, built once. The inner loop asks these up to 30,808 times and an
    * `includes` over a shortlist would be a linear scan every time.
    *
-   * Empty is the same as absent: a reader who cleared the list is asking for
-   * no constraint, not for a slot nothing can fill.
+   * A side with nothing chosen is dropped here rather than carried as a
+   * wildcard, so the common case -- no pins at all -- costs nothing per pair.
    */
-  const parentCards = new Set(input.requireParentCards ?? []);
-  const otherParentCards = new Set(input.requireOtherParentCards ?? []);
-  const grandparentCards = new Set(input.requireGrandparentCards ?? []);
-  const otherGrandparentCards = new Set(input.requireOtherGrandparentCards ?? []);
+  const sides = (input.pins ?? []).slice(0, 2).map(toSeats).filter((side) => side !== null);
 
   // Split once, not 30,808 times. Whites that only rank still get measured --
   // they just cannot exclude, so they have no business in the inner loop's
@@ -254,7 +224,7 @@ export function sweepPairs(input: PairSweepInput): PairSweep {
       // this search rather than which of them are any good -- the same thing
       // choosing a trainee does. Counting pinned-out pairs as legal would make
       // "258 of 30,808" describe two different populations.
-      if (!seats(a, b, parentCards, otherParentCards, grandparentCards, otherGrandparentCards)) continue;
+      if (!seats(a, b, sides)) continue;
       legal++;
       if (input.onProgress !== undefined && legal % PROGRESS_EVERY === 0) {
         input.onProgress(legal, total);
@@ -425,63 +395,72 @@ const carried = (values: readonly (number | null)[]): number => {
 };
 
 /**
- * Does this pair seat one of the shortlisted cards in each pinned slot?
+ * One side of the pair as the reader pinned it: a parent, and that parent's
+ * own two parents. Each is a shortlist meaning ANY of it, and empty is anyone.
  *
- * A pair is six umas in two shapes: the two veterans themselves become the
- * direct PARENTS, and their own parents become the four GRANDPARENTS. So the
- * parent and grandparent pins read different fields, and pinning the same
- * character in both is a legitimate question -- "somewhere in this lineage
- * twice" -- rather than a contradiction. Both shapes must be satisfied.
- *
- * `charaId` is null on a member master.mdb has no card for. Such a member can
- * never satisfy a pin, which is right: an unresolved slot is not evidence.
+ * BY CARD, because a costume is not a skin. Cards of one `chara_id` carry
+ * different unique skills and so different GREEN sparks, and a direct
+ * parent's unique is handed to the trainee at career start -- so pinning
+ * "Oguri Cap" without saying which costume would not answer which green the
+ * run opens with. Aptitudes can differ too: Haru Urara's two cards are a step
+ * apart on Mile.
  */
-const seats = (
-  a: ResolvedVeteran,
-  b: ResolvedVeteran,
-  parentCards: ReadonlySet<number>,
-  otherParentCards: ReadonlySet<number>,
-  grandparentCards: ReadonlySet<number>,
-  otherGrandparentCards: ReadonlySet<number>,
-): boolean => {
-  if (!pinnedPair([a.self.cardId, b.self.cardId], parentCards, otherParentCards)) return false;
-  if (grandparentCards.size === 0 && otherGrandparentCards.size === 0) return true;
-  const grandparents: number[] = [];
-  for (const veteran of [a, b]) {
-    for (const member of veteran.parents) if (member !== null) grandparents.push(member.cardId);
-  }
-  return pinnedPair(grandparents, grandparentCards, otherGrandparentCards);
+export interface PinnedSide {
+  parent: readonly number[];
+  /** The two grandparent seats under this parent, in either order. */
+  grandparents: readonly [readonly number[], readonly number[]];
+}
+
+interface SideSeats {
+  parent: ReadonlySet<number>;
+  grandparents: readonly [ReadonlySet<number>, ReadonlySet<number>];
+}
+
+/** Null when nothing on the side was chosen, so it can be dropped outright. */
+const toSeats = (side: PinnedSide): SideSeats | null => {
+  const seats: SideSeats = {
+    parent: new Set(side.parent),
+    grandparents: [new Set(side.grandparents[0]), new Set(side.grandparents[1])],
+  };
+  return seats.parent.size + seats.grandparents[0].size + seats.grandparents[1].size === 0
+    ? null
+    : seats;
 };
 
 /**
- * Do two DIFFERENT seats among `members` hold one card from each list?
+ * Can these two veterans fill the pinned sides, one side each?
  *
- * Each list claims one seat, in either order. That is an assignment rather
- * than two independent checks, because one uma cannot fill both seats: with
- * Maruzensky in each list, Maruzensky beside a stranger satisfies only one.
- *
- * Readers asked for it after putting Maruzensky and Mihono Bourbon in a single
- * list and getting "either of them beside anyone" -- a list means ANY of its
- * members, so "one of each" needed a second list. An empty list is "anyone",
- * so with one list given this reduces to "some seat holds one of it", which is
- * what a single pin has always meant.
- *
- * Quadratic in `members`, which is two or four.
+ * In EITHER order: the game does not label its two parent slots, so "Gold
+ * Ship's side and Inari One's side" is the same pair whichever veteran the
+ * sweep met first. One veteran cannot fill both sides, which is what makes
+ * Maruzensky-and-Bourbon mean one of each rather than either of them.
  */
-const pinnedPair = (
-  members: readonly number[],
-  one: ReadonlySet<number>,
-  other: ReadonlySet<number>,
-): boolean => {
-  if (other.size === 0) return one.size === 0 || members.some((m) => one.has(m));
-  if (one.size === 0) return members.some((m) => other.has(m));
-  for (let i = 0; i < members.length; i++) {
-    if (!one.has(members[i] as number)) continue;
-    for (let j = 0; j < members.length; j++) {
-      if (j !== i && other.has(members[j] as number)) return true;
-    }
-  }
-  return false;
+const seats = (a: ResolvedVeteran, b: ResolvedVeteran, sides: readonly SideSeats[]): boolean => {
+  const [one, other] = sides;
+  if (one === undefined) return true;
+  if (other === undefined) return fillsSide(a, one) || fillsSide(b, one);
+  return (fillsSide(a, one) && fillsSide(b, other)) || (fillsSide(b, one) && fillsSide(a, other));
+};
+
+/**
+ * Is this veteran the side's parent, with the side's grandparents above her?
+ *
+ * The grandparent seats are an assignment over her two parents, in either
+ * order, so one ancestor cannot fill both: Vodka in each seat asks for a
+ * veteran bred from two Vodkas, which no veteran is.
+ *
+ * `charaId` is null on a member master.mdb has no card for, and an empty
+ * parent slot is null outright. Neither can satisfy a pin, which is right: an
+ * unresolved slot is not evidence.
+ */
+const fillsSide = (veteran: ResolvedVeteran, side: SideSeats): boolean => {
+  if (side.parent.size > 0 && !side.parent.has(veteran.self.cardId)) return false;
+  const [g0, g1] = side.grandparents;
+  if (g0.size === 0 && g1.size === 0) return true;
+  const [p, q] = veteran.parents.map((member) => member?.cardId ?? null);
+  const fits = (cards: ReadonlySet<number>, card: number | null | undefined) =>
+    cards.size === 0 || (card != null && cards.has(card));
+  return (fits(g0, p) && fits(g1, q)) || (fits(g0, q) && fits(g1, p));
 };
 
 const packageAt = (packages: readonly RosterVeteranInput[], index: number): VeteranPackage => {

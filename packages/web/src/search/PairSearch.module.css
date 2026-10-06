@@ -911,54 +911,75 @@
  * collapsed into one control and the odds paid for it.
  */
 /*
- * TWO ROWS, PARENTS ABOVE GRANDPARENTS, EACH WITH TWO SEATS -- and the seats
- * line up in columns, so "paired with" reads as the same control in both.
+ * TWO SIDES, EACH A SMALL FAMILY TREE: "parent [ ]" above "bred from [ ] and
+ * [ ]", with a hairline between the sides.
  *
- * One grid, with the rows and seats flattened into it by `display: contents`.
- * Separate grids per row would size their columns separately, and "as a
- * grandparent" is wider than "as a parent", so the two rows' pickers would
- * start at different x. The label takes column 1 of the first row only; every
- * row's first seat is sent to column 2 so the second row does not slide under it.
+ * Each side is its own four-column grid -- words, picker, "and", picker -- so
+ * the parent's picker sits directly above the first of the two she was bred
+ * from, the same shape the lineage tree draws. The two sides do not need to
+ * share columns: they hold the same words, so they come out the same width.
  */
 .pins {
-  display: grid;
-  grid-template-columns: max-content max-content 240px max-content 240px;
-  align-items: center;
-  gap: var(--space-sm) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
   margin-top: var(--space-md);
 }
-.pinRows,
-.pinRow,
-.pin {
-  display: contents;
+.pinSides {
+  display: flex;
+  align-items: flex-start;
 }
-.pinRow > .pin:first-child > .pinSlot {
-  grid-column: 2;
+.pinSide {
+  display: grid;
+  grid-template-columns: max-content 200px max-content 200px;
+  align-items: center;
+  gap: var(--space-sm);
 }
-/* Slot words hug their own picker rather than the column's left edge. */
+.pinSide + .pinSide {
+  border-left: 1px solid var(--rule);
+  margin-left: var(--space-lg);
+  padding-left: var(--space-lg);
+}
+/* "bred from" starts the second row: a column behind the cursor forces the wrap. */
+.pinBredFrom {
+  grid-column: 1;
+}
+/* Words hug their own picker rather than the column's left edge. */
 .pinSlot {
   justify-self: end;
 }
 
 /*
- * Five columns need ~900px. Under that the rows stack and each wraps, seat by
- * seat, which is how the single row behaved before it had a second line.
+ * Two sides need ~1,100px. Under that they stack, the hairline turning from a
+ * column rule into a row rule, and each side keeps its tree shape.
  */
-@media (max-width: 960px) {
-  .pins,
-  .pinRows {
-    display: flex;
+@media (max-width: 1180px) {
+  .pinSides {
     flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-sm);
+    gap: var(--space-md);
   }
-  .pinRow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm) var(--space-lg);
+  .pinSide + .pinSide {
+    border-left: 0;
+    margin-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: var(--space-md);
   }
-  .pin {
-    display: inline-flex;
+}
+
+/*
+ * A phone cannot hold two pickers on one line, so every seat gets its own:
+ * parent, bred from, and. The pickers take whatever width is left.
+ */
+@media (max-width: 600px) {
+  .pinSides {
+    align-items: stretch;
+  }
+  .pinSide {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+  .pinAnd {
+    grid-column: 1;
   }
 }
 .pinsLabel {
@@ -966,11 +987,6 @@
   font-size: var(--text-3xs);
   letter-spacing: var(--tracking-label);
   color: var(--ink-faint);
-}
-/* Read only in the stacked layout; in the grid, `.pin` is `display: contents`. */
-.pin {
-  align-items: center;
-  gap: var(--space-sm);
 }
 
 /*
@@ -984,11 +1000,12 @@
  *
  * The child selector rather than the class: the wrapper's name is hashed by CSS
  * Modules and belongs to another component's stylesheet. Widening it from here
- * is the one thing this file legitimately knows about it.
+ * is the one thing this file legitimately knows about it. The width itself
+ * comes from the `.pinSide` grid column the field sits in.
  */
 .pinField {
   display: block;
-  width: 240px;
+  min-width: 0;
 }
 .pinField > * {
   max-width: none;
