@@ -129,7 +129,7 @@ export class MasterService implements OnModuleInit {
   }
 
   /**
-   * Default source is the committed extract: 6 of master.mdb's 416 tables as
+   * Default source is the committed extract: 12 of master.mdb's 416 tables as
    * SQL text, so a clone can run the API with no 16 MB user file. Set
    * MASTER_DB_PATH to serve a real master.mdb instead, which is what you want
    * when checking whether a game patch moved anything.
