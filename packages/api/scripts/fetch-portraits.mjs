@@ -68,7 +68,7 @@ db.exec(readFileSync(extractPath, 'utf8'));
 /**
  * One portrait per CARD, not per character.
  *
- * A card is a costume, and costumes are not cosmetic here: 35 of the 68
+ * A card is a costume, and costumes are not cosmetic here: 37 of the 68
  * characters have more than one card, and a card carries its own unique skill,
  * which IS the green spark. Measured on a real roster, 15 characters appear
  * with two different greens -- Oguri Cap 100601 is "Triumphant Pulse" and

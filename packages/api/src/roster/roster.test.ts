@@ -39,7 +39,7 @@ describe('resolveRoster: who each veteran is', () => {
   });
 
   it('tags a costume only where the character has more than one card', () => {
-    // 72 of 105 cards need the tag. On the other 33 it would be noise on every
+    // 76 of 107 cards need the tag. On the other 31 it would be noise on every
     // row, and a row is 52px with four other things competing for it.
     const { veterans } = resolveRoster(
       [
@@ -177,8 +177,8 @@ describe('the trainee picker', () => {
   const options = traineeOptions(master);
 
   it('offers every card, not every character, because a card is a costume', () => {
-    // 68 characters span 105 playable cards, and a costume carries its own unique skill.
-    expect(options.length).toBe(105);
+    // 68 characters span 107 playable cards, and a costume carries its own unique skill.
+    expect(options.length).toBe(107);
     expect(new Set(options.map((o) => o.charaId)).size).toBe(68);
   });
 
@@ -193,8 +193,8 @@ describe('the trainee picker', () => {
     expect(grass.map((o) => o.costume)).toEqual(['[Stone-Piercing Blue]', '[Saintly Jade Cleric]']);
   });
 
-  it('marks the 72 cards whose bare name is ambiguous', () => {
-    expect(options.filter((o) => o.ambiguous).length).toBe(72);
+  it('marks the 76 cards whose bare name is ambiguous', () => {
+    expect(options.filter((o) => o.ambiguous).length).toBe(76);
     const oguri = options.filter((o) => o.name === 'Oguri Cap');
     expect(oguri.map((o) => o.costume)).toEqual(['[Starlight Beat]', '[Ashen Miracle]']);
     expect(oguri.every((o) => o.ambiguous)).toBe(true);
