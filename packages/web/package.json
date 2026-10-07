@@ -17,9 +17,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@umalegacies/core": "*",
+    "@vercel/analytics": "^2.0.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "@umalegacies/core": "*"
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@types/react": "19.3.0 19.3.0",
