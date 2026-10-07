@@ -244,14 +244,14 @@ So after a game patch, run `fetch:portraits` and commit whatever it writes. A ne
 card with no committed portrait deploys as initials.
 
 **Keyed by card, not by character.** A card is a costume, and a costume carries
-its own unique skill, which IS the green spark. 35 of the 68 characters have
+its own unique skill, which IS the green spark. 37 of the 68 characters have
 more than one card, and on a real roster 15 appear with two different greens:
 Oguri Cap `100601` is *Triumphant Pulse*, `100602` is *Festive Miracle*. Keying
 by `chara_id` drew one costume's face directly above another costume's spark.
 
 `scripts/fetch-portraits.mjs` reads `card_data` from the committed extract,
 verifies PNG magic bytes rather than trusting a 200, and skips anything already
-on disk, so a re-run after a patch fetches only what is new. 105 of 107 cards,
+on disk, so a re-run after a patch fetches only what is new. 107 of 109 cards,
 about 900 KB. The two misses are `9100101` and `9101101` — the same pair the
 `card_id / 100` gotcha below calls out. gametora does not host them because they are
 not real costumes: both have `default_rarity` 0 and no skill set, so nobody can train
@@ -263,7 +263,7 @@ second, portrait-less copy of a real costume.
 
 **`master.mdb` is not in the repository, and is not needed to run the app.**
 `packages/api/data/master-extract.sql` is, and the API serves from it by default.
-The extract holds 12 of `master.mdb`'s 416 tables and 1,775 of `text_data`'s 54,234
+The extract holds 12 of `master.mdb`'s 416 tables and 1,775 of `text_data`'s 54,235
 rows, against a 16 MB binary.
 
 Three of those tables are **projected to the columns this app reads** rather than copied
@@ -271,7 +271,7 @@ whole: `skill_data` is 78 columns of race-simulation parameters and only `id`,
 `skill_category` and `rarity` are used, and `succession_factor_effect` collapses to the
 factor-to-skill mapping once its five hint-level rows per factor are deduplicated.
 `card_rarity_data` is both projected and deduplicated: it stores one row per card per
-rarity and the ten aptitudes are identical across them, so 340 rows become 105.
+rarity and the ten aptitudes are identical across them, so 346 rows become 107.
 
 A projected table gets a `CREATE TABLE` written from the columns asked for, with types
 read back from the source schema so a projection cannot quietly change one.
