@@ -200,3 +200,32 @@ consistent with "possible but universally avoided". The zero control and the kno
 distance-2 positive are what make the forbidden reading the better-supported one. Method
 followed [[umalegacies-ask-the-tools-before-asking-memory]]: 2,500 records beat asking
 anyone to recall a rule.
+
+---
+
+## 5. App-flow tests for the flows that already ship
+
+**What.** Once the compare-pairs PR lands its jsdom harness (`App.flows.test.tsx`), add flow
+tests for behaviour that already ships and has none: search's "Show breakdown" reaching
+`/tree` with that pair, a reload restoring trainee, filters and picks, and "Forget this
+roster" emptying everything.
+
+**Why.** Opened 2026-10-14 by the compare-pairs engineering review. Those flows are wiring
+inside `App.tsx` effects, and the web tests run in Vitest's `node` environment through
+`renderToStaticMarkup`, which cannot reach an effect. That review found three wiring bugs of
+exactly this kind in the compare plan (a reload bounced by the `/tree` guard, a drop-zone
+flash on every reload, late results painting over newer state) before any code existed.
+
+**Pros.** Cheap once the harness exists. Guards behaviour players already rely on.
+
+**Cons.** Tests for flows nobody has reported broken. About 1-2 hours of test-only work.
+
+**Context.** The node environment was the M0 scaffold's default, kept in PR #19 because the
+first component tests needed nothing more; it was never a decision against a DOM. The
+harness decided in that review: a per-file `// @vitest-environment jsdom` comment, so every
+existing test stays in node; `fake-indexeddb` for the restore; `explainPairLocally` mocked
+with deferred promises to control timing. The `/tree` reload regression test is already in
+the compare PR's scope; this extends coverage to the rest.
+
+**Depends on.** The compare-pairs PR landing the harness (`docs/designs/compare-pairs.md`,
+Test Plan).

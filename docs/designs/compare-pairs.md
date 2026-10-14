@@ -162,14 +162,33 @@ from that folder, which reads `data.json` and `master.mdb` from the repository r
    - "same half as A·P2" when that side is the same pick as any side of an earlier column.
      Pick identity: an own pick is its roster `index`; a borrowed pick (release 2, not emitted
      today) compares by its whole `VeteranPackage`;
-   - remove (achromatic ×) and "Show breakdown" (to `/tree` for that pair), equal for every
-     column;
+   - remove (achromatic ×) and "Show breakdown", equal for every column. "Show breakdown"
+     calls ONE App action, `takePair(pair, lineage)`: `setPicks(pair)`, `setLineage(lineage)`,
+     `navigate(TREE)`, the handoff search already does (`App.tsx:573-587`), which search's
+     `onPick` is refactored to call too. `/tree` draws App's single `lineage`, so without the
+     handoff it would open the roster's pair, not the column's. `pairFrom` is left as-is so
+     `/tree` uses the criteria `/compare` showed. The roster's pair becomes this one, which
+     is what "show me this pair" means. No button on blocked, loading or error columns.
+     (Eng review, Codex #1.)
    - an unused slot is a dashed `--rule` region reading "Add a pair", linking to `/search`.
 4. **Table body.** Name column 200px (120px below 600px, names wrap), sticky left: 3px tick
    (filled for blue/pink/green, outlined for white), name in Instrument Sans 12px. Pair
-   columns `minmax(200px, 1fr)` inside an `overflow-x: auto` region, so a phone shows about
-   one and a half columns and scrolls sideways; that is accepted, the page body never
-   scrolls. Group bands in 10px uppercase mono: "Your sparks", then each group in
+   columns `minmax(200px, 1fr)`. The page body never scrolls sideways.
+   **Scrolling, two regimes (eng review 1B, revised after measurement):**
+   - **≥ 1080px viewport: no overflow wrapper at all.** Four columns at their 200px minimum
+     plus the 200px name column is 1000px, inside the content width there, so nothing
+     overflows and the sticky header pins to the PAGE.
+   - **< 1080px: the table scrolls in its own box on both axes**: `overflow: auto;
+     max-height: calc(100dvh - <controls bar and header>)`. The box is then the scroll
+     container on both axes, so the header pins to its top and the name column to its left.
+   - **Not `overflow-x: auto; overflow-y: clip`.** That was the first fix, approved, and it
+     does not work: `clip` computes to `hidden` when the other axis scrolls (CSS Overflow 3),
+     the wrapper stays a scroll container, and the header scrolls away. Measured in Chrome
+     153 on 2026-10-14 with a probe page; the two regimes above were measured in the same
+     probe (header and name column both at 0px offset after scrolling). The CSS module
+     records why, and the 1080px arithmetic, in a comment: if the 200px column minimum
+     changes, the breakpoint changes with it.
+   - jsdom does no layout, so both regimes are a QA check at 1280px and 375px. Group bands in 10px uppercase mono: "Your sparks", then each group in
    `SPARK_GROUP_ORDER` that has rows, labelled by `groupLabelOf`. Cells in IBM Plex Mono 12px, right-aligned in fixed
    `ch` slots: `3★` · `4/6` · `62%` · `(41%)`, inherit in `--ink-muted` with the chip's
    bracket idiom. An absent spark is an em dash in `--ink-faint`; a genuine zero is ink. Row
@@ -185,14 +204,34 @@ from that folder, which reads `data.json` and `master.mdb` from the repository r
   table is absent, with one line: "Choose who you are training." The tray is kept.
 - **Per-column loading**: a column whose lineage is being computed keeps its header and shows
   "Explaining…" in place of its cells (the pane's wording); other columns render.
-- **Per-column error**: `explainPairLocally` throws on a master-hash mismatch
-  (`requireFresh`) or a load failure. The column keeps its header and states the error in
-  place of its cells; nothing else on the page changes.
+- **Stale master data**: a `StaleMasterError` from any column goes to the app's existing
+  banner (`setMasterChanged(true)`, `seenMasterHash` reset, `App.tsx:525-531`), not to four
+  copies of one message. (Eng review 1C.)
+- **Per-column error**: any OTHER failure (a load failure) is per column: the column keeps its
+  header and states the error in place of its cells; nothing else on the page changes.
+- **Late results**: the `ComparePage` effect carries a `cancelled` flag exactly as App's does
+  (`App.tsx:509, 535-537`), so a slow result for the previous trainee or tray can never
+  paint over the current one. Both App and `ComparePage` call ONE shared helper for the
+  then/catch (`lineage/explain-local.ts`), so the stale-master rule exists once.
 - **Fewer than two pairs**: the one column renders plus "Add a pair" slots; zero pairs means
   the table is absent and the page says how to add one (DESIGN.md: absent, not disabled).
-- **No roster loaded**: `navigate(ROOT, { replace: true })` to the drop zone, reacting to state
-  rather than to the route, the way the tree page does when it has nothing to show
-  (`App.tsx:205-208`).
+- **No roster loaded**: no redirect. `/compare` joins `/search` and `/roster`, which have no
+  guard (`App.tsx:172-176`): with no roster it renders the landing and drop zone, and once a
+  roster exists it renders the page. (Eng review 1A. Copying the tree's guard would have
+  bounced every reload to `/search` before IndexedDB answered.)
+- **Restoring (every route, not just this one)**: while `restoring` is true the shell renders
+  its header and nav and NOTHING else: no welcome lede, no drop zone, no page body. Today
+  `roster` is null during restore, so every route flashes the landing and the drop zone in
+  its `parsing` state (`App.tsx:615`, `640-650`) before the restored page replaces it. The
+  builder's call: no glimpse of the drop zone on any reload. If `restoring` is still true
+  after ~300ms, one muted line appears: "Restoring your roster…" (eng review D14; DESIGN.md:
+  a waiting surface says what it is waiting for). A fast restore shows only the header.
+  Test (jsdom, fake timers): resolved at 100ms → no line; at 500ms → the line, then the page. The `/tree` guard
+  (`App.tsx:205-208`) also gains the restore gate and asks whether a lineage CAN come (a
+  trainee and a full pair exist) rather than whether one has arrived yet, because it runs
+  before the explain effect in the same commit and would otherwise bounce a reloaded `/tree`.
+  Its comment ("The roster lives only in memory, so a reload...") has been stale since the
+  IndexedDB restore landed and is corrected in the same edit.
 - **Trainee change**: every column recomputes; a pair now illegal keeps its header and states
   the reason in place of its cells.
 - **Tray full**: "Add to compare" says "4 of 4, remove one on /compare" instead of acting.
@@ -203,19 +242,75 @@ from that folder, which reads `data.json` and `master.mdb` from the repository r
   says so once (the `trayCleared` flag, see Code map).
 - **No filter set**: no "Your sparks" band and no "Only my filtered sparks" toggle.
 
+### Data flow
+
+```
+ search row / PairDetail / roster pane
+          │  "Add to compare" (ParentPick pair)
+          ▼
+ App.tsx  tray: ParentPick[][]  ──writeSelection──▶ IndexedDB (CachedSelection.tray, optional)
+   │  ▲                                              │ restoreSelection: index+cardId check,
+   │  └──────────── restore (restoring=true) ◀───────┘ NO legality filter, bad/missing → []
+   │  trainee, pairCriteria, window
+   ▼
+ ComparePage effect (cancelled guard; results Map keyed masterHash+trainee+pair)
+   for each tray pair whose key is missing from the Map:
+     isLegalPair? ──no──▶ { blocked, reason via pickBlock }
+        │yes
+        ▼
+     explainPairRequest → explainPairLocally ──StaleMasterError──▶ App banner (shared helper)
+        │ok                                  └─other error──▶ { error, message }
+        ▼
+     { ok, lineage }
+   ▼
+ compare-model.ts (pure)  columns + criteria + window ─▶ rows, identical flags, hidden count,
+                                                        shared-half labels
+   ▼
+ CompareTable / PairHeader / CarrierSlots (render only)
+```
+
 ### Code map
 
 - `packages/web/src/compare/compare-model.ts`: pure, no async. Input is one entry per tray
   pair, a union: `{ kind: 'ok'; lineage: LineageResponse } | { kind: 'blocked'; reason:
-  string } | { kind: 'loading' } | { kind: 'error'; message: string }`, plus `pairCriteria`
-  and the window. Returns aligned rows (union by `groupId` over the `ok` columns; filtered
+  string } | { kind: 'loading' } | { kind: 'error'; message: string }`, plus `pairCriteria`,
+  the window, and `roster.sparkOptions` (eng review, Codex #6): a criterion carries only a
+  `groupId`, so a filtered spark absent from every `ok` column takes its name and kind from
+  the catalogue, exactly as `ComparePane` does for "a requirement this pair misses"
+  (`ComparePane.tsx:135-136`). Test: a criterion no pair carries renders its name, its tick
+  and an em dash in every column. Returns aligned rows (union by `groupId` over the `ok` columns; filtered
   sparks first, including any carried by no pair; then `SPARK_GROUP_ORDER` + name), per-cell
   values for the window, the career inherit figure via `inheritOnceInCareer` under the
   per-spark gold rule, an `identical` flag per row (computed over `ok` columns only), the
-  hidden count, and shared-half labels. Unit-tested, including a blocked column.
+  hidden count, and shared-half labels. **"Identical" means the PRINTED cell** (eng review
+  2B): the four strings the reader sees (stars, carriers, activation in the selected window
+  via `percent()`, inherit) match in every `ok` column. Switching the window recomputes the
+  flags and the hidden count. Tests: 43.12% vs 43.49% hides; a row differing only under
+  "at least twice" reappears when that window is chosen. **The filter needs two finished
+  columns** (eng review, Codex #4): it applies only when ≥ 2 columns are `ok` and none is
+  `loading`; otherwise every row shows and the toggle is absent (DESIGN.md: absent, not
+  disabled). Blocked and error columns do not count. Without this, one pair in the tray is
+  "identical in every pair" with itself and the default-on filter hides the whole table.
+  Tests: 1 `ok` column → all rows shown, no toggle; 2 `ok` + 1 `loading` → nothing hidden
+  until it lands. *Considered and kept (Codex #5):* printed equality can hide a row whose
+  carriers sit in different ancestor slots. Kept anyway: the numbers are equal for the
+  career being planned, the real three-pair Oguri Cap example had 0 of 74 such rows, and
+  the reader can switch the filter off. Unit-tested, including a blocked column.
+- `lineage/odds.ts` (NEW, extracted, eng review 2A): `OddsView` and its two label tables,
+  `valueFor(row, view)`, `goldGroupsOf(criteria)` and `cellInherit(row, gold)`, moved out of
+  `ComparePane.tsx` (lines 59-72, 117-122, 288, 493-498) unchanged. `ComparePane` and
+  `compare-model` both import them, so "the pane and `/compare` show the same number" holds
+  by construction. `ComparePane.test.tsx` must stay green with no edits to its assertions.
 - `compare/ComparePage.tsx` owns the async work: an effect keyed on (trainee, tray) runs
   `explainPairRequest` → `explainPairLocally` per pair, the same path `App.tsx:502-517`
-  uses, and stores each column's result in the union above. Legality is DECIDED by core's
+  uses. **Results are keyed, not positional** (eng review, Codex #2): a `Map` from
+  `masterHash + trainee card + unordered pair key` to the column union above. Columns are
+  DERIVED from tray order plus the Map; a column whose key has no entry renders `loading`,
+  never another pair's numbers. The effect computes only keys the Map lacks, so adding or
+  removing one pair leaves the other columns' numbers on screen with no "Explaining…"
+  flash. Tests: remove A after all have loaded → B and C keep their own numbers and never
+  show loading; switch trainee after load → every column shows loading until its own new
+  result. Legality is DECIDED by core's
   `isLegalPair` (`packages/core/src/filter.ts:342`: same veteran, either side is the trainee,
   same character); `explainPairRequest` itself checks nothing. `pickBlock` (`filter.ts:359`)
   is used only to WORD the reason (`is-trainee`, `same-uma`), since it returns null early
@@ -276,6 +371,57 @@ from that folder, which reads `data.json` and `master.mdb` from the repository r
    emitted today. The tray stores whole `ParentPick`s, so it holds a borrowed package as-is
    when release 2 starts emitting one; nothing else to decide now.
 
+## Test Plan (eng review 3A)
+
+The web tests run in Vitest's `node` environment and render through `renderToStaticMarkup`.
+That was the M0 scaffold's default, kept in PR #19 because the first component tests needed
+nothing more; it was never a decision against a DOM. This feature's riskiest bugs are WIRING
+bugs inside `App.tsx` effects, so the plan is: decisions as pure functions tested in node,
+plus a few App-flow tests that opt into jsdom per file with `// @vitest-environment jsdom`.
+Every existing test stays in node, untouched.
+
+New dev dependencies (web workspace only, nothing shipped): `jsdom`,
+`@testing-library/react`, `fake-indexeddb`.
+
+**Regression tests (mandatory, written BEFORE the change they guard):**
+1. `roster/ComparePane.test.tsx`: the pane prints the same activation and inherit for a white
+   AND a gold criterion. Written first, green before and after the `odds.ts` extraction (2A).
+2. `shell.test.ts`: `treeShouldRedirect` is false while restoring and false when a trainee and
+   a full pair exist but the lineage has not arrived; true when no pair is possible (1A).
+3. `App.flows.test.tsx` (jsdom): a reload on `/tree` with a stored full pair stays on `/tree`.
+
+**Node unit tests:**
+- `lineage/odds.test.ts`: `valueFor` for each window; `goldGroupsOf`; `cellInherit` for white,
+  gold, and a non-skill (null).
+- `compare/compare-model.test.ts`: union by `groupId`; filtered first, including one carried by
+  no pair; `SPARK_GROUP_ORDER` then name; identical by printed text (43.12% vs 43.49% hides; a
+  row differing only under "at least twice" reappears in that window); hidden count with both
+  toggles; blocked, loading and error columns excluded from the union; shared-half label across
+  positions (C·P1 = A·P2); A×B and B×A give the same rows.
+- `compare/tray.test.ts`: add, remove, cap at 4 (5th refused with reason), unordered dedupe.
+- `roster/selection.test.ts` (extended): missing or malformed `tray` restores as `[]`; an own pick
+  whose `index` now holds a different `cardId` is dropped; a pair illegal for the trainee is
+  KEPT; `CACHE_VERSION` unchanged and an existing record still restores.
+- `compare/run-columns.test.ts`: `runColumns(pairs, explain, isCancelled)` with an injected
+  `explain`: illegal pair → `blocked` with `pickBlock`'s reason and `explain` never called;
+  `StaleMasterError` → the stale callback once, no column errors; other error → that column
+  only; cancelled mid-flight → no result written.
+- `shell.test.ts`: `shellView` renders header only while restoring on every route.
+- `compare/ComparePage.test.tsx` (`renderToStaticMarkup`): 0 pairs, 1 pair, no trainee, no
+  filter, a blocked column, an error column, the cleared-tray notice.
+
+**jsdom App-flow tests (`App.flows.test.tsx`, `fake-indexeddb/auto`, `explainPairLocally`
+mocked with deferred promises):**
+- reload on `/compare` with a stored tray: no drop zone is ever in the document, then the
+  columns render;
+- forget, and a new upload: the tray is empty, and `/compare` shows the cleared notice once;
+- switch trainee while the first explain is pending, then resolve it late: the old numbers
+  never appear;
+- "Show breakdown" on column C opens `/tree` showing C's pair total, not the roster's pair.
+
+**/qa (browser only):** sticky header and name column at 1280px and 375px (1B); a real reload of
+`/compare`, `/search` and `/tree` shows no drop-zone flash.
+
 ## Success Criteria
 
 - The player who asked can put their loop versions on one screen from the roster and from the
@@ -294,17 +440,162 @@ deployment change is the `compare` path in `vercel.json`'s web rewrite; without 
 
 ## Next Steps
 
-In this order, so the page is usable on real data from step 3:
+Revised by the engineering review (2026-10-14). The tasks with their sources and checks are
+under Implementation Tasks below. In this order, so the page is usable on real data from
+step 5:
 
-1. `compare-model.ts` + tests: alignment, filtered-first, absent-everywhere filtered sparks,
-   identical detection, A×B = B×A, career inherit unaffected by the window, gold plan applied.
-2. `ComparePage` / `CompareTable` / `PairHeader` with two hard-wired pairs from a fixture,
-   styled to DESIGN.md.
-3. `/compare` route + rewrite, the tray in `App.tsx`, "Add to compare" on search rows.
-4. The pair dialog and the roster pane as entry points; IndexedDB persistence and clearing;
-   the nav item; all the states above.
-5. `CarrierSlots` expansion, synchronized across columns; keyboard and narrow-width check.
-6. DESIGN.md amendments, once approved.
+1. Regression test for the pane (white and gold), then extract `lineage/odds.ts` (T1).
+2. The restore gate on every route, the delayed "Restoring your roster…" line, and the `/tree`
+   guard asking whether a lineage can come (T2), with `shell.ts` deciders and their tests.
+3. `compare-model.ts`, `tray.ts`, the `CachedSelection.tray` field, `runColumns` and their node
+   tests (T6, T7, T8).
+4. The jsdom harness and App-flow tests, written as the App wiring lands (T9).
+5. `/compare` route + rewrite, the tray in `App.tsx`, keyed results with the shared
+   stale-master helper (T5), "Add to compare" on search rows, `takePair` (T4).
+6. `ComparePage` / `CompareTable` / `PairHeader`, the two scrolling regimes (T3).
+7. The pair dialog and the roster pane as entry points; the nav item; every state above.
+8. `CarrierSlots` expansion, synchronized across columns; keyboard and narrow-width check.
+9. DESIGN.md amendments, once approved.
+
+## Engineering Review (2026-10-14)
+
+### NOT in scope
+
+- **Borrowed halves in the tray.** Release 2; the tray stores whole `ParentPick`s, so it
+  needs no rework when borrowed picks start being emitted.
+- **Lighting a filtered spark's name** (Open Question 1). A design call for
+  `/plan-design-review`, not an engineering one.
+- **A third filter, e.g. "sparks with 2+ carriers in some pair"** (Open Question 2). Wait for
+  how players use hide-identical first.
+- **Carrier-layout equality** (Codex #5). Considered; printed equality kept.
+- **App-flow tests for flows that already ship.** `TODOS.md` #5.
+- **A table library (TanStack Table or similar).** Sticky is CSS, expansion is a `Set`.
+- **Per-veteran memoisation (`TODOS.md` #2).** `/compare` explains at most four pairs.
+- **Sharing a comparison by URL.** Own picks are roster indices and mean nothing in another
+  browser.
+
+### What already exists (reused, not rebuilt)
+
+| Need | Existing code | Used how |
+|---|---|---|
+| Explain a column | `explainPairRequest` (`roster/picks.ts`), `explainPairLocally` (`lineage/explain-local.ts`) | one call per tray pair |
+| Cold-load the game data once | `loadMaster` caches the promise (`lineage/master-source.ts:11, 44`) | four columns share one fetch |
+| Header numbers | `pairTotalOf`, `rankGlyph` (`lineage/pair-total.ts`) | pair total, base + bonus, rank |
+| Row order, labels, ticks, % | `SPARK_GROUP_ORDER`, `groupKeyOf`, `groupLabelOf`, `SPARK_COLOR`, `percent` (`lineage/sparks.ts`) | alignment and printed text |
+| Window, gold rule, inherit | private in `ComparePane.tsx` | **extracted** to `lineage/odds.ts` (2A), shared |
+| Legality and its wording | `isLegalPair`, `pickBlock` (`core/src/filter.ts:342, 359`) | blocked columns |
+| Persistence and validation | `CachedSelection`, `restorePicks` (`roster/selection.ts`) | optional `tray` field |
+| Trainee control | `TraineePicker` | controls bar |
+| Stale game data | `masterChanged` banner (`App.tsx:525-531`) | shared helper (1C) |
+| Breakdown handoff | search's `onPick` (`App.tsx:573-587`) | becomes `takePair` (Codex #1) |
+| Routing | `route.ts` `navigate`/`usePath`, `vercel.json` web rewrite | add `/compare` |
+
+Nothing is rebuilt in parallel once 2A lands.
+
+### Inline diagram comments to write
+
+- `compare/ComparePage.tsx`: the keyed-results flow: Map key → column state, and the effect
+  computing only missing keys.
+- `compare/compare-model.ts`: the row pipeline: union → filtered first → group order → name →
+  identical (≥ 2 `ok`, none `loading`) → hidden count.
+- `App.tsx`, the restore gate: `restoring` → header only (+ line after 300ms) → landing or page,
+  and the `/tree` guard's "can a lineage come" decision.
+
+### Failure modes
+
+| New codepath | Realistic failure | Test | Handling | What the user sees |
+|---|---|---|---|---|
+| Restore read | several MB read slowly on a phone | jsdom, fake timers | delayed line | "Restoring your roster…" |
+| Restore read | private window, blocked upgrade | existing `cache.ts` behaviour | resolves `null` | the landing (correct) |
+| Tray write | quota full or storage blocked | existing fallback | swallowed by design (README: storage failures are not errors) | tray gone after the next reload, silently, as for picks today |
+| Column explain | game data patched mid-session | `run-columns` | shared helper | one banner |
+| Column explain | game data fails to load | `run-columns` | per-column error | that column says why |
+| Trainee switch | an explain still pending | jsdom + keyed Map test | `cancelled` + keyed Map | loading, then the right numbers |
+| Remove a column | results still loading or loaded | keyed Map test | keyed Map | other columns unchanged |
+| Trainee makes a pair illegal | — | `run-columns` | `blocked` | the reason, in place |
+| "Show breakdown" | wrong pair opened | jsdom | `takePair` | that column's tree |
+| One finished column | hide-all | `compare-model` | ≥ 2 `ok` rule | every row |
+| Filtered spark nobody carries | no name to print | `compare-model` | `sparkOptions` | name, tick, em dashes |
+| Sticky header | a CSS change, or the 200px minimum changes | **/qa only** (jsdom does no layout) | CSS comment with the arithmetic | header scrolls away |
+
+**Critical gaps: 0.** The sticky header is the one path with no automated test; it has a
+written QA check at 1280px and 375px and a CSS comment explaining the breakpoint.
+
+### Worktree parallelization
+
+| Step | Modules touched | Depends on |
+|---|---|---|
+| S1 odds extraction (T1) | `lineage/`, `roster/ComparePane*` | — |
+| S2 model, tray, run-columns (T6, T7, T8) | `compare/` | S1 |
+| S3 selection tray field (T8) | `roster/selection*` | — |
+| S4 App wiring: restore gate, tree guard, tray, `takePair`, keyed results, route (T2, T4, T5) | `App.tsx`, `shell.ts`, `route.ts`, `vercel.json` | S3 |
+| S5 page and table (T3) | `compare/` | S2, S4 |
+| S6 entry points, nav | `search/`, `roster/ComparePane*`, `SiteNav*` | S1, S4 |
+| S7 jsdom harness + flow tests (T9) | test setup, `App.flows.test.tsx` | S4, S5 |
+| S8 DESIGN.md amendments | `DESIGN.md` | builder approval |
+
+- Lane A: S1 → S2 → S5 (shares `compare/`, sequential)
+- Lane B: S3 → S4
+- Lane C: S8 (independent)
+- Then S6 (after A's S1 and B's S4), then S7.
+
+Launch A, B and C in parallel worktrees; merge; then S6, then S7. **Conflict flag:**
+`roster/ComparePane.tsx` is touched by S1 (lane A) and S6, so S6 waits for S1. `App.tsx` is
+touched only by S4 and the prop wiring in S6, which waits for S4.
+
+### Implementation Tasks
+
+Synthesized from this review's findings. Each task derives from a specific finding above.
+
+- [ ] **T1 (P1, human: ~2h / CC: ~15min)** — lineage — Extract `lineage/odds.ts` behind a
+  regression test
+  - Surfaced by: Code Quality 2A (pane math duplicated); regression rule
+  - Files: `packages/web/src/lineage/odds.ts`, `lineage/odds.test.ts`,
+    `roster/ComparePane.tsx`, `roster/ComparePane.test.tsx`
+  - Verify: white + gold pane test green BEFORE and AFTER; `npm test --workspace @umalegacies/web`
+- [ ] **T2 (P1, human: ~3h / CC: ~20min)** — App shell — Restore gate on every route, delayed
+  line, `/tree` guard asks whether a lineage can come; fix its stale comment
+  - Surfaced by: Architecture 1A (reload bounce, drop-zone flash), D14
+  - Files: `packages/web/src/App.tsx`, `shell.ts`, `shell.test.ts`
+  - Verify: `shell.test.ts`; jsdom reload on `/tree` and `/compare`; /qa reload of each route
+- [ ] **T3 (P1, human: ~2h / CC: ~15min)** — compare table — Two scrolling regimes: no
+  wrapper ≥ 1080px, own scroll box below
+  - Surfaced by: Architecture 1B, revised after Codex #3 and measurement
+  - Files: `packages/web/src/compare/CompareTable.module.css`
+  - Verify: /qa sticky header and name column at 1280px and 375px
+- [ ] **T4 (P1, human: ~1h / CC: ~10min)** — App — One `takePair(pair, lineage)` action for
+  search and `/compare`
+  - Surfaced by: outside voice, Codex #1
+  - Files: `packages/web/src/App.tsx`, `compare/PairHeader.tsx`
+  - Verify: jsdom "Show breakdown on C opens C's tree"
+- [ ] **T5 (P1, human: ~3h / CC: ~20min)** — ComparePage — Keyed results Map, `cancelled`
+  guard, shared stale-master helper
+  - Surfaced by: Architecture 1C; outside voice, Codex #2
+  - Files: `packages/web/src/compare/ComparePage.tsx`, `compare/run-columns.ts`,
+    `lineage/explain-local.ts`, `App.tsx`
+  - Verify: `run-columns.test.ts`; keyed Map tests; jsdom trainee-switch race
+- [ ] **T6 (P2, human: ~2h / CC: ~15min)** — compare-model — Identical = printed cells in the
+  current window, only with ≥ 2 `ok` columns and none loading
+  - Surfaced by: Code Quality 2B; outside voice, Codex #4
+  - Files: `packages/web/src/compare/compare-model.ts`, `compare-model.test.ts`
+  - Verify: 43.12% vs 43.49%; window-dependent row; one-column case
+- [ ] **T7 (P2, human: ~30min / CC: ~5min)** — compare-model — Take `roster.sparkOptions`
+  for filtered sparks no pair carries
+  - Surfaced by: outside voice, Codex #6
+  - Files: `packages/web/src/compare/compare-model.ts`, `compare-model.test.ts`
+  - Verify: a criterion carried by no pair renders name, tick, em dashes
+- [ ] **T8 (P2, human: ~2h / CC: ~15min)** — tray + selection — Node tests for every coverage
+  gap in the tray, selection restore and `runColumns`
+  - Surfaced by: Test review coverage diagram (31 gaps)
+  - Files: `compare/tray.ts`, `compare/tray.test.ts`, `roster/selection.ts`,
+    `roster/selection.test.ts`, `compare/ComparePage.test.tsx`
+  - Verify: `npm test --workspace @umalegacies/web`
+- [ ] **T9 (P1, human: ~4h / CC: ~30min)** — test harness — Per-file jsdom App-flow tests
+  - Surfaced by: Test review 3A
+  - Files: `packages/web/package.json` (dev deps `jsdom`, `@testing-library/react`,
+    `fake-indexeddb`), `packages/web/src/App.flows.test.tsx`
+  - Verify: every jsdom test in the Test Plan passes (the four flows, the `/tree` reload
+    regression, the delayed-line timing); every existing test still runs in `node`
 
 ## What I noticed about how you think
 
@@ -317,3 +608,29 @@ In this order, so the page is usable on real data from step 3:
   first-class number only because your explanation made clear it is what a loop is *for*.
 - Your inspiration was GPU and AI-model comparison sites, but you kept their table and
   dropped their scoreboard. That is the right half to keep.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Outside Review | Codex CLI, plan-review phase (automatic) | Independent 2nd opinion | 1 | completed | 6 findings: 5 accepted, 1 kept current approach |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 36 issues (5 section findings + 31 test gaps), 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **OUTSIDE COVERAGE:** Codex, plan-review phase, completed 2026-10-14: breakdown handoff
+  (accepted), positional results (accepted), `overflow-y: clip` does not rescue sticky
+  (accepted after measurement, reversed approved fix 1B), one finished column hides every row
+  (accepted), carrier layouts hidden by printed equality (current approach kept), missing
+  spark catalogue (accepted). An earlier Codex cold read ran in the office-hours phase
+  (2026-10-09). Model identity of the Codex runs was not reported.
+- **CROSS-MODEL:** The native review and Codex were complementary on async state (1C's
+  `cancelled` guard and shared stale-master helper; Codex #2's keyed results). They
+  disagreed on the sticky header: the native fix rested on a web source, Codex cited the CSS
+  Overflow spec, and a Chrome 153 probe showed Codex was right.
+- **VERDICT:** ENG CLEARED — ready to implement. `/plan-design-review` recommended before
+  building the table (UI-heavy; five DESIGN.md amendments and Open Question 1 await the
+  builder).
+
+NO UNRESOLVED DECISIONS
