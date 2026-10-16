@@ -221,9 +221,11 @@ and "Show breakdown" the exit.
      screen whenever the cells are: "★ · carriers of 6 · activate · (inherit, career)" at
      IBM Plex Mono 11px `--ink-muted`, with the selected window ("at least once") beneath it.
      Every cell also carries the pane chip's explanation as its `title`, built by the same
-     code: "Uma Stan 5★ — 43% to activate × 25% to inherit = 11% combined · carried by 2 of
-     6" (non-skills: "… to activate, then N% to inherit if the trainee earns it" or the
-     activation alone, exactly as the chip words it). A notation that needs a legend is a
+     code (`sparkExplanation`, whose arithmetic the eng re-review fixed): at "at least once",
+     "Uma Stan 5★ — 43% to activate × 25% to inherit = 11% combined · carried by 2 of 6"; in
+     another window the window's own figure comes first and the equation stays on career
+     activation (non-skills: "… to activate, then N% to inherit if the trainee earns it" or
+     the activation alone, exactly as the chip words it). A notation that needs a legend is a
      puzzle (`PairSearch.tsx:742`); this one has its key always visible and each number
      opens in words.
 4. **Table body.** Name column 200px (120px below 600px, names wrap), sticky left: 3px tick
@@ -235,8 +237,18 @@ and "Show breakdown" the exit.
      overflows and the sticky header pins to the PAGE.
    - **< 1080px: the table scrolls in its own box on both axes**: `overflow: auto`, height
      `calc(100dvh - var(--compare-box-top))`, where `--compare-box-top` is the box's own
-     measured top offset, published the way App publishes `--pane-top` (the pinned header is
-     INSIDE the box, so it is never subtracted twice). The box is then the scroll container
+     measured top offset (the pinned header is INSIDE the box, so it is never subtracted
+     twice). It is published by ONE shared hook (eng re-review 2C): `usePublishedTop(ref,
+     '--name')`, extracted from `App.tsx:145-170` with its comment, so both offsets keep that
+     code's three lessons: measure a non-sticky container, refuse a value taller than the
+     viewport, re-measure through a `ResizeObserver` on `body`. App uses it for `--pane-top`,
+     `/compare` for `--compare-box-top`. It returns a CALLBACK REF (eng re-review, Codex #6):
+     it measures and subscribes when its element attaches and disconnects when the element
+     detaches or is replaced. Today's effect re-runs only when `roster` changes (`App.tsx:170`)
+     while the roster grid (`App.tsx:673`) is rebuilt after every visit to `/search`, so the
+     new grid silently falls back to `var(--pane-top, 80px)`; the callback ref fixes that
+     existing bug as well. Regression test (mandatory): `/roster` → `/search` → `/roster`
+     publishes `--pane-top` on the new grid. The box is then the scroll container
      on both axes, so the header pins to its top and the name column to its left. Mechanics
      (design review 6A): `scroll-padding-top` = the pinned header's height and
      `scroll-padding-left` = the name column's width, so keyboard focus and find-in-page
@@ -275,7 +287,12 @@ and "Show breakdown" the exit.
    12px like every other cell; no figure is larger or marked for any pair. Built from
    `jointOdds`, `carriedCount`, `scopeLabel` and `percentJoint` through `lineage/odds.ts`, so
    it equals the pane by construction. Shown only from two counted criteria up, the pane's
-   rule (with one, the joint IS that requirement). Never hidden by either filter. On the
+   rule (with one, the joint IS that requirement). A COLUMN that carries fewer than two of
+   them still gets a figure (eng re-review, Codex #4; `jointOdds` returns null below two
+   present terms, `core/src/joint.ts:57-59`): with exactly one carried, that spark's own
+   figure with its scope ("43% · 1 of 2 activate"; "11% · 1 of 2 skills inherited"); with
+   none carried, an empty value and "0 of 2 activate". Never "—", which means "not carried"
+   for one spark only. `jointFigures` returns these cases explicitly; tests for 0, 1 and 2+. Never hidden by either filter. On the
    real roster the three Oguri Cap versions, identical at a pair total of 284, read
    7.825% / 4.375% / 2.476% here.
 5. **Expansion.** The row label is a `<button aria-expanded>`. Opening it opens that row in
@@ -309,13 +326,18 @@ and "Show breakdown" the exit.
   table is absent, with one line: "Choose who you are training." The tray is kept.
 - **Column states** (design review 2A, builder's call: animated skeleton). A column's
   IDENTITY (portraits, rank badges, scores, names, own sparks, grandparents) comes from the
-  roster, does not depend on the trainee, and is always shown. Everything that DOES depend on
-  the trainee (pair total, base + bonus, relation rank, both together cells, every cell's
-  number slots) never shows the previous calculation:
+  roster, does not depend on the trainee, and is always shown. So do every row and each
+  cell's STARS and CARRIERS (eng re-review, Codex #1): they come from the six ancestors, not
+  the trainee, and print from the roster packages at once. Everything that DOES depend on the
+  trainee (pair total, base + bonus, relation rank, both together cells, each cell's
+  activation and inherit slots) never shows the previous calculation:
   - **Loading**: the moment a column is loading, with NO delay (builder's call: "if it's
     loading, then it's loading, show the skeleton immediately"), each of those numbers
     becomes a skeleton bar the width of its `ch` slot, `--track` at rest with a slow
-    shimmer toward `--rule` (1.2s ease-in-out, infinite), 2px radius; one 12px
+    shimmer toward `--rule` (1.2s ease-in-out, infinite), 2px radius. The shimmer is an
+    OPACITY pulse (eng re-review 4A): each bar's `::after` in `--rule` animates opacity
+    0 → 1 → 0, compositor-only, because a sliding background gradient would repaint up to
+    ~200 bars every frame on a cold load. One 12px
     `--ink-faint` line "Explaining…" in the column's first body cell says what it waits
     for. Under `prefers-reduced-motion` the bars are static. Accepted consequence: a column
     costs ~0.4ms once the game data is loaded, so a trainee switch shows the skeleton for
@@ -340,9 +362,15 @@ and "Show breakdown" the exit.
   then/catch (`lineage/explain-local.ts`), so the stale-master rule exists once.
 - **Removed, with undo** (design review 2E). × (24px hit area, `aria-label="Remove pair C"`)
   collapses the column to a slim slot reading "Removed · undo" (11px `--ink-muted`) until the
-  reader leaves `/compare` or fills the slot. Undo puts the pair back in its old position
-  with its cached numbers (the keyed results Map still holds them), so there is no loading
-  state. It is text in place, not a toast: nothing floats and nothing times out.
+  reader leaves `/compare` or fills the slot. It is text in place, not a toast: nothing floats
+  and nothing times out. Undo is fully specified (eng re-review, Codex #2):
+  - the page holds up to four slots, each LIVE or REMOVED; every removed slot keeps its own
+    undo, however many removals happen in a row;
+  - undo puts the pair back in its old position with its cached numbers when they are for
+    the current trainee and master data (no loading state); after a trainee or master change
+    it restores the column and RECOMPUTES (skeleton), never showing the stale result;
+  - the "0 pairs" empty state appears only once no live AND no removed slot remains, so
+    removing the last pair still shows its undo.
 - **Empty states** (design review 2C, DESIGN.md: absent, not disabled; emptied-by-filter
   says so and offers the way back):
   - **0 pairs**: no controls bar, no table. Under the title, one line: "Nothing to compare
@@ -379,16 +407,34 @@ and "Show breakdown" the exit.
 - **The "Add to compare" control shows its own state** (design review 2D). One component on
   search rows, in PairDetail's action bar and on the roster pane, achromatic, 11px:
   - not in the tray: "Add to compare" (a button);
-  - in the tray (either order, A×B = B×A): "In compare · C", a link to that column on
-    `/compare`, so a duplicate add cannot happen and needs no message;
+  - in the tray (either order, A×B = B×A): "In compare · C", a link to that PAIR on
+    `/compare`, so a duplicate add cannot happen and needs no message. It targets the pair,
+    not the letter (letters are positions), and an explicit target WINS over the saved
+    scroll (eng re-review, Codex #9): on arrival the vertical place is restored, then that
+    pair's column is scrolled into view horizontally (box regime) and its header focused.
+    The target is an in-memory `compareTarget` (pair key) set in App before
+    `navigate(COMPARE)` and cleared once used, not a `?pair=` query, because `navigate()`
+    appends the current `location.search` to every path (`route.ts`). Test (jsdom): saved
+    `scrollLeft` 0 + the link for C → C's header is focused and in view;
   - tray full and this pair not in it: "Compare full · 4 of 4", a link to `/compare`. It
     never silently replaces a pair.
   The nav's count changes on the same click, which is the confirmation.
   **Search rows are restructured** for it: a row is `<article role="button">` today
   (`PairSearch.tsx:695-697`), and a control nested in a button is invalid, unreachable by a
-  screen reader, and its click would also open the pair. The open-pair action becomes a
-  stretched link covering the row; the compare control is its SIBLING, above it in the
-  stacking order.
+  screen reader, and its click would also open the pair. The row uses the REDUNDANT-CLICK
+  pattern (eng re-review, Codex #10, superseding the stretched button of re-review 2B, which
+  would have covered the chips' hover explanations at `PairSearch.tsx:934` and orphaned the
+  focus style at `PairSearch.module.css:769-773`):
+  - the `<article>` loses `role`, `tabIndex` and its hand-written `onKeyDown`, and KEEPS an
+    `onClick` for the mouse, ignored when the reader is selecting text or the click came
+    from a nested control;
+  - a real `<button aria-label="Pick … as the parents">` inside the row (on the ordinal) is
+    the keyboard and screen-reader target and calls `onPick`;
+  - `CompareToggle` sits inside the row and stops propagation, so it never opens the pair;
+  - the focus ring moves to `.row:has(button:focus-visible)`.
+  Regression tests (mandatory, the row's behaviour changes): a click, Enter and Space open
+  the pair's detail; a chip's `title` still shows on hover; selecting row text does not open
+  it; the toggle never opens it.
 - **Roster replaced, forgotten, or master hash changed**: the tray is cleared and `/compare`
   says so once (the `trayCleared` flag, see Code map).
 - **No filter set**: no "Your sparks" band and no "Only my filtered sparks" toggle.
@@ -413,7 +459,7 @@ and "Show breakdown" the exit.
       |                                             |                                  | becomes the roster pair, unannounced
       |                                             |                                  | (builder's call, design review 3A)
  10   | comes back to /compare                      | expects it as left               | yes: window, open rows and scroll restored
-      |                                             |                                  | on Back (design review 3B)
+      |                                             |                                  | on any return this visit (3B; eng 1B)
  11   | reloads tomorrow                            | expects the tray                 | yes: restore, no drop-zone flash (1A, D28)
  12   | (5 min / 5 years) reads numbers, decides    | trusts the instrument; nothing   | yes: bare numbers, no verdict (D2)
       | for themself                                | chose for them                   |
@@ -482,8 +528,18 @@ and "Show breakdown" the exit.
   (`ComparePane.tsx:135-136`). Test: a criterion no pair carries renders its name, its tick
   and an em dash in every column. Also returns the two "together" figures per `ok` column
   (design review 1A), with their scope labels, absent below two counted criteria; test that
-  they equal the pane's for the same pair, trainee, window and gold plan. Returns aligned rows (union by `groupId` over the `ok` columns; filtered
-  sparks first, including any carried by no pair; then `SPARK_GROUP_ORDER` + name), per-cell
+  they equal the pane's for the same pair, trainee, window and gold plan.
+  **Rows come from the ROSTER, not from finished columns** (eng re-review, Codex #1): per tray
+  pair, the union of both halves' `PackageSpark` group ids (`types/src/index.ts:426`), plus
+  the criteria; names and kinds from `sparkOptions`; white-skill timing from the master data
+  the page already loads to explain pairs (`RosterSparkOption` has no timing); stars and
+  carriers summed from the two packages' `stars` (trainee-independent). So a trainee switch
+  never removes a row or closes an open one, and a test asserts exactly that; a parity test
+  asserts the roster-derived stars and carriers equal the lineage's `stars` and
+  `lineageCarriers` for the committed fixture pairs. Only
+  activation, inherit and the together figures come from a column's lineage.
+  Returns aligned rows (filtered sparks first, including any carried by no pair; then
+  `SPARK_GROUP_ORDER` + name), per-cell
   values for the window, the career inherit figure via `inheritOnceInCareer` under the
   per-spark gold rule, an `identical` flag per row (computed over `ok` columns only), the
   hidden count, and shared-half labels. **"Identical" means the PRINTED cell** (eng review
@@ -491,12 +547,20 @@ and "Show breakdown" the exit.
   via `percent()`, inherit) match in every `ok` column. Switching the window recomputes the
   flags and the hidden count. Tests: 43.12% vs 43.49% hides; a row differing only under
   "at least twice" reappears when that window is chosen. **The filter needs two finished
-  columns** (eng review, Codex #4): it applies only when ≥ 2 columns are `ok` and none is
-  `loading`; otherwise every row shows and the toggle is absent (DESIGN.md: absent, not
-  disabled). Blocked and error columns do not count. Without this, one pair in the tray is
-  "identical in every pair" with itself and the default-on filter hides the whole table.
-  Tests: 1 `ok` column → all rows shown, no toggle; 2 `ok` + 1 `loading` → nothing hidden
-  until it lands. *Considered and kept (Codex #5):* printed equality can hide a row whose
+  columns** (eng review, Codex #4): it APPLIES only when ≥ 2 columns are `ok` and none is
+  `loading`. The toggle's VISIBILITY is separate (design review 2A, aligned by the eng
+  re-review): it stays where it is while columns load, and is absent only when fewer than
+  two columns can be compared (DESIGN.md: absent, not disabled). Blocked and error columns
+  do not count. Without this, one pair in the tray is "identical in every pair" with itself
+  and the default-on filter hides the whole table. Tests: 1 `ok` column → all rows shown, no
+  toggle; 2 `ok` + 1 `loading` → nothing hidden until it lands, toggle still shown.
+  **One ordered visibility rule** (eng re-review, Codex #8), `isVisible(row)` with
+  `hiddenBy(row): 'filter' | 'identical' | null`, so each hidden row has exactly ONE reason
+  and the hidden-rows line's parts always sum to its total: (1) filtered sparks and any open
+  row are never hidden; (2) with "Only my filtered sparks" on, every other row is hidden as
+  `'filter'`; (3) otherwise, with "Hide identical" on and the filter applicable, an
+  identical row is hidden as `'identical'`. Tests: both toggles on → parts sum to total; a
+  filtered identical row and an open row stay visible. *Considered and kept (Codex #5):* printed equality can hide a row whose
   carriers sit in different ancestor slots. Kept anyway: the numbers are equal for the
   career being planned, the real three-pair Oguri Cap example had 0 of 74 such rows, and
   the reader can switch the filter off. Unit-tested, including a blocked column.
@@ -505,16 +569,38 @@ and "Show breakdown" the exit.
   `ComparePane.tsx` (lines 59-72, 117-122, 288, 493-498) unchanged. `ComparePane` and
   `compare-model` both import them, so "the pane and `/compare` show the same number" holds
   by construction. `ComparePane.test.tsx` must stay green with no edits to its assertions.
+  **Also extracted** (eng re-review 2A, for design decisions 1A and 1C):
+  `jointFigures(sparks, criteria, sparkOptions, view)` → `{ act, actScope, inh, inhScope }`,
+  the pane's joint logic from `ComparePane.tsx:240-285` including its subtle rule (a wanted
+  white SKILL no pair carries counts as 0 to inherit; any other missing kind is "not
+  applicable"); and `sparkExplanation(row, view, gold)`, the chip's `title` sentence from
+  `:508-516`, FIXED on the way out (eng re-review, Codex #5): today it multiplies the selected
+  window's activation by an inherit figure that always uses career activation
+  (`ComparePane.tsx:493`), so under "1 inspiration" or "at least twice" its equation does not
+  add up. The new sentence states the window's figure on its own and builds the equation
+  from career activation: "Uma Stan 5★ — 20% in one inspiration. Career: 43% to activate ×
+  25% to inherit = 11% combined." (the first clause is omitted when the window IS "at least
+  once"). The pane, `compare-model`'s together rows and every `/compare` cell title call
+  them. New tests pin the missing-white-skill = 0 rule and the sentence for a white skill, a
+  race spark and a blue.
 - `compare/ComparePage.tsx` owns the async work: an effect keyed on (trainee, tray) runs
   `explainPairRequest` → `explainPairLocally` per pair, the same path `App.tsx:502-517`
   uses. **Results are keyed, not positional** (eng review, Codex #2): a `Map` from
-  `masterHash + trainee card + unordered pair key` to the column union above. Columns are
+  `masterHash + trainee card + P1 pick + P2 pick` IN THE TRAY'S ORDER to the column union
+  above. The key is ORDERED (eng re-review, Codex #3): a lineage stores its carriers by slot
+  (`core/src/pair.ts:16-21`, A → 10-12, B → 20-22), so a result made as A×B must never serve
+  a column headed B×A. The UNORDERED key is used only for tray dedupe. Test: remove A×B, add
+  B×A → recomputed, and the expansion's names match the header. Columns are
   DERIVED from tray order plus the Map; a column whose key has no entry renders `loading`,
   never another pair's numbers. The effect computes only keys the Map lacks, so adding or
   removing one pair leaves the other columns' numbers on screen with no "Explaining…"
   flash. Tests: remove A after all have loaded → B and C keep their own numbers and never
   show loading; switch trainee after load → every column shows loading until its own new
-  result. Legality is DECIDED by core's
+  result. **The Map is bounded** (eng re-review 1A): after any change of trainee, master hash
+  or tray it is pruned to the keys for the current trainee × the tray's pairs, plus every
+  pair held by a "Removed · undo" slot (at most four slots in all). One explained pair is ~150KB (`explain-local.ts:15`), so an
+  unbounded Map grows by four of them on every trainee switch. Test: ten trainee switches →
+  the Map never exceeds tray size + 1, and undo still restores with no loading state. Legality is DECIDED by core's
   `isLegalPair` (`packages/core/src/filter.ts:342`: same veteran, either side is the trainee,
   same character); `explainPairRequest` itself checks nothing. `pickBlock` (`filter.ts:359`)
   is used only to WORD the reason (`is-trainee`, `same-uma`), since it returns null early
@@ -537,8 +623,9 @@ and "Show breakdown" the exit.
 - `route.ts`: `COMPARE = '/compare'`. `vercel.json`: add `compare` to the web rewrite
   `/(search|roster|tree|compare)`.
 - Entry points: `compare/CompareToggle.tsx` (+ `.module.css`), the one stateful control
-  (design review 2D), used by `search/PairSearch.tsx` rows (restructured: stretched open
-  link + sibling control), `search/PairDetail.tsx` action bar, and `roster/ComparePane.tsx`
+  (design review 2D), used by `search/PairSearch.tsx` rows (restructured: redundant-click row
+  + a real open button + the toggle inside, eng re-review Codex #10), `search/PairDetail.tsx`
+  action bar, and `roster/ComparePane.tsx`
   (not embedded). `SiteNav.tsx`: a "Compare" item that is ALWAYS present (design review 3C,
   SiteNav's own rule at `SiteNav.tsx:13`: a route the reader cannot use is shown, not
   hidden, and says why): "Compare" when the tray is empty, "Compare (3)" otherwise; before a
@@ -548,10 +635,22 @@ and "Show breakdown" the exit.
 - **The round trip keeps the reader's place** (design review 3B). The odds window lifts from
   `ComparePane`'s local state (`ComparePane.tsx:156`) to App, shared by the pane and
   `/compare`, so the two never show different windows for one pair; it still survives the
-  pane's `Result` remounting, which is why the Decisions Log put it on the pane. Expanded
-  rows (a `Set<groupId>`) and `/compare`'s scroll position live beside the tray in memory,
-  not IndexedDB, and are restored on Back from `/tree`. A reload starts at the top with every
-  row closed.
+  pane's `Result` remounting, which is why the Decisions Log put it on the pane. It is also
+  passed through `PairSearch` to `PairDetail`'s embedded pane, so the search dialog cannot
+  disagree either. Expanded rows (a `Set<groupId>`) and `/compare`'s scroll position live
+  beside the tray in App memory, not IndexedDB, and are restored on EVERY return to
+  `/compare` in the session, by Back or by the nav (eng re-review 1B: `route.ts` dispatches
+  the same `popstate` for pushes and for Back, so "Back only" is not observable). The two
+  filter toggles (hide-identical, only-my-filtered) are kept in App memory WITH them (eng
+  re-review, Codex #7): the place is only the same if everything that shapes the row layout
+  is the same. The scroll is restored in a layout effect once the layout has SETTLED, i.e.
+  every column is `ok` or `blocked` (cached results make that the first render on a
+  same-trainee return; otherwise when the last column lands), into whichever scroller is
+  active: the window at 1080px and wider, the table's box below; if the regime changed since
+  it was saved, the page starts at the top. jsdom: toggle hide-identical off, scroll, leave,
+  return → the same rows at the same offset. A reload starts at the top with every row closed (memory is gone).
+  Test (jsdom): `/compare` → `/tree` → Back, and `/compare` → `/search` → nav Compare, both
+  restore window, rows and scroll; a reload does not.
 
 ### DESIGN.md amendments (need the builder's explicit approval)
 
@@ -630,6 +729,24 @@ New dev dependencies (web workspace only, nothing shipped): `jsdom`,
 2. `shell.test.ts`: `treeShouldRedirect` is false while restoring and false when a trainee and
    a full pair exist but the lineage has not arrived; true when no pair is possible (1A).
 3. `App.flows.test.tsx` (jsdom): a reload on `/tree` with a stored full pair stays on `/tree`.
+
+Added by the eng re-review (2026-10-16) under the same rule, because the design review's
+deltas change behaviour that already ships:
+4. `App.flows.test.tsx` (jsdom): a click, Enter and Space on a search row still open that
+   pair's detail after the redundant-click restructure (re-review Codex #10); a chip's
+   `title` still shows; text selection does not open it; the toggle never opens it.
+5. `App.flows.test.tsx` (jsdom): search's "Show breakdown" still opens `/tree` with that
+   pair after `onPick` is refactored onto `takePair` (eng T4).
+6. `roster/ComparePane.test.tsx` + jsdom: the pane's window switch still changes every row,
+   and the chosen window survives a pair re-explain, now that the window lives in App.
+7. `search/PairDetail` (jsdom): the dialog's embedded pane follows the shared window.
+8. `usePublishedTop.test.ts`: its measuring rules as a pure function `nextTop(rectTop,
+   scrollY, innerHeight, last)`: refuses a value above the viewport or below 0, skips an
+   unchanged value. The roster pane's height goes on the QA list.
+9. `lineage/odds.test.ts`: the chip's hover sentence (now `sparkExplanation`) is arithmetically
+   true in all three windows, since its text changes on the pane too (re-review, Codex #5).
+10. `App.flows.test.tsx` (jsdom): `/roster` → `/search` → `/roster` publishes `--pane-top` on
+   the rebuilt grid (re-review, Codex #6; fixes an existing bug).
 
 **Node unit tests:**
 - `lineage/odds.test.ts`: `valueFor` for each window; `goldGroupsOf`; `cellInherit` for white,
@@ -846,6 +963,106 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Verify: every jsdom test in the Test Plan passes (the four flows, the `/tree` reload
     regression, the restoring line); every existing test still runs in `node`
 
+### Eng re-review of the design deltas (2026-10-16)
+
+Re-run of `/plan-eng-review` over what the design review added. 6 section findings and 10
+outside-voice findings, all decided (D1–D16 of that run); 6 mandatory regression tests added
+under the iron rule.
+
+**NOT in scope (delta).** Identity for BORROWED halves (release 2): a borrowed pick carries a
+raw `VeteranPackage`, not a `ResolvedVeteran`, so its header identity and roster-derived rows
+need resolving when release 2 emits one. A `timing` field on `RosterSparkOption`: not needed,
+the loaded master data supplies it.
+
+**What already exists (delta).** `ComparePane`'s window state (`:156`), joint logic
+(`:240-285`) and hover sentence (`:508-516`), now shared through `lineage/odds.ts`;
+`App.tsx:145-170`'s offset publisher, now `usePublishedTop`; `PackageSpark.stars`
+(`types/src/index.ts:426`), now the row inventory; `route.ts`'s single `popstate` path,
+which is why restore is "any return"; core's ordered slot mapping (`pair.ts:16-21`), which is
+why the cache key is ordered.
+
+**Failure modes (delta).**
+
+| Path | Failure | Test | Handling | User sees |
+|---|---|---|---|---|
+| Rows during a trainee switch | table blanks | row-inventory test | rows from roster | rows stay; act/inh shimmer |
+| Cache after reversed re-add | wrong names in expansion | ordered-key test | ordered key | correct carriers |
+| Undo after a trainee switch | stale numbers | undo tests | recompute | skeleton, then new numbers |
+| Map over a long session | memory growth | pruning test | bounded Map | nothing |
+| Grid rebuilt after `/search` | 80px fallback, page scrolls | regression 10 | callback ref | correct pane height |
+| Return to `/compare` | wrong spot | round-trip jsdom | toggles kept; settle-then-restore | same rows, same offset |
+| "In compare · C" | C off-screen | target test | explicit target wins | C in view, focused |
+| Hidden-rows line | parts exceed total | visibility tests | one ordered rule | numbers add up |
+| Hover sentence in other windows | false arithmetic | regression 9 | fixed sentence | equation holds |
+| Search row | lost hovers/focus | regression 4 | redundant click | unchanged affordances |
+
+Critical gaps: 0.
+
+**Parallelization.** Unchanged lanes; R-T4 (search row) joins S6 (entry points), R-T5 joins
+S4 (App), R-T3 and R-T7 join S1/S2 (lineage, compare). `search/` now gets real behavioural
+change, so S6 must land after S4's `takePair`.
+
+**Implementation Tasks (eng re-review)**
+
+- [ ] **R-T1 (P2, human: ~1h / CC: ~10min)** — ComparePage — Bound the results Map to
+  trainee × tray + undo slots
+  - Surfaced by: Architecture 1A (re-review)
+  - Files: `compare/ComparePage.tsx`, `compare/run-columns.ts`
+  - Verify: ten trainee switches → size ≤ slots; undo restores without loading
+- [ ] **R-T2 (P2, human: ~2h / CC: ~15min)** — App — Restore window, rows, toggles and scroll on
+  any return, after layout settles, into the active scroller
+  - Surfaced by: Architecture 1B; outside voice Codex #7
+  - Files: `App.tsx`, `compare/ComparePage.tsx`
+  - Verify: jsdom round trips via Back and via nav; reload starts at top
+- [ ] **R-T3 (P2, human: ~2h / CC: ~15min)** — lineage — `jointFigures` (with 0/1/2+ carried
+  cases) and `sparkExplanation` (fixed arithmetic) in `odds.ts`
+  - Surfaced by: Code Quality 2A; Codex #4, #5
+  - Files: `lineage/odds.ts`, `lineage/odds.test.ts`, `roster/ComparePane.tsx`
+  - Verify: regression 9; `ComparePane.test.tsx` assertions unchanged
+- [ ] **R-T4 (P2, human: ~2h / CC: ~15min)** — search — Redundant-click row with a real open
+  button and the toggle inside; focus ring via `:has()`
+  - Surfaced by: Code Quality 2B superseded by Codex #10
+  - Files: `search/PairSearch.tsx`, `search/PairSearch.module.css`
+  - Verify: regression 4
+- [ ] **R-T5 (P2, human: ~1h / CC: ~10min)** — App — `usePublishedTop` as a callback ref
+  - Surfaced by: Code Quality 2C; Codex #6 (fixes an existing roster bug)
+  - Files: `usePublishedTop.ts`, `App.tsx`, `compare/ComparePage.tsx`
+  - Verify: regressions 8 and 10
+- [ ] **R-T6 (P3, human: ~30min / CC: ~5min)** — CSS — Opacity-pulse shimmer
+  - Surfaced by: Performance 4A
+  - Files: the compare CSS modules
+  - Verify: /qa on a throttled phone profile; static under reduced motion
+- [ ] **R-T7 (P2, human: ~3h / CC: ~20min)** — compare-model — Row inventory from roster
+  packages; stars and carriers trainee-independent
+  - Surfaced by: Codex #1
+  - Files: `compare/compare-model.ts`, `compare/compare-model.test.ts`
+  - Verify: trainee switch keeps rows and open rows; stars/carriers parity with lineage
+- [ ] **R-T8 (P2, human: ~30min / CC: ~5min)** — ComparePage — Ordered cache key, unordered
+  dedupe key
+  - Surfaced by: Codex #3
+  - Files: `compare/ComparePage.tsx`, `compare/tray.ts`
+  - Verify: remove A×B, add B×A → names match the header
+- [ ] **R-T9 (P2, human: ~1.5h / CC: ~10min)** — ComparePage — Every removed slot undoable;
+  honest recompute; empty state only with no slots left
+  - Surfaced by: Codex #2
+  - Files: `compare/ComparePage.tsx`
+  - Verify: undo tests for two removals, last-pair removal, after a trainee switch
+- [ ] **R-T10 (P2, human: ~1h / CC: ~10min)** — App — Pair-targeted "In compare" link wins over
+  the saved scroll
+  - Surfaced by: Codex #9
+  - Files: `App.tsx`, `compare/CompareToggle.tsx`, `compare/ComparePage.tsx`
+  - Verify: jsdom target test
+- [ ] **R-T11 (P2, human: ~30min / CC: ~5min)** — compare-model — One ordered visibility rule
+  - Surfaced by: Codex #8
+  - Files: `compare/compare-model.ts`, `compare/compare-model.test.ts`
+  - Verify: parts sum to total; exemptions hold
+- [ ] **R-T12 (P1, human: ~2h / CC: ~15min)** — tests — Regression tests 4-10
+  - Surfaced by: the regression rule (search row, `takePair`, pane window, dialog window,
+    `usePublishedTop`, hover sentence, rebuilt grid)
+  - Files: `App.flows.test.tsx`, `roster/ComparePane.test.tsx`, `lineage/odds.test.ts`,
+    `usePublishedTop.test.ts`
+  - Verify: `npm test --workspace @umalegacies/web`
+
 ## Approved Mockups
 
 | Screen/Section | Mockup Path | Direction | Notes |
@@ -928,7 +1145,8 @@ Synthesized from this review's findings; each derives from a decision above.
   - Files: `compare/ComparePage.tsx`
   - Verify: `ComparePage.test.tsx` for 0 pairs, 1 pair, filters-left-nothing
 - [ ] **D-T9 (P1, human: ~3h / CC: ~25min)** — entry points — One stateful `CompareToggle`;
-  search rows restructured (stretched open link + sibling control)
+  search rows restructured (redundant-click row + real open button + toggle inside; eng
+  re-review Codex #10)
   - Surfaced by: Pass 2, 2D (D10)
   - Files: `compare/CompareToggle.tsx` (+ CSS), `search/PairSearch.tsx`,
     `search/PairDetail.tsx`, `roster/ComparePane.tsx`
@@ -989,28 +1207,31 @@ Synthesized from this review's findings; each derives from a decision above.
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
-| Outside Review | Codex CLI, plan-review phase (automatic) | Independent 2nd opinion | 1 | completed | 6 findings: 5 accepted, 1 kept current approach |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 36 issues (5 section findings + 31 test gaps), 0 critical gaps |
+| Outside Review | Codex CLI, plan-review phase (automatic) | Independent 2nd opinion | 2 | completed | run 1: 6 findings (5 accepted, 1 kept); re-review: 10 findings, all accepted |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 2 | CLEAR (PLAN) | 36 issues, then 16 on the design deltas; 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (FULL) | score: 4/10 → 8/10, 26 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **OUTSIDE COVERAGE:** Codex, plan-review phase, completed 2026-10-14: breakdown handoff
-  (accepted), positional results (accepted), `overflow-y: clip` does not rescue sticky
-  (accepted after measurement, reversed approved fix 1B), one finished column hides every row
-  (accepted), carrier layouts hidden by printed equality (current approach kept), missing
-  spark catalogue (accepted). Codex, design phase, completed 2026-10-15 (APP UI, no hard
-  rejection, 6/7 litmus YES with "cards necessary: NO" as intended; findings folded into
-  2A, 3A, 5F, 6A); a native Claude subagent ran beside it. An earlier Codex cold read ran in
-  the office-hours phase (2026-10-09). Model identity of the Codex runs was not reported.
-- **CROSS-MODEL:** Plan phase: complementary on async state (1C's `cancelled` guard and
-  shared stale-master helper; Codex #2's keyed results); they disagreed on the sticky header,
-  and a Chrome 153 probe showed Codex was right. Design phase: Codex and the Claude subagent
-  agreed on 5 of 7 litmus checks and on leaving filtered names unlit; they disagreed on the
-  visual anchor and on headline scannability, which the builder resolved with 1B (score and
-  sparks in ink) and 1C (readable legend, per-cell hover).
-- **VERDICT:** ENG + DESIGN CLEARED — ready to implement. Every rated design pass is 8+; the
-  two passes held at 8 carry the builder's explicit calls (the unannounced pair swap behind
-  "Show breakdown", 3A; no spoken per-cell text, 6B).
+- **OUTSIDE COVERAGE:** Codex, plan-review phase, completed 2026-10-14 (breakdown handoff,
+  positional results, `overflow-y: clip` false and measured, one-column hide-all, carrier
+  layouts kept, missing catalogue) and again 2026-10-16 on the design deltas (row inventory
+  from the roster, undo slots, ordered cache key, joint nulls, the pane's false hover
+  equation, the offset hook's attach contract, toggles in the restored place, one visibility
+  rule, pair-targeted links, the stretched overlay's lost hovers). Codex, design phase,
+  completed 2026-10-15 with a native Claude subagent beside it. An earlier Codex cold read
+  ran in the office-hours phase (2026-10-09). Model identity of the Codex runs was not
+  reported.
+- **CROSS-MODEL:** Plan phase, run 1: complementary on async state; disagreed on the sticky
+  header, where a Chrome 153 probe sided with Codex. Re-review: Codex overturned three of the
+  native recommendations (the tooltip extracted unchanged would have spread a real
+  arithmetic bug; the hook needed a callback ref and that exposed an existing roster bug; the
+  stretched overlay would have blocked chip hovers), and the builder took Codex's side each
+  time. Design phase: 5 of 7 litmus checks agreed; the two disagreements were resolved by 1B
+  and 1C.
+- **VERDICT:** ENG + DESIGN CLEARED — ready to implement. The eng re-review covers every
+  design-review delta; tasks are in Implementation Tasks (eng), (design review) and (eng
+  re-review).
 
 NO UNRESOLVED DECISIONS
+
 

@@ -206,9 +206,11 @@ anyone to recall a rule.
 ## 5. App-flow tests for the flows that already ship
 
 **What.** Once the compare-pairs PR lands its jsdom harness (`App.flows.test.tsx`), add flow
-tests for behaviour that already ships and has none: search's "Show breakdown" reaching
-`/tree` with that pair, a reload restoring trainee, filters and picks, and "Forget this
-roster" emptying everything.
+tests for behaviour that already ships and has none: a reload restoring trainee, filters and
+picks, and "Forget this roster" emptying everything. (Narrowed 2026-10-16 by the eng
+re-review: search's "Show breakdown" reaching `/tree`, and a search row opening its detail,
+became MANDATORY regression tests in the compare PR itself, because that PR changes both
+flows.)
 
 **Why.** Opened 2026-10-14 by the compare-pairs engineering review. Those flows are wiring
 inside `App.tsx` effects, and the web tests run in Vitest's `node` environment through
