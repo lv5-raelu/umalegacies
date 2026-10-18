@@ -116,7 +116,7 @@ export function TraineePicker({
                       </span>
                       <span className={styles.optionText}>
                         <span className={styles.optionName}>{option.name}</span>
-                        {/* Only where it is load-bearing: 76 of 107 cards. */}
+                        {/* Only where it is load-bearing: 78 of 109 cards. */}
                         {option.costume && (
                           <span className={styles.optionCostume}>{option.costume}</span>
                         )}
