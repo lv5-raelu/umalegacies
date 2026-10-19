@@ -164,7 +164,7 @@ export function CompareTable({
           {rowsReady && (model.together.length > 0 || model.filtered.length > 0) && (
             <tr className={styles.band}>
               <th scope="rowgroup" colSpan={width}>
-                Your sparks ({model.filtered.length})
+                <span className={styles.bandLabel}>Your sparks ({model.filtered.length})</span>
               </th>
             </tr>
           )}
@@ -189,7 +189,9 @@ export function CompareTable({
               <Fragment key={group.key}>
                 <tr className={styles.band}>
                   <th scope="rowgroup" colSpan={width}>
-                    {group.label} ({group.rows.length})
+                    <span className={styles.bandLabel}>
+                      {group.label} ({group.rows.length})
+                    </span>
                   </th>
                 </tr>
                 {group.rows.map((row) => (

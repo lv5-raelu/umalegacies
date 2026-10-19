@@ -284,6 +284,13 @@
   border-bottom: 1px solid var(--rule);
 }
 
+/* The band spans every column, so its LABEL pins left on its own: scrolled
+   sideways in the narrow box, the heading would otherwise leave with the cell. */
+.bandLabel {
+  position: sticky;
+  left: 0;
+}
+
 .figures {
   font-family: var(--font-data);
   text-align: right;

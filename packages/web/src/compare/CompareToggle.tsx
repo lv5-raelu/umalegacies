@@ -58,7 +58,8 @@ export function CompareToggle({
   };
   return (
     <a className={styles.toggle} href={COMPARE} onClick={open}>
-      {status.kind === 'in' ? `In compare · ${status.letter}` : 'Compare full · 4 of 4'}
+      {/* No-break spaces keep "· C" with "compare" when a narrow column wraps it. */}
+      {status.kind === 'in' ? `In compare · ${status.letter}` : 'Compare full · 4 of 4'}
     </a>
   );
 }

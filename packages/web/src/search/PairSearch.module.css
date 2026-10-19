@@ -801,6 +801,16 @@
   margin-top: var(--space-sm);
 }
 
+/* The total's column is 69px: the label wraps inside it rather than widen a
+   grid every row and the column rubrics share. */
+.compare > a,
+.compare > button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: right;
+  justify-content: flex-end;
+}
+
 /*
  * HOW MANY OF THESE STARS ARE ON THE PARENT ITSELF.
  *

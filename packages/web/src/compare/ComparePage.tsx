@@ -378,7 +378,7 @@ export function ComparePage({
 
           {trainee !== null && hidden > 0 && (
             <p className={styles.hidden}>
-              {hidden} rows hidden:{' '}
+              {hidden} {hidden === 1 ? 'row' : 'rows'} hidden:{' '}
               {[
                 model.hidden.identical > 0 ? `${model.hidden.identical} identical in every pair` : null,
                 model.hidden.filter > 0 ? `${model.hidden.filter} outside your filter` : null,

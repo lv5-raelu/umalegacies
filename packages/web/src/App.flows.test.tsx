@@ -453,7 +453,7 @@ describe('a search row', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Add to compare' }));
     expect(dialog()).toBeNull();
     expect(screen.getByText('Compare (1)')).toBeTruthy();
-    expect(within(row).getByRole('link', { name: 'In compare · A' })).toBeTruthy();
+    expect(within(row).getByRole('link', { name: /^In compare\s·\sA$/ })).toBeTruthy();
   });
 
   /* Eng re-review, Codex #9: the link names a PAIR, and that pair wins on arrival. */
@@ -461,7 +461,7 @@ describe('a search row', () => {
     await openSearch();
     const row = pickButton().closest('article') as HTMLElement;
     fireEvent.click(within(row).getByRole('button', { name: 'Add to compare' }));
-    fireEvent.click(within(row).getByRole('link', { name: 'In compare · A' }));
+    fireEvent.click(within(row).getByRole('link', { name: /^In compare\s·\sA$/ }));
     await settle();
     expect(location.pathname).toBe(COMPARE);
     await explainAs(OGURI, GOLD_SHIP, lineageOf(284));

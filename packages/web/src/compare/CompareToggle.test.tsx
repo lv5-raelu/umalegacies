@@ -11,7 +11,7 @@ describe('the compare control', () => {
   });
 
   it('is a link to the pair, naming its slot, when it is', () => {
-    expect(render({ kind: 'in', letter: 'C' })).toMatch(/^<a[^>]*href="\/compare"[^>]*>In compare · C<\/a>$/);
+    expect(render({ kind: 'in', letter: 'C' })).toMatch(/^<a[^>]*href="\/compare"[^>]*>In compare\s·\sC<\/a>$/);
   });
 
   it('is a link to /compare, never a silent replace, when the tray is full', () => {
