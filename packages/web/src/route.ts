@@ -16,6 +16,7 @@ export const ROOT = '/';
 export const SEARCH = '/search';
 export const ROSTER = '/roster';
 export const TREE = '/tree';
+export const COMPARE = '/compare';
 
 /**
  * Change screens without a reload. A reload would drop everything only held

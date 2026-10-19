@@ -38,6 +38,7 @@ import {
 import { picksToCache, restoreSelection } from './roster/selection';
 import { PairSearch, PAGE } from './search/PairSearch';
 import { ROOT, SEARCH, TREE, navigate, usePath } from './route';
+import { shellView, treeShouldRedirect } from './shell';
 import styles from './App.module.css';
 
 /**
@@ -107,10 +108,6 @@ export function App() {
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
   const path = usePath();
-  const onTreePage = path === TREE;
-  // The root counts as the search the moment there is a roster, so the screen
-  // is right on the first render and the effect below only fixes the address.
-  const onSearch = path === SEARCH || (path === ROOT && roster !== null);
   const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
   /** How many result rows are rendered. The sweep is complete; the LIST is paged. */
@@ -118,8 +115,10 @@ export function App() {
   /**
    * True until the stored roster has been looked for.
    *
-   * Without it the drop zone renders for one frame before a restore replaces
-   * it, which reads as the app forgetting and then remembering.
+   * While it is, every route draws the header and "Restoring your roster…" and
+   * nothing else (`shellView`). The drop zone used to stand in for that wait,
+   * in its parsing state, which read as the app forgetting and then
+   * remembering -- for as long as several MB took to read on a phone.
    */
   const [restoring, setRestoring] = useState(true);
   // The extract every number on screen was computed from. Echoed on the next
@@ -182,30 +181,6 @@ export function App() {
   useEffect(() => {
     if (path === ROOT && roster !== null) toSearch();
   }, [path, roster]);
-
-  /**
-   * #tree IS ONLY MEANINGFUL WITH A LINEAGE BEHIND IT, and this is the one rule
-   * that says so -- for every way of arriving, not just the one that was
-   * reported.
-   *
-   * The roster lives only in memory, so a reload, a bookmark, a pasted link or a
-   * hand-typed `/tree` all reach a screen with nothing to draw. Left alone the
-   * flag sat armed and INVISIBLE: the drop zone and the roster looked completely
-   * normal, and then the moment a second parent was picked the app jumped
-   * straight to the tree, skipping the compare pane the whole screen exists for.
-   *
-   * Guarding at mount only fixed the reload; typing the address afterwards
-   * armed it again. Reacting to the STATE rather than to any one
-   * route in covers all of them, including a pick being invalidated while the
-   * tree is open -- switching the trainee to one of the picked umas nulls the
-   * lineage, and the tree has nothing left to show.
-   *
-   * Replaced rather than pushed: no extra history entry to go "back" into.
-   */
-  useEffect(() => {
-    if (!onTreePage || lineage !== null) return;
-    navigate(ROOT, { replace: true });
-  }, [onTreePage, lineage]);
 
   /**
    * Bring back the roster this browser already has, if it is still true.
@@ -398,6 +373,42 @@ export function App() {
   );
 
   /**
+   * WHICH SCREEN, decided by `shellView` (shell.ts), where each rule is tested.
+   *
+   * The root counts as the search the moment there is a roster, so the screen
+   * is right on the first render and the effect above only fixes the address.
+   */
+  const shell = {
+    path,
+    restoring,
+    hasRoster: roster !== null && save !== null,
+    hasLineage: lineage !== null,
+    // A lineage CAN come: the explain effect below will produce one. Asked
+    // instead of "has one arrived", which a reload never had in time.
+    lineageCanCome:
+      roster !== null && save !== null && trainee !== null && picks.length === 2 && pairError === null,
+  };
+  const view = shellView(shell);
+
+  /**
+   * /tree IS ONLY MEANINGFUL WITH A LINEAGE BEHIND IT, or one on its way; the
+   * rule is `treeShouldRedirect`. Reacting to the STATE rather than to any one
+   * way of arriving covers all of them -- a reload, a bookmark, a hand-typed
+   * `/tree`, and a pick invalidated while the tree is open (switching the
+   * trainee to one of the picked umas drops that pick, and nothing can come).
+   *
+   * A reload is now the ordinary case rather than the broken one: the roster
+   * and the pair come back from IndexedDB, so the guard waits out the restore
+   * and then the explain instead of sending the reader to the search.
+   *
+   * Replaced rather than pushed: no extra history entry to go "back" into.
+   */
+  const redirectTree = treeShouldRedirect(shell);
+  useEffect(() => {
+    if (redirectTree) navigate(ROOT, { replace: true });
+  }, [redirectTree]);
+
+  /**
    * The picked veterans themselves. Kept separate from `shown` because a filter
    * can hide a pick, and the rules that depend on what is already picked --
    * two-is-the-limit, and no two parents of the same uma -- must hold whether or
@@ -548,7 +559,7 @@ export function App() {
    * explains. The wireframe it grew out of deliberately kept its own copies,
    * because a throwaway surface must not rewrite a persisted selection.
    */
-  if (onSearch && roster && save) {
+  if (view === 'search' && roster && save) {
     return (
       <PairSearch
         roster={roster}
@@ -596,7 +607,7 @@ export function App() {
     );
   }
 
-  if (onTreePage && lineage) {
+  if (view === 'tree' && lineage) {
     return (
       <TreePage
         lineage={lineage}
@@ -606,13 +617,36 @@ export function App() {
     );
   }
 
+  const header = (
+    <header className={styles.top}>
+      <h1 className={styles.wordmark}>Uma Legacies</h1>
+      <SiteNav current={path} targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null })} />
+    </header>
+  );
+
+  /*
+   * A WAITING SURFACE SAYS WHAT IT IS WAITING FOR (DESIGN.md), at once, with no
+   * delay: the header and one muted line, and nothing that is about to be
+   * replaced. The drop zone used to stand in for this on every reload.
+   */
+  if (view === 'restoring' || view === 'tree-waiting') {
+    return (
+      <main className={`${styles.shell} ${styles.wide}`}>
+        {header}
+        <p className={styles.waiting} role="status">
+          {view === 'restoring' ? 'Restoring your roster…' : 'Explaining…'}
+        </p>
+      </main>
+    );
+  }
+
   // The same control in both states, so it is built once and placed twice. On
   // the first run it is the ONLY thing to do and gets the middle of the screen;
   // once a roster is loaded it collapses to a one-line summary naming the file
   // and belongs at the top, above the list.
   const dropZone = (
     <DropZone
-      state={parsing || restoring ? 'parsing' : roster ? 'loaded' : 'empty'}
+      state={parsing ? 'parsing' : roster ? 'loaded' : 'empty'}
       fileName={save?.fileName ?? null}
       veteranCount={roster?.veterans.length ?? 0}
       error={saveError}
@@ -625,10 +659,7 @@ export function App() {
 
   return (
     <main className={`${styles.shell} ${roster ? styles.wide : styles.landing}`}>
-      <header className={styles.top}>
-        <h1 className={styles.wordmark}>Uma Legacies</h1>
-        <SiteNav current={path} targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null })} />
-      </header>
+      {header}
 
       {masterChanged && (
         <p className={styles.notice}>

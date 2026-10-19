@@ -918,7 +918,7 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Files: `packages/web/src/lineage/odds.ts`, `lineage/odds.test.ts`,
     `roster/ComparePane.tsx`, `roster/ComparePane.test.tsx`
   - Verify: white + gold pane test green BEFORE and AFTER; `npm test --workspace @umalegacies/web`
-- [ ] **T2 (P1, human: ~3h / CC: ~20min)** — App shell — Restore gate on every route, an
+- [x] **T2 (P1, human: ~3h / CC: ~20min)** — App shell — Restore gate on every route, an
   immediate "Restoring your roster…" line, `/tree` guard asks whether a lineage can come;
   fix its stale comment
   - Surfaced by: Architecture 1A (reload bounce, drop-zone flash); design review D28
