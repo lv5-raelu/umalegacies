@@ -822,6 +822,30 @@ and table (D-T2 to D-T4, D-T6, D-T8, D-T10, D-T14 to D-T16) with step 6, the ent
 and nav (D-T9, D-T12) with step 7. Build against the Approved Mockups, not the office-hours
 sketch.
 
+## Build notes (2026-10-19)
+
+Built in the order of Next Steps, one commit per step, on this branch. Where the build left
+the plan, and what is still unverified:
+
+- **Two small additions to core.** `pairSparks(a, b)` (`core/src/filter.ts`) reads a pair's
+  stars and carriers off the two roster packages, so the row inventory (R-T7) is one tested
+  function; the parity test the plan asks for lives in the API, which has the master extract
+  and the committed pair fixtures (`api/src/roster/pair-sparks.test.ts`). `MasterData.skillTiming`
+  supplies white-skill headings before any lineage exists.
+- **The tray restores through its own `restoreTray`**, beside `restoreSelection` rather than as
+  a new `Selection` field, so the existing selection tests stand unchanged.
+- **The results Map lives in App**, not in `ComparePage`, because a same-trainee return must
+  draw its numbers on the first render; the page fills it through `useCompareColumns`.
+- **A stale extract leaves its columns loading** with the app banner raised, as the plan
+  specifies ("no column errors"); the banner says to reload.
+- **A fourth dev dependency, `@testing-library/user-event`**, pinned, for pressing Enter and
+  Space on the search row's native open button in regression 4.
+- **Not covered by an automated test:** the scroll OFFSET restored on return (jsdom does no
+  layout; toggles and open rows are covered), the cleared-tray notice after a NEW UPLOAD
+  (forget is covered), and the shimmer itself. A real-browser pass on the builder's roster at
+  1280x900 and 375x667 checked the pinned header, strip and name column, keyboard expansion,
+  hover titles and `--pane-top` after `/search`, and fixed three faults it found.
+
 ## Engineering Review (2026-10-14)
 
 ### NOT in scope
@@ -925,39 +949,39 @@ Synthesized from this review's findings. Each task derives from a specific findi
     (no delay, superseding D14)
   - Files: `packages/web/src/App.tsx`, `shell.ts`, `shell.test.ts`
   - Verify: `shell.test.ts`; jsdom reload on `/tree` and `/compare`; /qa reload of each route
-- [ ] **T3 (P1, human: ~2h / CC: ~15min)** — compare table — Two scrolling regimes: no
+- [x] **T3 (P1, human: ~2h / CC: ~15min)** — compare table — Two scrolling regimes: no
   wrapper ≥ 1080px, own scroll box below
   - Surfaced by: Architecture 1B, revised after Codex #3 and measurement
   - Files: `packages/web/src/compare/CompareTable.module.css`
   - Verify: /qa sticky header and name column at 1280px and 375px
-- [ ] **T4 (P1, human: ~1h / CC: ~10min)** — App — One `takePair(pair, lineage)` action for
+- [x] **T4 (P1, human: ~1h / CC: ~10min)** — App — One `takePair(pair, lineage)` action for
   search and `/compare`
   - Surfaced by: outside voice, Codex #1
   - Files: `packages/web/src/App.tsx`, `compare/PairHeader.tsx`
   - Verify: jsdom "Show breakdown on C opens C's tree"
-- [ ] **T5 (P1, human: ~3h / CC: ~20min)** — ComparePage — Keyed results Map, `cancelled`
+- [x] **T5 (P1, human: ~3h / CC: ~20min)** — ComparePage — Keyed results Map, `cancelled`
   guard, shared stale-master helper
   - Surfaced by: Architecture 1C; outside voice, Codex #2
   - Files: `packages/web/src/compare/ComparePage.tsx`, `compare/run-columns.ts`,
     `lineage/explain-local.ts`, `App.tsx`
   - Verify: `run-columns.test.ts`; keyed Map tests; jsdom trainee-switch race
-- [ ] **T6 (P2, human: ~2h / CC: ~15min)** — compare-model — Identical = printed cells in the
+- [x] **T6 (P2, human: ~2h / CC: ~15min)** — compare-model — Identical = printed cells in the
   current window, only with ≥ 2 `ok` columns and none loading
   - Surfaced by: Code Quality 2B; outside voice, Codex #4
   - Files: `packages/web/src/compare/compare-model.ts`, `compare-model.test.ts`
   - Verify: 43.12% vs 43.49%; window-dependent row; one-column case
-- [ ] **T7 (P2, human: ~30min / CC: ~5min)** — compare-model — Take `roster.sparkOptions`
+- [x] **T7 (P2, human: ~30min / CC: ~5min)** — compare-model — Take `roster.sparkOptions`
   for filtered sparks no pair carries
   - Surfaced by: outside voice, Codex #6
   - Files: `packages/web/src/compare/compare-model.ts`, `compare-model.test.ts`
   - Verify: a criterion carried by no pair renders name, tick, em dashes
-- [ ] **T8 (P2, human: ~2h / CC: ~15min)** — tray + selection — Node tests for every coverage
+- [x] **T8 (P2, human: ~2h / CC: ~15min)** — tray + selection — Node tests for every coverage
   gap in the tray, selection restore and `runColumns`
   - Surfaced by: Test review coverage diagram (31 gaps)
   - Files: `compare/tray.ts`, `compare/tray.test.ts`, `roster/selection.ts`,
     `roster/selection.test.ts`, `compare/ComparePage.test.tsx`
   - Verify: `npm test --workspace @umalegacies/web`
-- [ ] **T9 (P1, human: ~4h / CC: ~30min)** — test harness — Per-file jsdom App-flow tests
+- [x] **T9 (P1, human: ~4h / CC: ~30min)** — test harness — Per-file jsdom App-flow tests
   - Surfaced by: Test review 3A
   - Files: `packages/web/package.json` (dev deps `jsdom`, `@testing-library/react`,
     `fake-indexeddb`), `packages/web/src/App.flows.test.tsx`
@@ -1005,12 +1029,12 @@ change, so S6 must land after S4's `takePair`.
 
 **Implementation Tasks (eng re-review)**
 
-- [ ] **R-T1 (P2, human: ~1h / CC: ~10min)** — ComparePage — Bound the results Map to
+- [x] **R-T1 (P2, human: ~1h / CC: ~10min)** — ComparePage — Bound the results Map to
   trainee × tray + undo slots
   - Surfaced by: Architecture 1A (re-review)
   - Files: `compare/ComparePage.tsx`, `compare/run-columns.ts`
   - Verify: ten trainee switches → size ≤ slots; undo restores without loading
-- [ ] **R-T2 (P2, human: ~2h / CC: ~15min)** — App — Restore window, rows, toggles and scroll on
+- [x] **R-T2 (P2, human: ~2h / CC: ~15min)** — App — Restore window, rows, toggles and scroll on
   any return, after layout settles, into the active scroller
   - Surfaced by: Architecture 1B; outside voice Codex #7
   - Files: `App.tsx`, `compare/ComparePage.tsx`
@@ -1020,44 +1044,44 @@ change, so S6 must land after S4's `takePair`.
   - Surfaced by: Code Quality 2A; Codex #4, #5
   - Files: `lineage/odds.ts`, `lineage/odds.test.ts`, `roster/ComparePane.tsx`
   - Verify: regression 9; `ComparePane.test.tsx` assertions unchanged
-- [ ] **R-T4 (P2, human: ~2h / CC: ~15min)** — search — Redundant-click row with a real open
+- [x] **R-T4 (P2, human: ~2h / CC: ~15min)** — search — Redundant-click row with a real open
   button and the toggle inside; focus ring via `:has()`
   - Surfaced by: Code Quality 2B superseded by Codex #10
   - Files: `search/PairSearch.tsx`, `search/PairSearch.module.css`
   - Verify: regression 4
-- [ ] **R-T5 (P2, human: ~1h / CC: ~10min)** — App — `usePublishedTop` as a callback ref
+- [x] **R-T5 (P2, human: ~1h / CC: ~10min)** — App — `usePublishedTop` as a callback ref
   - Surfaced by: Code Quality 2C; Codex #6 (fixes an existing roster bug)
   - Files: `usePublishedTop.ts`, `App.tsx`, `compare/ComparePage.tsx`
   - Verify: regressions 8 and 10
-- [ ] **R-T6 (P3, human: ~30min / CC: ~5min)** — CSS — Opacity-pulse shimmer
+- [x] **R-T6 (P3, human: ~30min / CC: ~5min)** — CSS — Opacity-pulse shimmer
   - Surfaced by: Performance 4A
   - Files: the compare CSS modules
   - Verify: /qa on a throttled phone profile; static under reduced motion
-- [ ] **R-T7 (P2, human: ~3h / CC: ~20min)** — compare-model — Row inventory from roster
+- [x] **R-T7 (P2, human: ~3h / CC: ~20min)** — compare-model — Row inventory from roster
   packages; stars and carriers trainee-independent
   - Surfaced by: Codex #1
   - Files: `compare/compare-model.ts`, `compare/compare-model.test.ts`
   - Verify: trainee switch keeps rows and open rows; stars/carriers parity with lineage
-- [ ] **R-T8 (P2, human: ~30min / CC: ~5min)** — ComparePage — Ordered cache key, unordered
+- [x] **R-T8 (P2, human: ~30min / CC: ~5min)** — ComparePage — Ordered cache key, unordered
   dedupe key
   - Surfaced by: Codex #3
   - Files: `compare/ComparePage.tsx`, `compare/tray.ts`
   - Verify: remove A×B, add B×A → names match the header
-- [ ] **R-T9 (P2, human: ~1.5h / CC: ~10min)** — ComparePage — Every removed slot undoable;
+- [x] **R-T9 (P2, human: ~1.5h / CC: ~10min)** — ComparePage — Every removed slot undoable;
   honest recompute; empty state only with no slots left
   - Surfaced by: Codex #2
   - Files: `compare/ComparePage.tsx`
   - Verify: undo tests for two removals, last-pair removal, after a trainee switch
-- [ ] **R-T10 (P2, human: ~1h / CC: ~10min)** — App — Pair-targeted "In compare" link wins over
+- [x] **R-T10 (P2, human: ~1h / CC: ~10min)** — App — Pair-targeted "In compare" link wins over
   the saved scroll
   - Surfaced by: Codex #9
   - Files: `App.tsx`, `compare/CompareToggle.tsx`, `compare/ComparePage.tsx`
   - Verify: jsdom target test
-- [ ] **R-T11 (P2, human: ~30min / CC: ~5min)** — compare-model — One ordered visibility rule
+- [x] **R-T11 (P2, human: ~30min / CC: ~5min)** — compare-model — One ordered visibility rule
   - Surfaced by: Codex #8
   - Files: `compare/compare-model.ts`, `compare/compare-model.test.ts`
   - Verify: parts sum to total; exemptions hold
-- [ ] **R-T12 (P1, human: ~2h / CC: ~15min)** — tests — Regression tests 4-10
+- [x] **R-T12 (P1, human: ~2h / CC: ~15min)** — tests — Regression tests 4-10
   - Surfaced by: the regression rule (search row, `takePair`, pane window, dialog window,
     `usePublishedTop`, hover sentence, rebuilt grid)
   - Files: `App.flows.test.tsx`, `roster/ComparePane.test.tsx`, `lineage/odds.test.ts`,
@@ -1104,31 +1128,31 @@ Rejected on the board: B (two-tier header) and C (two-line cells), same folder.
 
 Synthesized from this review's findings; each derives from a decision above.
 
-- [ ] **D-T1 (P1, human: ~2h / CC: ~15min)** — compare table — "Together" rows lead Your sparks
+- [x] **D-T1 (P1, human: ~2h / CC: ~15min)** — compare table — "Together" rows lead Your sparks
   - Surfaced by: Pass 1, 1A (D2)
   - Files: `compare/compare-model.ts`, `compare/CompareTable.tsx`, `lineage/odds.ts`
   - Verify: equals the pane's joint figures for the same pair, trainee, window and gold plan
-- [ ] **D-T2 (P2, human: ~30min / CC: ~5min)** — header — Score and own sparks in ink, name
+- [x] **D-T2 (P2, human: ~30min / CC: ~5min)** — header — Score and own sparks in ink, name
   muted; "same half" as plain 10px faint text
   - Surfaced by: Pass 1, 1B (D3); Pass 5, 5G (D21)
   - Files: `compare/PairHeader.tsx`, `PairHeader.module.css`
   - Verify: /qa against `variant-A-revised.png`
-- [ ] **D-T3 (P2, human: ~1h / CC: ~10min)** — table — 11px muted corner legend; every cell's
+- [x] **D-T3 (P2, human: ~1h / CC: ~10min)** — table — 11px muted corner legend; every cell's
   `title` from the chip's explanation builder
   - Surfaced by: Pass 1, 1C (D4)
   - Files: `compare/CompareTable.tsx`, `lineage/odds.ts` (one shared explanation builder)
   - Verify: `renderToStaticMarkup` test: a white skill's and a blue's title text
-- [ ] **D-T4 (P2, human: ~30min / CC: ~5min)** — expansion — Named slots; stars and
+- [x] **D-T4 (P2, human: ~30min / CC: ~5min)** — expansion — Named slots; stars and
   per-inspiration only, no Individual Affinity
   - Surfaced by: Pass 1, 1D (D5); Pass 5, 5F (D20)
   - Files: `compare/CarrierSlots.tsx`
   - Verify: markup test: six named lines, "—" for a non-carrier, no "IA"
-- [ ] **D-T5 (P2, human: ~1h / CC: ~15min)** — model — Hidden-rows line counts both filters;
+- [x] **D-T5 (P2, human: ~1h / CC: ~15min)** — model — Hidden-rows line counts both filters;
   an expanded row is never hidden
   - Surfaced by: Pass 1, 1E (D6)
   - Files: `compare/compare-model.ts`, `compare/ComparePage.tsx`
   - Verify: model tests for both counts and the open-row exemption
-- [ ] **D-T6 (P1, human: ~3h / CC: ~25min)** — column states — Identity from the roster;
+- [x] **D-T6 (P1, human: ~3h / CC: ~25min)** — column states — Identity from the roster;
   shimmer skeleton immediately while loading (static under reduced motion); blocked in words;
   error muted with retry; the toggle stays put
   - Surfaced by: Pass 2, 2A (D7, and the builder's "show the skeleton immediately")
@@ -1136,56 +1160,56 @@ Synthesized from this review's findings; each derives from a decision above.
     their CSS modules
   - Verify: markup tests per state; jsdom: skeleton present from the first render of a
     loading column
-- [ ] **D-T7 (P2, human: ~15min / CC: ~5min)** — cells — "—" only for not-carried; the inherit
+- [x] **D-T7 (P2, human: ~15min / CC: ~5min)** — cells — "—" only for not-carried; the inherit
   slot of a non-skill is empty
   - Surfaced by: Pass 2, 2B (D8)
   - Files: `compare/compare-model.ts`, `compare/CompareTable.tsx`
   - Verify: printed-equality test treats empty and "—" as different
-- [ ] **D-T8 (P2, human: ~1h / CC: ~10min)** — page — The three empty states with their copy
+- [x] **D-T8 (P2, human: ~1h / CC: ~10min)** — page — The three empty states with their copy
   - Surfaced by: Pass 2, 2C (D9)
   - Files: `compare/ComparePage.tsx`
   - Verify: `ComparePage.test.tsx` for 0 pairs, 1 pair, filters-left-nothing
-- [ ] **D-T9 (P1, human: ~3h / CC: ~25min)** — entry points — One stateful `CompareToggle`;
+- [x] **D-T9 (P1, human: ~3h / CC: ~25min)** — entry points — One stateful `CompareToggle`;
   search rows restructured (redundant-click row + real open button + toggle inside; eng
   re-review Codex #10)
   - Surfaced by: Pass 2, 2D (D10)
   - Files: `compare/CompareToggle.tsx` (+ CSS), `search/PairSearch.tsx`,
     `search/PairDetail.tsx`, `roster/ComparePane.tsx`
   - Verify: markup tests for the three labels; no interactive element nested in another
-- [ ] **D-T10 (P2, human: ~1.5h / CC: ~10min)** — page — "Removed · undo" in place
+- [x] **D-T10 (P2, human: ~1.5h / CC: ~10min)** — page — "Removed · undo" in place
   - Surfaced by: Pass 2, 2E (D11)
   - Files: `compare/ComparePage.tsx`
   - Verify: jsdom: remove then undo restores the column in place with no loading state
-- [ ] **D-T11 (P2, human: ~2h / CC: ~15min)** — App — Window setting lifted and shared with the
+- [x] **D-T11 (P2, human: ~2h / CC: ~15min)** — App — Window setting lifted and shared with the
   pane; expanded rows and scroll kept for the round trip
   - Surfaced by: Pass 3, 3B (D13)
   - Files: `App.tsx`, `roster/ComparePane.tsx`, `compare/ComparePage.tsx`
   - Verify: jsdom: Show breakdown, Back → same window, rows, scroll
-- [ ] **D-T12 (P2, human: ~15min / CC: ~5min)** — nav — "Compare" always present
+- [x] **D-T12 (P2, human: ~15min / CC: ~5min)** — nav — "Compare" always present
   - Surfaced by: Pass 3, 3C (D14)
   - Files: `SiteNav.tsx`
   - Verify: markup test with an empty tray and with no roster
-- [ ] **D-T13 (P1, human: ~1h / CC: ~15min)** — DESIGN.md — Amendments 1, 2, 3, 4, 6, 7 and
+- [x] **D-T13 (P1, human: ~1h / CC: ~15min)** — DESIGN.md — Amendments 1, 2, 3, 4, 6, 7 and
   their Decisions Log rows
   - Surfaced by: Pass 5 (D15-D19) and 2A (amendment 6)
   - Files: `DESIGN.md`
   - Verify: each amendment's approved text appears verbatim
-- [ ] **D-T14 (P1, human: ~3h / CC: ~25min)** — narrow screens — Box offset variable, scroll
+- [x] **D-T14 (P1, human: ~3h / CC: ~25min)** — narrow screens — Box offset variable, scroll
   padding, themed scrollbar, rank wrap; compact pinned strip below 600px; "Add a pair" link
   below 1080px
   - Surfaced by: Pass 6, 6A (D22); Pass 7 (D27)
   - Files: `compare/CompareTable.module.css`, `compare/PairHeader.tsx`, `compare/ComparePage.tsx`
   - Verify: /qa at 375×667, 740×360, 200% zoom against `variant-A-revised-phone.png`
-- [ ] **D-T15 (P2, human: ~1h / CC: ~10min)** — table — Caption, `th scope`, `aria-expanded`
+- [x] **D-T15 (P2, human: ~1h / CC: ~10min)** — table — Caption, `th scope`, `aria-expanded`
   and `aria-controls`
   - Surfaced by: Pass 6, 6B (D23)
   - Files: `compare/CompareTable.tsx`
   - Verify: markup test asserts scopes, caption, aria attributes
-- [ ] **D-T16 (P2, human: ~30min / CC: ~5min)** — touch — 44px targets under `pointer: coarse`
+- [x] **D-T16 (P2, human: ~30min / CC: ~5min)** — touch — 44px targets under `pointer: coarse`
   - Surfaced by: Pass 6, 6C (D24)
   - Files: the compare CSS modules, `CompareToggle.module.css`
   - Verify: /qa on a touch device or emulation
-- [ ] **D-T17 (P2, human: ~30min / CC: ~5min)** — model — Letters are slot positions; they
+- [x] **D-T17 (P2, human: ~30min / CC: ~5min)** — model — Letters are slot positions; they
   close up after a removal on the next visit
   - Surfaced by: Pass 7 (D26)
   - Files: `compare/compare-model.ts`

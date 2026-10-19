@@ -1,5 +1,6 @@
 /*
- * Two layouts, and which applies is decided by what the surface is for.
+ * Two of the three layouts (the third, comparing pairs, is /compare's own
+ * module), and which applies is decided by what the surface is for.
  * DESIGN.md: reading a result is a single column; comparing candidates is two
  * panes, and the roster screen is the only surface that earns them.
  */

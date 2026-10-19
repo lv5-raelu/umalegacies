@@ -89,7 +89,8 @@ anywhere in this product.
 **Reference sites:** `https://hakuraku.moe` (studied 2026-09-14; the incumbent).
 
 **Key characteristics:**
-- Exactly one number on the screen is large. Every other numeral is 10-18px mono.
+- At most one number on a screen is large. /compare has none: its pair totals are 18px, equal
+  in every column. Every other numeral is 10-18px mono.
 - Colour is never a fill. A spark's hue survives as a 3px tick and a bar, nothing else.
 - Aggregate numbers print their own addends underneath, permanently, at 10px.
 - Two typefaces, no display face. The headline is set in the same mono as every other figure.
@@ -145,7 +146,7 @@ the hierarchy; nothing occupies it.
 
 ## Layout
 
-**Two layouts, and which one applies is decided by what the surface is for.**
+**Three layouts, and which one applies is decided by what the surface is for.**
 
 **Reading a result: single column, max 900px, centred.** Content-driven widths, never
 full-bleed by habit. The lineage tree, the audit trail and every provenance panel live here.
@@ -158,6 +159,12 @@ comparing is the job: the user is choosing between 259 veterans and the number t
 choosing *against* has to stay on screen while the list moves under it. A single column would
 put the pair total above the fold at first and nowhere at all by row 40, which turns a
 comparison into a memory test.
+
+**Comparing pairs: a ruled table with a 200px sticky spark-name column and up to four equal pair
+columns, max 1400px.** The whole identity header is pinned (approved variant A); below 600px
+only a compact strip (letter, total, both scores) pins. At 1080px and wider the page scrolls and
+the header pins to it; below that the table scrolls in its own box on both axes. This is
+/compare, and it reads several decisions side by side rather than making one.
 
 **Below 900px the panes collapse to one column** and the compare pane becomes a button
 through to its own page. There is no two-pane phone layout; 380px of pane against a 390px
@@ -211,6 +218,11 @@ roster. The border is what makes it read as one. Surface `#1B1D23` on paper `#12
 `rule-strong`. Nothing else in the product is a card: the table is a table, panels are ruled
 regions. The veteran card is the same object one step earlier -- pick it and it becomes a
 parent node in the tree -- so the two surfaces agree about what a card means.
+
+**compare table** — a ruled table, never cards. Emphasis is never computed across columns: no
+bold, colour, size, ordering or mark that depends on one pair's value relative to another's.
+Columns stay in the order they were added. What differs between pairs may be filtered (hidden
+and counted), never highlighted.
 
 **Node internals** — portrait 48px circle at the card's top-right (54px on the trainee, centred),
 served from an optional local cache so the initials disc is a routine state rather than an error;
@@ -285,7 +297,9 @@ and underline offset all derive from this palette.
 - **Do** render any screen that shows derived data from the derivation itself, including
   throwaway previews. A hand-typed table drifts from the engine within one edit and will state
   things that are not true.
-- **Do** omit a row that is always 100%. A guaranteed value is not information.
+- **Do** omit a row that is always 100%. A guaranteed value is not information… unless another
+  figure in the row carries information, as on /compare, where a blue row's stars differ between
+  pairs; the identical filter removes it when they don't.
 - **Do** keep star figures as lineage totals, never a maximum across carriers. That total is the
   unit the borrow search filters on, so the two must agree.
 - **Don't** fill anything with a spark colour. Ticks and bars only.
@@ -301,8 +315,13 @@ and underline offset all derive from this palette.
 - **Approach:** minimal-functional. Numbers never animate.
 - **Easing:** enter `ease-out`, exit `ease-in`, move `ease-in-out`.
 - **Duration:** micro 50-100ms, short 150-250ms. Nothing longer exists in this product.
-- **The one authored moment:** a node's spark detail expanding. Height and opacity, 200ms
-  ease-out, from an already-visible resting state. Content never hides behind animation timing.
+- **The authored moments:** a node's spark detail expanding, and a compare row opening across
+  every column at once. Height and opacity, 200ms ease-out, from an already-visible resting
+  state. Content never hides behind animation timing.
+- **A loading skeleton bar may shimmer** (1.2s ease-in-out, looping) while a value is pending;
+  static under `prefers-reduced-motion`; shown immediately, with no delay. It is the only looping
+  motion, and it never touches a real number. A deliberate exception to "nothing longer exists"
+  and to minimal-functional, approved by the builder for /compare.
 
 ## Decisions Log
 
@@ -347,3 +366,9 @@ and underline offset all derive from this palette.
 | 2026-09-17 | The compare pane never scrolls itself | Builder's call. Everything from the rubric to the button stays on screen at once: the pane is a flex column whose only flexible child is the spark list, so that list shrinks and the button holds its place. Its height is measured from the pane's own flow offset, not the sticky offset, because at scroll 0 it begins below the header. |
 | 2026-09-17 | The rank badge sits left of the score | Builder's call. The rank is read first and the score qualifies it. |
 | 2026-10-06 | The pins are two sides of the pair: "parent", then "grandparents ... and ..." | Reader feedback, then the builder's layout. Maruzensky and Mihono Bourbon in the one parent list returned "either of them beside anyone", because a shortlist means ANY of its members in EITHER seat. A first fix added a "paired with" seat to the parent and grandparent rows, but "any two of the four grandparents" read oddly and still could not put a grandparent under a particular parent. So each side is now a small family tree -- a parent picker above the two umas that parent was bred from -- and the two sides sit next to each other with a hairline between. The sides are interchangeable (the game does not label its parent slots), one veteran cannot fill both, one ancestor cannot fill both seats under a parent, and anything empty is "anyone"; so one side's parent alone is the original pin and one grandparent alone is the original grandparent pin. The parent picker sits directly above the first grandparent picker, the shape the lineage tree draws. Under 1180px the sides stack with a row rule; under 600px every seat gets its own line. Same combobox, no new tokens. The second row was first labelled "bred from"; the builder renamed it "grandparents", which says the slot rather than the relation. |
+| 2026-10-19 | A third layout: the compare table | Amendment 1, approved in the compare-pairs design review (D15, phone clause D22). Comparing PAIRS is a different job from choosing one: up to four columns read side by side, so the surface is a ruled table with a pinned identity header and a pinned name column, in two scrolling regimes measured in Chrome (no wrapper at 1080px and wider; a both-axes box below, because `overflow-y: clip` beside a scrolling x-axis computes to `hidden`). |
+| 2026-10-19 | At most one large number, and /compare has none | Amendment 2 (D16). Four 56px totals would rank the pairs by size alone, which is emphasis by typography. |
+| 2026-10-19 | The compare table never marks a column | Amendment 3 (D17). Builder's call, against a recommended changelog of gains and losses: "we cannot know for sure what the user wants". Bare numbers, columns in the order added; what differs may be filtered and counted, never highlighted. |
+| 2026-10-19 | A compare row opening is the second authored moment | Amendment 4 (D18). One row opens in every column at once, named slot by slot, because which grandparent carries a spark is the half of the answer a looper acts on. |
+| 2026-10-19 | A loading skeleton may shimmer, at once | Amendment 6 (design review 2A). Builder's call: "if it's loading, then it's loading, show the skeleton immediately" -- no delay before it appears. An opacity pulse, compositor-only, since a cold load can put ~200 bars on screen. |
+| 2026-10-19 | A row that is always 100% stays when another figure in it differs | Amendment 7 (D19). On /compare a blue reads 100% in every column while its stars differ (Power 5★ / 6★ / 7★ on the real roster); the identical filter removes the row when nothing differs. |
