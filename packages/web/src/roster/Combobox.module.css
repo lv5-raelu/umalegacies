@@ -3,7 +3,7 @@
  *
  * Both need the same thing and a native <select> gives neither of them: an
  * <option> holds text and nothing else, so it cannot carry a portrait or a
- * colour tick, and it cannot be searched. With 105 trainee cards and 297 spark
+ * colour tick, and it cannot be searched. With 109 trainee cards and 297 spark
  * groups, searching is not a nicety.
  */
 .region {
