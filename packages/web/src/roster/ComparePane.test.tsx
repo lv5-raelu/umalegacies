@@ -129,6 +129,97 @@ describe('the pane reads a pair of own picks', () => {
   });
 });
 
+/**
+ * What the pane PRINTS for a white and a gold criterion.
+ *
+ * The guard on `lineage/odds.ts`. The window, the gold rule and the inherit
+ * figure used to live privately in this component, and the compare page needs
+ * the same numbers; written before they moved, green before and after, so
+ * "the pane and /compare show the same number" starts from the pane's own.
+ *
+ * Numbers picked so every figure is exact by hand. Uma Stan: 40% across a
+ * career, two carriers, so 40% x 25% = 10% white and 40% x 50% = 20% gold.
+ * Nimble Navigator: 60%, four carriers, so 18% white and 36% gold.
+ */
+const whiteRow = (
+  groupId: number,
+  name: string,
+  odds: { inspiration: number; once: number; twice: number },
+  carriers: number,
+) => ({
+  groupId,
+  kind: 'white_skill',
+  name,
+  stars: 5,
+  carriers: [],
+  withinOneInspiration: odds.inspiration,
+  onceInCareer: odds.once,
+  twiceInCareer: odds.twice,
+  lineageCarriers: carriers,
+  timing: null,
+  aptitude: null,
+});
+
+const withSparks = {
+  ...lineage,
+  sparks: [
+    whiteRow(2001, 'Nimble Navigator', { inspiration: 0.35, once: 0.6, twice: 0.2 }, 4),
+    whiteRow(2002, 'Uma Stan', { inspiration: 0.2, once: 0.4, twice: 0.1 }, 2),
+  ],
+} as unknown as LineageResponse;
+
+const options = [
+  { groupId: 2001, kind: 'white_skill', name: 'Nimble Navigator', veterans: 3 },
+  { groupId: 2002, kind: 'white_skill', name: 'Uma Stan', veterans: 3 },
+] as const;
+
+const renderOdds = (goldUmaStan: boolean): string =>
+  renderToStaticMarkup(
+    <ComparePane
+      state={paneState(100101, [own(1, 100601), own(2, 100901)], false, null, withSparks)}
+      criteria={[
+        { groupId: 2001, minStars: 1, scope: 'package' },
+        { groupId: 2002, minStars: 1, scope: 'package', gold: goldUmaStan },
+      ]}
+      sparkOptions={options}
+      pickedCount={2}
+      onClearPicks={() => {}}
+      onOpenTree={() => {}}
+    />,
+  );
+
+/**
+ * A chip's visible text -- name, stars, activation, inherit -- without its hover
+ * sentence, which is an attribute and so goes with the tags.
+ */
+const chipText = (html: string, name: string): string => {
+  const parts = html.split(/<[^>]*>/).filter((part) => part !== '');
+  const at = parts.indexOf(name);
+  return parts.slice(at, at + 4).join('|');
+};
+
+describe('the pane prints activation and inherit, white and gold', () => {
+  it('prints the career activation and the white inherit figure on each chip', () => {
+    const html = renderOdds(false);
+    expect(chipText(html, 'Uma Stan')).toBe('Uma Stan|5★|40%|(10%)');
+    expect(chipText(html, 'Nimble Navigator')).toBe('Nimble Navigator|5★|60%|(18%)');
+    // Together: 40% x 60% to activate, 10% x 18% to inherit.
+    expect(html).toContain('both activate');
+    expect(html).toContain('24%');
+    expect(html).toContain('all skills inherited');
+    expect(html).toContain('1.8%');
+  });
+
+  it('doubles the roll for the criterion that asked for gold, and only for it', () => {
+    const html = renderOdds(true);
+    expect(chipText(html, 'Uma Stan')).toBe('Uma Stan|5★|40%|(20%)');
+    expect(chipText(html, 'Nimble Navigator')).toBe('Nimble Navigator|5★|60%|(18%)');
+    // Activation does not care about the tier; inheriting does: 20% x 18%.
+    expect(html).toContain('24%');
+    expect(html).toContain('3.6%');
+  });
+});
+
 describe('what the pick count decides', () => {
   it('is need-picks until there are exactly two, and carries the count', () => {
     expect(paneState(100101, [], false, null, null)).toEqual({ kind: 'need-picks', picked: 0 });
