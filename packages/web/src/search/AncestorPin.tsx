@@ -77,7 +77,7 @@ export function AncestorPin({
         [options],
       ),
       // Reopen ON the current pin rather than at the top, the same as every
-      // other combobox here: a list of 68 characters should show you where you
+      // other combobox here: a list of 109 cards should show you where you
       // already are.
       activeIndexOf: useCallback(
         (items: readonly Choice[]) => items.findIndex((o) => o !== null && picked.has(o.cardId)),

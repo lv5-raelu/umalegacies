@@ -128,7 +128,7 @@ export class MasterData {
   private readonly baseCardByCharaId = new Map<number, number>();
   /** Playable cards (default_rarity > 0), ascending by id, as card_data delivers them. */
   private readonly playableCards: Array<{ cardId: number; charaId: number }> = [];
-  /** chara_id -> every playable card_id it has, ascending. 35 of 68 characters have more than one. */
+  /** chara_id -> every playable card_id it has, ascending. 38 of 69 characters have more than one. */
   private readonly cardsByCharaId = new Map<number, number[]>();
   /** card_id -> its bracketed costume label, e.g. "[Special Dreamer]". */
   private readonly costumeByCardId = new Map<number, string>();

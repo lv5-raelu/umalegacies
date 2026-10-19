@@ -110,9 +110,9 @@ const TABLES = [
   // sashi/oikomi are the four running styles -- and the values are 1-8 for
   // G through S.
   //
-  // PROJECTED AND DEDUPLICATED. The table has one row per card per rarity, 340
-  // in all, and the aptitudes are identical across a card's rarities: 105 cards
-  // give exactly 105 distinct rows, checked. Carrying the stat-growth columns
+  // PROJECTED AND DEDUPLICATED. The table has one row per card per rarity, 352
+  // in all, and the aptitudes are identical across a card's rarities: 109 cards
+  // give exactly 109 distinct rows, checked. Carrying the stat-growth columns
   // beside them would be 17 more per row for nothing that is read.
   {
     name: 'card_rarity_data',

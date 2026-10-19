@@ -1,17 +1,16 @@
 /**
- * Fills the portrait cache from gametora.
+ * Fills the portrait directory from gametora.
  *
  *   node scripts/fetch-portraits.mjs [--force] [--concurrency N]
  *
- * Writes packages/web/public/portraits/<card_id>.png, which is GITIGNORED and
- * deliberately so. The images are Cygames' character art; gametora rehosts them
- * and cannot grant redistribution rights it does not hold. Committing them would
- * put third-party artwork in git history permanently and serve it publicly the
- * moment the app is hosted. Caching them on the machine that runs the app is a
- * different act, and it is the one this project chose (2026-09-15).
+ * Writes packages/web/public/portraits/<card_id>.png, and those files are
+ * COMMITTED. They were a gitignored local cache until the builder reversed that
+ * on 2026-09-18 (988d4f3): a deployment only sees committed files, so every
+ * automated build shipped with no artwork at all. The images are Cygames'
+ * character art that gametora rehosts; NOTICE.md records the rights position.
  *
- * So this is a cache warmer, not a build step. Nothing depends on it: a clean
- * clone runs fine and every node shows initials, which is the designed
+ * Run it after a game patch and commit whatever it writes. It is not a build
+ * step: a card with no committed portrait shows initials, which is the designed
  * missing-image state rather than a broken one.
  *
  * Reads card_data from the committed extract, so it needs neither master.mdb
@@ -153,7 +152,7 @@ async function fetchOne([cardId, charaId]) {
   }
 }
 
-/** A small pool with a pause between requests. 105 cards is not a reason to hammer anyone. */
+/** A small pool with a pause between requests. 111 cards is not a reason to hammer anyone. */
 const queue = [...wanted];
 await Promise.all(
   Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
