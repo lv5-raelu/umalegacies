@@ -764,16 +764,41 @@
  *
  * The card already reads as one thing; this only makes it say so on hover and
  * answer a keyboard. `:focus-visible` rather than `:focus`, so choosing with
- * the mouse does not leave a ring behind on the row you just left.
+ * the mouse does not leave a ring behind on the row you just left. The row
+ * itself is not focusable any more (see PairRow): its open button is.
  */
-.row[role='button'] {
+.row {
   cursor: pointer;
 }
 
-.row[role='button']:focus-visible {
+/* The ring is the ROW's, drawn when its open button has keyboard focus. */
+.row:has(.open:focus-visible) {
   outline: 2px solid var(--primary);
   outline-offset: -1px;
   border-color: var(--rule-strong);
+}
+
+/*
+ * The ordinal IS the row's open button: the keyboard and screen-reader target,
+ * named for the pair. It looks exactly as the ordinal always has.
+ */
+.open {
+  composes: ordinal;
+  font-family: var(--font-data);
+  background: none;
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
+  cursor: pointer;
+}
+
+.open:focus-visible {
+  outline: none;
+}
+
+.compare {
+  display: block;
+  margin-top: var(--space-sm);
 }
 
 /*

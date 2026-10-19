@@ -29,6 +29,7 @@ import { usePairSearch, type SearchStatus } from './usePairSearch';
 import { viewOf, type PairRowData, type SortBy } from './search-rows';
 import { PairDetail, usePairDetail } from './PairDetail';
 import type { OddsView } from '../lineage/odds';
+import { CompareToggle, type CompareStatus } from '../compare/CompareToggle';
 import styles from './PairSearch.module.css';
 
 /**
@@ -67,6 +68,9 @@ export function PairSearch({
   onPick,
   oddsView,
   onOddsView,
+  compareStatus,
+  onCompareAdd,
+  onCompareOpen,
   nav,
 }: {
   roster: RosterResolveResponse;
@@ -93,6 +97,11 @@ export function PairSearch({
   /** App's odds window, for the detail's embedded pane. */
   oddsView: OddsView;
   onOddsView: (view: OddsView) => void;
+  /** Where the pair of roster rows `a` x `b` stands in the compare tray. */
+  compareStatus: (a: number, b: number) => CompareStatus;
+  onCompareAdd: (a: number, b: number) => void;
+  /** Open /compare at this pair. */
+  onCompareOpen: (a: number, b: number) => void;
   /**
    * Rendered by `App`, which is the only place that knows whether the OTHER
    * screens are reachable. A screen that worked out its own navigation could
@@ -438,7 +447,10 @@ export function PairSearch({
                           at={at + 1}
                           criteria={searched}
                           catalogue={catalogue}
-                          onPick={() => setInspecting(row)}
+                          onPick={setInspecting}
+                          compare={statusKey(compareStatus(row.a.index, row.b.index))}
+                          onCompareAdd={onCompareAdd}
+                          onCompareOpen={onCompareOpen}
                         />
                       </li>
                     ))}
@@ -457,6 +469,13 @@ export function PairSearch({
                       sparkOptions={roster.sparkOptions}
                       view={oddsView}
                       onView={onOddsView}
+                      compare={
+                        <CompareToggle
+                          status={compareStatus(inspecting.a.index, inspecting.b.index)}
+                          onAdd={() => onCompareAdd(inspecting.a.index, inspecting.b.index)}
+                          onOpen={() => onCompareOpen(inspecting.a.index, inspecting.b.index)}
+                        />
+                      }
                       onClose={() => setInspecting(null)}
                       onChoose={() => {
                         // The detail already explained this pair locally, so
@@ -648,13 +667,20 @@ const PairRow = memo(function PairRow({
   criteria,
   catalogue,
   onPick,
+  compare,
+  onCompareAdd,
+  onCompareOpen,
 }: {
   row: PairRowData;
   at: number;
   criteria: readonly SparkCriterion[];
   catalogue: Catalogue;
   /** Opens the detail. Inspecting a pair is not choosing it. */
-  onPick: () => void;
+  onPick: (row: PairRowData) => void;
+  /** `statusKey` of where this pair stands in the compare tray: a string, so memo holds. */
+  compare: string;
+  onCompareAdd: (a: number, b: number) => void;
+  onCompareOpen: (a: number, b: number) => void;
 }) {
   // Built per row rather than per list, because PairRow is memoised on its
   // props and a Set rebuilt in the parent would defeat that for all 80 rows.
@@ -682,37 +708,38 @@ const PairRow = memo(function PairRow({
     });
 
   /*
-   * THE WHOLE ROW IS THE CONTROL, because the whole row is the thing you pick.
+   * THE WHOLE ROW OPENS THE PAIR, because the whole row is the thing you pick
+   * -- and now it holds a control of its own, which a `role="button"` row
+   * could not: a control nested in a button is invalid, unreachable by a
+   * screen reader, and its click would open the pair as well.
    *
-   * An earlier cut put a `button` in the ordinal's cell, which made the card
-   * look like a container holding one actionable thing rather than being the
-   * actionable thing. It is already settled here that the PAIR is the entity
-   * you point at, so the pair is what you click.
-   *
-   * `role="button"` and a key handler on the article rather than wrapping it in
-   * a real `<button>`: the row is a five-column grid holding portraits, chips
-   * and two more grids, and a button element cannot contain that markup
-   * legally. What a button gives for free is added back by hand -- `tabIndex`
-   * so all eighty are reachable in reading order, Enter and Space because a
-   * button responds to both, and `preventDefault` on Space so the page does not
-   * scroll out from under the row being chosen.
+   * THE REDUNDANT-CLICK PATTERN (eng re-review, Codex #10). The keyboard and
+   * screen-reader target is a real button, on the ordinal, named for the pair.
+   * The ROW keeps a click for the mouse, so a click anywhere still opens it,
+   * and ignores two clicks that are not that: one that ends a text selection,
+   * and one that came from a nested control. A stretched invisible button was
+   * considered and dropped: it would cover the chips, whose hover explanations
+   * are the only place their arithmetic is written down.
    */
-  const choose = (): void => onPick();
+  const choose = (): void => onPick(row);
 
   return (
     <article
       className={styles.row}
-      role="button"
-      tabIndex={0}
-      aria-label={`Pick ${row.a.self.name} and ${row.b.self.name} as the parents`}
-      onClick={choose}
-      onKeyDown={(event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('button, a, input, label')) return;
+        if ((window.getSelection?.()?.toString() ?? '') !== '') return;
         choose();
       }}
     >
-      <span className={styles.ordinal}>{at}</span>
+      <button
+        type="button"
+        className={styles.open}
+        aria-label={`Pick ${row.a.self.name} and ${row.b.self.name} as the parents`}
+        onClick={choose}
+      >
+        {at}
+      </button>
 
       <Half veteran={row.a} slot="A" catalogue={catalogue} asked={asked} />
       <span className={styles.times} aria-hidden="true">
@@ -733,6 +760,13 @@ const PairRow = memo(function PairRow({
         <span className={styles.headline}>{row.pairTotal}</span>
         <span className={styles.addends}>
           {rankGlyph(row.relationRank)} rank {row.relationRank}
+        </span>
+        <span className={styles.compare}>
+          <CompareToggle
+            status={statusOf(compare)}
+            onAdd={() => onCompareAdd(row.a.index, row.b.index)}
+            onOpen={() => onCompareOpen(row.a.index, row.b.index)}
+          />
         </span>
       </div>
 
@@ -1140,3 +1174,9 @@ function packageLine(veteran: ResolvedVeteran): string {
 function memberName(member: ResolvedMember | null): string {
   return member === null ? 'no parent' : member.name + (member.costume ? ` ${member.costume}` : '');
 }
+
+/** A `CompareStatus` as a string and back, so the memoised row compares it by value. */
+const statusKey = (status: CompareStatus): string =>
+  status.kind === 'in' ? `in:${status.letter}` : status.kind;
+const statusOf = (key: string): CompareStatus =>
+  key.startsWith('in:') ? { kind: 'in', letter: key.slice(3) } : key === 'full' ? { kind: 'full' } : { kind: 'add' };

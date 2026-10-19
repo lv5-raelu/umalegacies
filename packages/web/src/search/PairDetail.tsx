@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type {
   LineageResponse,
   RosterSparkOption,
@@ -88,6 +88,7 @@ export function PairDetail({
   sparkOptions,
   view,
   onView,
+  compare,
   onClose,
   onChoose,
 }: {
@@ -98,6 +99,8 @@ export function PairDetail({
   /** App's odds window, shared with the roster pane and /compare. */
   view: OddsView;
   onView: (view: OddsView) => void;
+  /** The "Add to compare" control for this pair, beside "Show breakdown". */
+  compare?: ReactNode;
   onClose: () => void;
   /**
    * Take this pair and open its breakdown.
@@ -163,6 +166,7 @@ export function PairDetail({
       </div>
 
       <div className={styles.actions}>
+        {compare}
         <button type="button" className={styles.use} onClick={onChoose}>
           Show breakdown
         </button>

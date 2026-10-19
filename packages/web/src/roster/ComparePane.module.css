@@ -466,3 +466,18 @@
 .chipAsked .chipInherit {
   color: var(--ink-muted);
 }
+
+/* Show breakdown, and the compare control beside it, in one row that never
+   shrinks: both are ways onward from this pair. */
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-snug);
+  margin-top: var(--space-lg);
+}
+
+.actions .open {
+  margin-top: 0;
+}

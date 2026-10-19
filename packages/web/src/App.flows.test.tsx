@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { IDBFactory } from 'fake-indexeddb';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExplainPairRequest, LineageResponse } from '@umalegacies/types';
 import { CACHE_VERSION } from './roster/cache-policy';
@@ -373,5 +374,107 @@ describe('/compare', () => {
     await settle();
     expect(await readSelection()).toBeUndefined();
     expect(screen.getByText('Compare')).toBeTruthy();
+  });
+});
+
+/*
+ * Regressions 4 and 5 (eng re-review), written against the row as it shipped:
+ * the search row is restructured to hold the compare control, and `onPick` is
+ * refactored onto `takePair`. Both change behaviour players already rely on.
+ */
+describe('a search row', () => {
+  const STAMINA = { groupId: 2, minStars: 1, scope: 'package' as const };
+  const result = (a: number, b: number, pairTotal: number) => ({
+    a,
+    b,
+    joint: null,
+    perSpark: [0.75],
+    perSparkInherit: [null],
+    jointInherit: null,
+    pairTotal,
+    relationRank: 3,
+  });
+
+  async function openSearch() {
+    await seed({ searchCriteria: [STAMINA] });
+    search.status = {
+      kind: 'done',
+      sweep: { results: [result(0, 1, 284), result(0, 2, 250)], legal: 3, scored: 2 },
+      criteria: [STAMINA],
+    };
+    at(SEARCH);
+    render(<App />);
+    await settle();
+  }
+  const pickButton = () =>
+    screen.getByRole('button', { name: 'Pick Oguri Cap and Gold Ship as the parents' });
+  const dialog = () => screen.queryByRole('dialog', { name: 'Oguri Cap and Gold Ship' });
+
+  it('opens its pair on a click anywhere on the row', async () => {
+    await openSearch();
+    const row = pickButton().closest('article') as HTMLElement;
+    fireEvent.click(within(row).getByText('284'));
+    expect(dialog()).not.toBeNull();
+  });
+
+  it('opens its pair from the keyboard, with Enter and with Space', async () => {
+    const user = userEvent.setup();
+    await openSearch();
+    pickButton().focus();
+    await user.keyboard('{Enter}');
+    expect(dialog()).not.toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog()).toBeNull();
+    pickButton().focus();
+    await user.keyboard(' ');
+    expect(dialog()).not.toBeNull();
+  });
+
+  it("keeps its chips' hover explanations", async () => {
+    await openSearch();
+    const row = pickButton().closest('article') as HTMLElement;
+    expect(row.querySelector('[title]')).not.toBeNull();
+  });
+
+  it('does not open when the reader was selecting its text', async () => {
+    await openSearch();
+    const row = pickButton().closest('article') as HTMLElement;
+    const selection = vi
+      .spyOn(window, 'getSelection')
+      .mockReturnValue({ toString: () => 'Oguri Cap', isCollapsed: false } as unknown as Selection);
+    fireEvent.click(within(row).getByText('284'));
+    selection.mockRestore();
+    expect(dialog()).toBeNull();
+  });
+
+  it('adds to compare from the row without opening the pair', async () => {
+    await openSearch();
+    const row = pickButton().closest('article') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Add to compare' }));
+    expect(dialog()).toBeNull();
+    expect(screen.getByText('Compare (1)')).toBeTruthy();
+    expect(within(row).getByRole('link', { name: 'In compare · A' })).toBeTruthy();
+  });
+
+  /* Eng re-review, Codex #9: the link names a PAIR, and that pair wins on arrival. */
+  it('lands on that pair from "In compare · A", its header focused', async () => {
+    await openSearch();
+    const row = pickButton().closest('article') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Add to compare' }));
+    fireEvent.click(within(row).getByRole('link', { name: 'In compare · A' }));
+    await settle();
+    expect(location.pathname).toBe(COMPARE);
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    expect(document.activeElement).toBe(screen.getByRole('columnheader', { name: 'Pair A' }));
+  });
+
+  it("still opens /tree with that pair from the detail's Show breakdown", async () => {
+    await openSearch();
+    fireEvent.click(pickButton());
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    fireEvent.click(within(dialog() as HTMLElement).getByRole('button', { name: 'Show breakdown' }));
+    await settle();
+    expect(location.pathname).toBe(TREE);
+    expect(screen.getByText('tree of 284')).toBeTruthy();
   });
 });

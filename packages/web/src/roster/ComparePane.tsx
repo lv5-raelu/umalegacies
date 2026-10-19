@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type {
   LineageResponse,
   ParentPick,
@@ -93,6 +94,7 @@ export function ComparePane({
   embedded = false,
   view,
   onView,
+  compare = null,
   onClearPicks,
   onOpenTree,
 }: {
@@ -121,6 +123,8 @@ export function ComparePane({
    */
   view: OddsView;
   onView: (view: OddsView) => void;
+  /** "Add to compare" for the picked pair; the roster screen only. */
+  compare?: ReactNode;
   onClearPicks: () => void;
   onOpenTree: () => void;
 }) {
@@ -161,6 +165,7 @@ export function ComparePane({
           sparkOptions={sparkOptions}
           view={view}
           onView={onView}
+          compare={compare}
           embedded={embedded}
           onOpenTree={onOpenTree}
         />
@@ -175,6 +180,7 @@ function Result({
   sparkOptions,
   view,
   onView,
+  compare,
   embedded,
   onOpenTree,
 }: {
@@ -183,6 +189,7 @@ function Result({
   sparkOptions: readonly RosterSparkOption[];
   view: OddsView;
   onView: (view: OddsView) => void;
+  compare: ReactNode;
   /** The dialog puts this button in its own action bar; see below. */
   embedded: boolean;
   onOpenTree: () => void;
@@ -351,9 +358,12 @@ function Result({
           button twice on one surface, once halfway down a scroll and once at
           the bottom. */}
       {!embedded && (
-        <button type="button" className={styles.open} onClick={onOpenTree}>
-          Show breakdown
-        </button>
+        <div className={styles.actions}>
+          <button type="button" className={styles.open} onClick={onOpenTree}>
+            Show breakdown
+          </button>
+          {compare}
+        </div>
       )}
     </>
   );

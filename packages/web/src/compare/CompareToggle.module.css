@@ -1,0 +1,31 @@
+/* Achromatic, 11px, like every other control: a coloured one would read as a datum. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-hair) var(--space-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .toggle {
+    min-height: 44px;
+  }
+}

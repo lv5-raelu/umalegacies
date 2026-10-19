@@ -37,6 +37,7 @@ import {
 import { picksToCache, restoreSelection, restoreTray, trayToCache } from './roster/selection';
 import { ComparePage, FRESH_COMPARE, type CompareMemory } from './compare/ComparePage';
 import type { ColumnResult } from './compare/run-columns';
+import { CompareToggle, type CompareStatus } from './compare/CompareToggle';
 import { TRAY_CAP, addToTray, dedupeKey, trayIndexOf, LETTERS, type TrayPair } from './compare/tray';
 import type { OddsView } from './lineage/odds';
 import { PairSearch, PAGE } from './search/PairSearch';
@@ -548,7 +549,7 @@ export function App() {
 
   /** Where a pair stands in the tray, for the control that adds it. */
   const compareState = useCallback(
-    (pair: TrayPair) => {
+    (pair: TrayPair): CompareStatus => {
       const at = trayIndexOf(tray, pair);
       if (at !== -1) return { kind: 'in' as const, letter: LETTERS[at] ?? '?' };
       if (tray.length >= TRAY_CAP) return { kind: 'full' as const };
@@ -567,6 +568,34 @@ export function App() {
     setCompareTarget(pair === null ? null : dedupeKey(pair));
     navigate(COMPARE);
   }, []);
+
+  /*
+   * The same three, by roster row, for the search -- whose rows are memoised,
+   * so these must keep their identity while the tray changes.
+   */
+  const pairAt = useCallback(
+    (a: number, b: number): TrayPair | null => {
+      const first = roster?.veterans[a];
+      const second = roster?.veterans[b];
+      return first && second ? [ownPick(first), ownPick(second)] : null;
+    },
+    [roster],
+  );
+  const compareStatusAt = useCallback(
+    (a: number, b: number): CompareStatus => {
+      const pair = pairAt(a, b);
+      return pair === null ? { kind: 'add' } : compareState(pair);
+    },
+    [pairAt, compareState],
+  );
+  const addToCompareAt = useCallback(
+    (a: number, b: number) => {
+      const pair = pairAt(a, b);
+      if (pair !== null) addToCompare(pair);
+    },
+    [pairAt, addToCompare],
+  );
+  const openCompareAt = useCallback((a: number, b: number) => openCompare(pairAt(a, b)), [pairAt, openCompare]);
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
@@ -639,6 +668,9 @@ export function App() {
         onShowMore={() => setShownResults((n) => n + PAGE)}
         oddsView={oddsView}
         onOddsView={setOddsView}
+        compareStatus={compareStatusAt}
+        onCompareAdd={addToCompareAt}
+        onCompareOpen={openCompareAt}
         onPick={(a, b, explained) => {
           // Both halves at once, because a search result IS a pair -- unlike a
           // click in the roster list, which can only ever add one. `ownPick`
@@ -853,6 +885,15 @@ export function App() {
                 pickedCount={picks.length}
                 view={oddsView}
                 onView={setOddsView}
+                compare={
+                  picks.length === 2 && picks[0] && picks[1] ? (
+                    <CompareToggle
+                      status={compareState([picks[0], picks[1]])}
+                      onAdd={() => picks[0] && picks[1] && addToCompare([picks[0], picks[1]])}
+                      onOpen={() => openCompare(picks[0] && picks[1] ? [picks[0], picks[1]] : null)}
+                    />
+                  ) : null
+                }
                 onClearPicks={() => setPicks([])}
                 onOpenTree={() => {
                   navigate(TREE);
