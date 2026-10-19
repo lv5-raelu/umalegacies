@@ -5,9 +5,9 @@ import styles from './Portrait.module.css';
 /**
  * A portrait, or the initials of whoever should be in it.
  *
- * The API serves these from a gitignored cache, so a clean clone has none and
- * every node shows initials. That is deliberate rather than unfinished: it is
- * also what a newly-patched uma looks like until the cache is refilled, so the
+ * Portraits are committed static files, but a card can still have none: a
+ * newly-patched uma shows initials until its portrait is fetched and committed,
+ * and so do the two placeholder cards gametora never hosts. So the no-image
  * state has to be a designed one rather than a broken image icon.
  *
  * Brand colours from `chara_data` were prototyped for this disc and rejected:
@@ -22,8 +22,10 @@ export function Portrait({
   cardId: number | null;
   name: string;
 }) {
-  const [failed, setFailed] = useState(false);
-  const showImage = cardId !== null && !failed;
+  // Remember WHICH card failed, not that one did: the pickers reuse one Portrait
+  // as the selection changes, and a boolean kept every later pick on initials.
+  const [failedId, setFailedId] = useState<number | null>(null);
+  const showImage = cardId !== null && failedId !== cardId;
 
   // Sized by `--portrait-size` from the card, not an inline width: the card
   // shrinks it on narrow viewports, and an inline style could only have been
@@ -41,7 +43,7 @@ export function Portrait({
           // has not arrived.
           loading="lazy"
           decoding="async"
-          onError={() => setFailed(true)}
+          onError={() => setFailedId(cardId)}
         />
       ) : (
         <span className={styles.initials}>{initials(name)}</span>
