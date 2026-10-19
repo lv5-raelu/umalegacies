@@ -9,8 +9,8 @@ import styles from './RankBadge.module.css';
  * One image for all 298 ranks, positioned in CSS from coordinates committed in
  * rank-ladder.ts, so a card's badge costs no request of its own.
  *
- * The atlas is an optional gitignored cache, exactly like the portraits. When it
- * is missing the label still renders as text -- the rank is a FACT derived from
+ * The atlas is committed, like the portraits (since 2026-09-18). When it is
+ * missing the label still renders as text -- the rank is a FACT derived from
  * the score, and it should not disappear because an image did.
  */
 export function RankBadge({ score, size = 36 }: { score: number; size?: number }) {

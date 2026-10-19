@@ -1,20 +1,20 @@
 /**
- * Fills the rank-badge cache.
+ * Fills the rank-badge atlas.
  *
  *   node scripts/fetch-rank-icons.mjs [--force]
  *
- * Writes packages/web/public/rank-icons/Rank_tex.webp, which is GITIGNORED for the
- * same reason the portraits are: it is Cygames' artwork, rehosted by a community
- * site that cannot grant redistribution rights it does not hold. Caching it on
- * the machine that runs the app is a different act from committing it.
+ * Writes packages/web/public/rank-icons/Rank_tex.webp, which is COMMITTED, like
+ * the portraits: the builder reversed the earlier gitignored-cache decision on
+ * 2026-09-18 (988d4f3) so a clone deploys with its artwork. It is Cygames'
+ * artwork rehosted by a community site; NOTICE.md records the rights position.
  *
  * ONE file, not 298. The badges ship as a single 4096x2048 atlas and the web app
  * crops each one in CSS from coordinates committed in rank-ladder.ts, so a rank
- * badge costs no extra request and the cache has nothing to keep in step.
+ * badge costs no extra request and there is one file to keep in step.
  *
- * A cache warmer, not a build step. A clean clone runs fine; a missing atlas
- * means the rank shows as text, which is the designed state rather than a
- * broken one.
+ * Not a build step: run it when the atlas changes and commit what it writes. A
+ * missing atlas means the rank shows as text, which is the designed state
+ * rather than a broken one.
  */
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

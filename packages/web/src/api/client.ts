@@ -95,11 +95,11 @@ const post = <T>(path: string, body: unknown): Promise<T> =>
 
 
 /**
- * Portraits are served by the API, not from the web app's own public/ folder,
- * because the cache they come from is a gitignored directory beside the master
- * extract. A miss is a 404 and the component falls back to initials.
+ * Portraits are static files in the web app's own public/ folder, committed
+ * since 2026-09-18 so a clone deploys with its artwork. A card with no portrait
+ * is a 404 and the component falls back to initials.
  *
- * Keyed by CARD id, which is the costume. 35 of 68 characters have more than
+ * Keyed by CARD id, which is the costume. 38 of 69 characters have more than
  * one, and a costume carries its own unique skill -- the green spark printed
  * directly under this image.
  */

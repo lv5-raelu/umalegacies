@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
  * A native <select> would have saved all of this and cannot be used: an
  * <option> holds text and nothing else, so it can carry neither the portrait
  * that tells two Oguri Cap costumes apart nor the tick that says what kind a
- * spark is, and it cannot be searched. With 105 trainee cards and 297 spark
+ * spark is, and it cannot be searched. With 109 trainee cards and 297 spark
  * groups, searching is not optional.
  */
 export function useCombobox<T>({
@@ -53,7 +53,7 @@ export function useCombobox<T>({
     if (!open) return;
     search.current?.focus();
     // Open ON the current choice rather than at the top: reopening a list of
-    // 105 options should show you where you already are.
+    // 109 options should show you where you already are.
     const at = activeIndexOf(items);
     setActive(at >= 0 ? at : 0);
   }, [open, items, activeIndexOf]);

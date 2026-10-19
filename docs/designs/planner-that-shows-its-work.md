@@ -859,7 +859,10 @@ raise them exist.
      the connector is dashed and labelled `0`; rendering `0 +0` would also put
      amber on a link where nothing was added, and amber means added and nothing
      else.
-  7. **Portraits are a gitignored cache, decided 2026-09-15.** This closes the
+  7. *Superseded 2026-09-18 (988d4f3): portraits and the rank atlas are committed
+     static files in `packages/web/public/`, no longer a gitignored cache served
+     by the API. README's "Portraits are committed" and NOTICE.md record the
+     reversal.* **Portraits are a gitignored cache, decided 2026-09-15.** This closes the
      open "portrait extraction toolchain" decision. `scripts/fetch-portraits.mjs`
      pulls one image per card from gametora into
      `packages/api/data/portraits/`, which `.gitignore` excludes, and

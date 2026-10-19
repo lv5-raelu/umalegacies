@@ -3,7 +3,7 @@
  *
  * Both need the same thing and a native <select> gives neither of them: an
  * <option> holds text and nothing else, so it cannot carry a portrait or a
- * colour tick, and it cannot be searched. With 105 trainee cards and 297 spark
+ * colour tick, and it cannot be searched. With 109 trainee cards and 297 spark
  * groups, searching is not a nicety.
  */
 .region {
@@ -78,7 +78,7 @@
 
 /*
  * The popup. Not a native <select>: a native option list cannot hold an image,
- * and with 105 cards across 68 characters the picture is the fastest way to
+ * and with 109 cards across 69 characters the picture is the fastest way to
  * tell "Oguri Cap" from "Oguri Cap".
  */
 .popup {

@@ -1,0 +1,4 @@
+# The API hashes this file's raw bytes and master.json embeds the hash of the LF
+# version, so a line-ending conversion on checkout would fail every request as a
+# stale master. Never let git rewrite it.
+packages/api/data/master-extract.sql -text

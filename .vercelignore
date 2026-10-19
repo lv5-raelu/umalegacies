@@ -16,8 +16,8 @@
 #
 # A Git-connected deployment is safe without this, because the integration only
 # clones committed files. The CLI is the dangerous path, and the CLI is this
-# project's release path: the artwork is copied in at deploy time, so releases
-# run through `vercel build` rather than a git push.
+# project's release path: releases run through `vercel build` rather than a
+# git push.
 #
 # ALLOWLIST, not a denylist. A denylist protects the files somebody remembered;
 # the next sensitive file added to this repo would upload silently. Here the
