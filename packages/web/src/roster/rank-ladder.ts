@@ -17,8 +17,7 @@
  * position would go wrong for exactly the tiers where the two sources disagree.
  *
  * Each row is [minScore, label, spriteX, spriteY, spriteW, spriteH]. The sprite
- * rect indexes Rank_tex.webp, a 4096x2048 atlas cached like the portraits and
- * gitignored for the same reason.
+ * rect indexes Rank_tex.webp, a 4096x2048 atlas committed like the portraits.
  */
 export type RankRow = readonly [number, string, number, number, number, number];
 
