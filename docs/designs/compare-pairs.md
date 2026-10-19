@@ -570,7 +570,8 @@ and "Show breakdown" the exit.
   `compare-model` both import them, so "the pane and `/compare` show the same number" holds
   by construction. `ComparePane.test.tsx` must stay green with no edits to its assertions.
   **Also extracted** (eng re-review 2A, for design decisions 1A and 1C):
-  `jointFigures(sparks, criteria, sparkOptions, view)` → `{ act, actScope, inh, inhScope }`,
+  `jointFigures(sparks, criteria, sparkOptions, view)` → `{ act, inh }`, each a `JointFigure`
+  `{ value, present, total, scope }` (built 2026-10-19; the pane shows one only at `present >= 2`),
   the pane's joint logic from `ComparePane.tsx:240-285` including its subtle rule (a wanted
   white SKILL no pair carries counts as 0 to inherit; any other missing kind is "not
   applicable"); and `sparkExplanation(row, view, gold)`, the chip's `title` sentence from
@@ -911,7 +912,7 @@ touched only by S4 and the prop wiring in S6, which waits for S4.
 
 Synthesized from this review's findings. Each task derives from a specific finding above.
 
-- [ ] **T1 (P1, human: ~2h / CC: ~15min)** — lineage — Extract `lineage/odds.ts` behind a
+- [x] **T1 (P1, human: ~2h / CC: ~15min)** — lineage — Extract `lineage/odds.ts` behind a
   regression test
   - Surfaced by: Code Quality 2A (pane math duplicated); regression rule
   - Files: `packages/web/src/lineage/odds.ts`, `lineage/odds.test.ts`,
@@ -1014,7 +1015,7 @@ change, so S6 must land after S4's `takePair`.
   - Surfaced by: Architecture 1B; outside voice Codex #7
   - Files: `App.tsx`, `compare/ComparePage.tsx`
   - Verify: jsdom round trips via Back and via nav; reload starts at top
-- [ ] **R-T3 (P2, human: ~2h / CC: ~15min)** — lineage — `jointFigures` (with 0/1/2+ carried
+- [x] **R-T3 (P2, human: ~2h / CC: ~15min)** — lineage — `jointFigures` (with 0/1/2+ carried
   cases) and `sparkExplanation` (fixed arithmetic) in `odds.ts`
   - Surfaced by: Code Quality 2A; Codex #4, #5
   - Files: `lineage/odds.ts`, `lineage/odds.test.ts`, `roster/ComparePane.tsx`

@@ -20,8 +20,12 @@ const SAVE = resolve(process.cwd(), '../../data.json');
 const present = existsSync(SAVE);
 
 describe.skipIf(!present)("slimSave against a real data.json", () => {
-  const text = readFileSync(SAVE, 'utf8');
-  const { veterans, skipped } = slimSave(text);
+  // Guarded: vitest still runs a skipped suite's body to collect its tests, so
+  // an unguarded read threw ENOENT and failed the run it meant to skip.
+  const text = present ? readFileSync(SAVE, 'utf8') : '';
+  const { veterans, skipped }: ReturnType<typeof slimSave> = present
+    ? slimSave(text)
+    : { veterans: [], skipped: [] };
   const wire = JSON.stringify({ veterans });
 
   it('reads every veteran in the file, skipping none', () => {

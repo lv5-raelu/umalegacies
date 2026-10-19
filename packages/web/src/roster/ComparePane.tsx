@@ -7,15 +7,17 @@ import type {
   SparkKind,
   SparkSummaryRow,
 } from '@umalegacies/types';
-import {
-  acquisitionChance,
-  carriedCount,
-  countsTowardOdds,
-  hasAcquisitionRoll,
-  inheritOnceInCareer,
-  jointOdds,
-} from '@umalegacies/core';
 import { pairTotalOf, rankGlyph } from '../lineage/pair-total';
+import {
+  VIEW_LABEL,
+  VIEW_RUBRIC,
+  type OddsView,
+  cellInherit,
+  goldGroupsOf,
+  jointFigures,
+  sparkExplanation,
+  valueFor,
+} from '../lineage/odds';
 import {
   SPARK_COLOR,
   SPARK_GROUP_ORDER,
@@ -25,8 +27,6 @@ import {
   isWhite,
   percent,
   percentJoint,
-  percentPrecise,
-  scopeLabel,
 } from '../lineage/sparks';
 import { resolutionText } from '../lineage/resolution';
 import styles from './ComparePane.module.css';
@@ -43,34 +43,6 @@ import styles from './ComparePane.module.css';
  * no filter set there are no desired sparks to quote odds for, and a headline
  * that shows nothing most of the time is not a headline.
  */
-/**
- * Which window the odds columns report.
- *
- * Inspiration fires TWICE per career, which is what separates the first two:
- *
- *   inspiration   P(>=1) when a SINGLE inspiration fires
- *   once          P(>=1) across the career, so across both firings
- *   twice         P(>=2) across the career, which is the doubled spark
- *
- * The first answers "will this land on the next inspiration"; the second
- * answers "will this land at all"; the third is the one worth planning a pair
- * around, because a doubled spark stacks.
- */
-export type OddsView = 'inspiration' | 'once' | 'twice';
-
-const VIEW_LABEL: Readonly<Record<OddsView, string>> = {
-  inspiration: '1 inspiration',
-  once: 'at least once',
-  twice: 'at least twice',
-};
-
-/** The long form, for the line that says what the column means. */
-const VIEW_RUBRIC: Readonly<Record<OddsView, string>> = {
-  inspiration: 'chance of activating when one inspiration fires',
-  once: 'chance of activating at least once across a career',
-  twice: 'chance of activating at least twice across a career',
-};
-
 /**
  * Everything the pane can be showing, as one closed set.
  *
@@ -113,13 +85,6 @@ export function paneState(
   if (loading || !lineage) return { kind: 'loading' };
   return { kind: 'ok', lineage };
 }
-
-const valueFor = (row: SparkSummaryRow, view: OddsView): number =>
-  view === 'inspiration'
-    ? row.withinOneInspiration
-    : view === 'once'
-      ? row.onceInCareer
-      : row.twiceInCareer;
 
 export function ComparePane({
   state,
@@ -228,64 +193,11 @@ function Result({
     row: lineage.sparks.find((s) => s.groupId === c.groupId) ?? null,
   }));
 
-  // The chance the whole filter lands, in whichever window is selected. A
-  // requirement the pair misses is a null rather than a gap, so it takes the
-  // joint to zero instead of being quietly left out of the product.
-  /*
-   * The aggregates count only what the reader left in. A criterion marked
-   * "exclude spark activation" still filters and still shows its own figure on
-   * its chip; it is out of the product, and so out of the product's
-   * denominator.
-   */
-  const countedWanted = wanted.filter((_, i) => {
-    const c = criteria[i];
-    return c !== undefined && countsTowardOdds(c);
-  });
-  const joint = jointOdds(countedWanted.map(({ row }) => (row ? valueFor(row, view) : null)));
-
-  /*
-   * The second joint, over the criteria that HAVE an inherit figure.
-   *
-   * Nulls are dropped here rather than zeroing the product, which is the
-   * opposite of what the line above does and is right for the opposite reason:
-   * a missed requirement really does take the activation joint to zero, but a
-   * blue has no inherit figure because the mechanic does not reach it, not
-   * because the pair fails at it. Including it would state a loss that has not
-   * happened.
-   *
-   * The tier rides on the criterion, so a reader who ticked "gold" in the
-   * search sees the gold number here on the pair they picked.
-   */
-  const inheritValues = criteria
-    .filter(countsTowardOdds)
-    .map((c) => {
-      const row = lineage.sparks.find((s) => s.groupId === c.groupId);
-      if (row === undefined) {
-        // The pair carries none of it. Whether that is a ZERO or a gap depends
-        // on what the criterion names, and the catalogue is what knows: a
-        // wanted white SKILL the pair misses is a failure like any other, and
-        // anything else has no inherit figure for any pair at all.
-        return sparkOptions.find((o) => o.groupId === c.groupId)?.kind === 'white_skill'
-          ? 0
-          : null;
-      }
-      return inheritOnceInCareer(
-        row.kind,
-        row.onceInCareer,
-        row.lineageCarriers,
-        c.gold === true ? 'gold' : 'white',
-      );
-    })
-    .filter((v) => v !== null);
-  const jointInherit = jointOdds(inheritValues);
-  const skillCriteria = criteria.filter(
-    (c) =>
-      countsTowardOdds(c) &&
-      sparkOptions.find((o) => o.groupId === c.groupId)?.kind === 'white_skill',
-  ).length;
-
-  /* Which of the reader's criteria asked for the gold version, by group. */
-  const goldGroups = new Set(criteria.filter((c) => c.gold === true).map((c) => c.groupId));
+  // The chance the whole filter lands, to activate and to inherit; see
+  // `jointFigures`. The pane shows one only from two present terms up: with
+  // one, "together" IS that requirement, and its chip already says it.
+  const { act, inh } = jointFigures(lineage.sparks, criteria, sparkOptions, view);
+  const goldGroups = goldGroupsOf(criteria);
 
   // Which sparks to light up, and which the pair does not carry at all. A
   // Set because the list asks this question once per spark, 53 times.
@@ -362,7 +274,7 @@ function Result({
           package; the composed lineage is a different set of six ancestors, so a
           spark can pass the filter and still be absent here.
         */}
-        {joint !== null && (
+        {act.present >= 2 && act.value !== null && (
           <div className={styles.joint}>
             {/* A VERB, because there are two of these now -- "both together"
                 was unambiguous only while it was the only figure on the pane --
@@ -370,29 +282,20 @@ function Result({
                 not carry. "all 6 activate" beside a pair holding five of them
                 would be false; "5 of 6" is the same number told truthfully. */}
             <span className={styles.jointLabel}>
-              {scopeLabel(
-                carriedCount(countedWanted.map(({ row }) => (row ? valueFor(row, view) : null))),
-                countedWanted.length,
-                'activate',
-              )}
+              {act.scope}
             </span>
             {/* The digits, not the rounding. Same figure the pair search ranks
                 by, and it collapses the same way: four sparks at 40% each is
                 2.6%, and two pairs a long way apart both read "2%". Comparing
                 here means picking one, reading, picking another -- the same
                 discrimination problem a list has, spread over time. */}
-            <span className={styles.jointValue}>{percentJoint(joint)}</span>
+            <span className={styles.jointValue}>{percentJoint(act.value)}</span>
           </div>
         )}
-        {/* Counted over the SKILL criteria only: nothing else has an inherit
-            figure for any pair, so borrowing the filter's number would claim a
-            wider scope than this has. */}
-        {jointInherit !== null && (
+        {inh.present >= 2 && inh.value !== null && (
           <div className={styles.joint}>
-            <span className={styles.jointLabel}>
-              {scopeLabel(carriedCount(inheritValues), skillCriteria, 'inherited', 'skills')}
-            </span>
-            <span className={styles.jointValue}>{percentJoint(jointInherit)}</span>
+            <span className={styles.jointLabel}>{inh.scope}</span>
+            <span className={styles.jointValue}>{percentJoint(inh.value)}</span>
           </div>
         )}
         {missing.length > 0 && (
@@ -478,42 +381,12 @@ function Odds({
   /** The reader said they will learn this skill's gold version. */
   gold?: boolean;
 }) {
-  /*
-   * THE END-OF-CAREER ROLL, AND THE CHAIN IT FINISHES.
-   *
-   * Recomputed here rather than read off the row, because the row carries the
-   * WHITE-tier figure -- the floor a reader gets for saying nothing -- and the
-   * tier is a plan that lives on their criterion. Null for everything but a
-   * white skill, so races, scenarios and the three named slots keep the single
-   * figure they have always had.
-   */
-  const keeps = hasAcquisitionRoll(row.kind)
-    ? acquisitionChance(row.lineageCarriers, gold ? 'gold' : 'white')
-    : null;
-  const inherits = inheritOnceInCareer(
-    row.kind,
-    row.onceInCareer,
-    row.lineageCarriers,
-    gold ? 'gold' : 'white',
-  );
+  const inherits = cellInherit(row, gold);
   return (
     <span
       className={asked ? `${styles.chip} ${styles.chipAsked}` : styles.chip}
-      /*
-       * THE WHOLE CHAIN, ON HOVER, because the chip shows only its two ends.
-       * The middle term is the one nobody can reconstruct by eye: it depends
-       * on how many of the six ancestors carry the spark and on whether the
-       * gold version is planned, neither of which is on the chip.
-       */
-      title={
-        inherits === null
-          ? `${row.name} ${row.stars}★ — ${percent(valueFor(row, view))} to activate` +
-            (keeps === null
-              ? ''
-              : `, then ${percentPrecise(keeps, 1)} to inherit if the trainee earns it`)
-          : `${row.name} ${row.stars}★ — ${percent(valueFor(row, view))} to activate × ` +
-            `${percentPrecise(keeps as number, 1)} to inherit = ${percent(inherits)} combined`
-      }
+      // The whole chain, on hover; see `sparkExplanation`.
+      title={sparkExplanation(row, view, gold)}
     >
       <span
         className={styles.tick}
