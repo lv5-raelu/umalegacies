@@ -1,0 +1,205 @@
+/*
+ * One column's identity. Every column identical in style: emphasis is never
+ * computed across columns (DESIGN.md, compare table).
+ */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  text-align: left;
+  font-weight: 400;
+}
+
+/* The letter, the total at 18px (no large number on this page), base + bonus,
+   and the rank, which wraps to its own line rather than overflowing. */
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-sm);
+  font-family: var(--font-data);
+  min-height: 24px;
+}
+
+.letter {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+}
+
+.total {
+  font-size: var(--text-lg);
+  color: var(--ink);
+}
+
+.addends {
+  font-size: var(--text-3xs);
+  color: var(--ink-muted);
+}
+
+.rank {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.half {
+  display: flex;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--rule);
+}
+
+.portrait {
+  --portrait-size: 26px;
+  flex: none;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-hair);
+  min-width: 0;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-tight);
+}
+
+.slot {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+}
+
+/* What tells loop versions apart is bright... */
+.score {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* ...what they share is quiet. */
+.name {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.sparks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-hair) var(--space-sm);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+}
+
+.spark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tick {
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  flex: none;
+}
+
+.stars {
+  font-family: var(--font-data);
+}
+
+.grandparents {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+}
+
+/* Plain text, NO border: dashed means absent in this system, and DESIGN.md
+   allows no pills (design review D21). */
+.shared {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: auto;
+}
+
+.breakdown {
+  font: inherit;
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-hair) var(--space-sm);
+  cursor: pointer;
+}
+
+/* Achromatic, with a 24px hit area; 44px under a coarse pointer. */
+.remove {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.breakdown:hover,
+.remove:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.breakdown:focus-visible,
+.remove:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .remove {
+    width: 44px;
+    height: 44px;
+  }
+
+  .breakdown {
+    min-height: 44px;
+  }
+}
+
+.skeleton {
+  composes: skeleton from './Skeleton.module.css';
+}
+
+.strip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+
+.stripTotal {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.stripScores {
+  color: var(--ink-muted);
+}

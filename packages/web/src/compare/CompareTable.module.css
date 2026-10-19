@@ -1,0 +1,426 @@
+/*
+ * THE COMPARE TABLE AND ITS TWO SCROLLING REGIMES (eng review 1B, measured).
+ *
+ * >= 1080px: NO OVERFLOW WRAPPER AT ALL. Four pair columns at their 200px
+ * minimum plus the 200px name column is 1000px, inside the content width
+ * there, so nothing overflows and the sticky header pins to the PAGE. If the
+ * 200px column minimum changes, this breakpoint changes with it.
+ *
+ * < 1080px: the table scrolls in its own box on BOTH axes, as tall as the
+ * viewport below the box's own top (`--compare-box-top`, published by
+ * `usePublishedTop`). The pinned header is inside the box, so it is never
+ * subtracted twice. The header pins to the box's top, the name column to its
+ * left.
+ *
+ * NOT `overflow-x: auto; overflow-y: clip`. That was the first fix, approved,
+ * and it does not work: `clip` computes to `hidden` when the other axis
+ * scrolls (CSS Overflow 3), the wrapper stays a scroll container, and the
+ * header scrolls away. Measured in Chrome 153 on 2026-10-14 with a probe page.
+ */
+.box {
+  margin: var(--space-md) 0 0;
+}
+
+@media (max-width: 1079.98px) {
+  .box {
+    overflow: auto;
+    height: calc(100dvh - var(--compare-box-top, 0px));
+    /* Keyboard focus and find-in-page never land under a pinned region. */
+    scroll-padding-top: var(--compare-head, 0px);
+    scroll-padding-left: 200px;
+    /* Browser surfaces are themed from tokens, as DESIGN.md requires. */
+    scrollbar-color: var(--rule) var(--paper);
+    border-top: 1px solid var(--rule);
+  }
+}
+
+@media (max-width: 599.98px) {
+  .box {
+    scroll-padding-left: 120px;
+  }
+}
+
+.table {
+  width: 100%;
+  min-width: calc(200px + var(--pairs, 1) * 200px);
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 599.98px) {
+  .table {
+    min-width: calc(120px + var(--pairs, 1) * 200px);
+  }
+}
+
+.caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.nameCol {
+  width: 200px;
+}
+
+.removedCol {
+  width: 120px;
+}
+
+@media (max-width: 599.98px) {
+  .nameCol {
+    width: 120px;
+  }
+}
+
+/* --- the pinned header ------------------------------------------------- */
+
+.identityRow > * {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule-strong);
+  border-right: 1px solid var(--rule);
+  padding: var(--space-snug);
+  vertical-align: top;
+}
+
+.identityRow > :last-child,
+.stripRow > :last-child {
+  border-right: 0;
+}
+
+.corner {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+}
+
+.identityRow > .corner,
+.stripRow > .corner {
+  left: 0;
+  z-index: 3;
+}
+
+.legend {
+  display: block;
+}
+
+.legendView {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.pairHead:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+/* A column removed this visit: a slim slot, in place, until the reader leaves. */
+.removedHead {
+  vertical-align: middle !important;
+}
+
+.removedNote {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* The unused slot: dashed, because dashed means ABSENT in this system. */
+.add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  align-items: center;
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.add:hover {
+  background: var(--surface);
+}
+
+.addFrom {
+  color: var(--ink-muted);
+  font-size: var(--text-2xs);
+}
+
+/* Below 600px only: one line per column pins instead of the identity block. */
+.stripRow {
+  display: none;
+}
+
+@media (max-width: 599.98px) {
+  .identityRow > * {
+    position: static;
+  }
+
+  .stripRow {
+    display: table-row;
+  }
+
+  .stripRow > * {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule-strong);
+    padding: var(--space-xs) var(--space-snug);
+  }
+}
+
+/* --- the body ----------------------------------------------------------- */
+
+.row > *,
+.status > *,
+.expansion > * {
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  padding: 0 var(--space-snug);
+}
+
+.row > :last-child,
+.status > :last-child,
+.expansion > :last-child {
+  border-right: 0;
+}
+
+.row > * {
+  height: 30px;
+}
+
+/* Row hover lifts the whole row, so the eye can follow it across. */
+.row:hover > *,
+.rowOpen > * {
+  background: var(--surface);
+}
+
+/* The name column pins left in the narrow regime's box. */
+.name,
+.expansionLabel {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--paper);
+  text-align: left;
+  font-weight: 400;
+}
+
+.name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 599.98px) {
+  .name {
+    white-space: normal;
+  }
+}
+
+.label {
+  color: var(--ink);
+}
+
+.tick {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  border-radius: 1px;
+  vertical-align: middle;
+  margin-right: var(--space-sm);
+}
+
+/* The row label IS the expand control. */
+.toggle {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.caret {
+  display: inline-block;
+  width: 1.2em;
+  color: var(--ink-faint);
+  font-size: var(--text-3xs);
+}
+
+.band > th {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-faint);
+  text-align: left;
+  padding: var(--space-md) 0 var(--space-tight);
+  border-bottom: 1px solid var(--rule);
+}
+
+.figures {
+  font-family: var(--font-data);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Fixed `ch` slots, right-aligned, so every column of figures aligns. */
+.cell {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 1ch;
+}
+
+.stars {
+  width: 4ch;
+  text-align: right;
+}
+
+.carriers {
+  width: 3ch;
+  text-align: right;
+  color: var(--ink-muted);
+}
+
+.act {
+  width: 4ch;
+  text-align: right;
+}
+
+/* The bracketed inherit, as on the chip, in muted ink. */
+.inh {
+  width: 6ch;
+  text-align: right;
+  color: var(--ink-muted);
+}
+
+.dash {
+  color: var(--ink-faint);
+}
+
+.together {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.togetherValue {
+  min-width: 6ch;
+  text-align: right;
+}
+
+.scope {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+}
+
+.skeleton {
+  composes: skeleton from './Skeleton.module.css';
+}
+
+.status > td {
+  height: 30px;
+  font-size: var(--text-xs);
+}
+
+.explaining {
+  color: var(--ink-faint);
+}
+
+.blocked {
+  color: var(--ink-muted);
+}
+
+/* Muted, NOT red: inside a table, red means unresolved. */
+.failed {
+  color: var(--ink-muted);
+}
+
+.link {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.undo {
+  composes: link;
+}
+
+.expansion > * {
+  vertical-align: top;
+  background: var(--surface);
+}
+
+.expansionLabel {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  color: var(--ink-faint);
+  padding-top: var(--space-xs) !important;
+  white-space: normal;
+}
+
+.nothing {
+  padding: var(--space-lg) 0;
+  color: var(--ink-faint);
+}
+
+/* Touch: 44px rows and targets; mouse and trackpad keep the 30px density. */
+@media (pointer: coarse) {
+  .row > * {
+    height: 44px;
+  }
+
+  .toggle,
+  .undo {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+.addCol {
+  width: 200px;
+}
+
+.removedBody,
+.addBody {
+  border-bottom: 1px solid var(--rule);
+}
+
+.stripCell {
+  text-align: left;
+}

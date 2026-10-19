@@ -1,0 +1,44 @@
+/*
+ * A VALUE THAT IS ON ITS WAY: a bar the width of the number it will become.
+ *
+ * Shown the moment a column is loading, with no delay -- the builder's call,
+ * "if it's loading, then it's loading" (DESIGN.md amendment 6). `--track` at
+ * rest, and the shimmer is an OPACITY pulse on a `--rule` layer: compositor
+ * only, because a sliding background gradient repaints every bar on every
+ * frame, and a cold load can put ~200 of them on screen. It is placeholder
+ * motion only; a real number never animates. Static under reduced motion.
+ */
+.skeleton {
+  display: inline-block;
+  position: relative;
+  height: 0.8em;
+  vertical-align: middle;
+  border-radius: var(--radius-sm);
+  background: var(--track);
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--rule);
+  opacity: 0;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}

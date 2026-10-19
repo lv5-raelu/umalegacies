@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type {
   LineageResponse,
   ParentPick,
@@ -92,6 +91,8 @@ export function ComparePane({
   sparkOptions,
   pickedCount,
   embedded = false,
+  view,
+  onView,
   onClearPicks,
   onOpenTree,
 }: {
@@ -112,13 +113,17 @@ export function ComparePane({
    * choosing it.
    */
   embedded?: boolean;
+  /**
+   * THE WINDOW IS APP'S, shared with /compare and the search's detail, so one
+   * pair can never be read in two windows at once. Never held in `Result`,
+   * which unmounts on every re-explain -- a new pick, a changed trainee -- and
+   * would silently snap back to the default mid-comparison.
+   */
+  view: OddsView;
+  onView: (view: OddsView) => void;
   onClearPicks: () => void;
   onOpenTree: () => void;
 }) {
-  // THE VIEW LIVES HERE, not in `Result`. `Result` unmounts every time a pair
-  // is re-explained -- a new pick, a changed trainee -- and state held there
-  // would silently snap back to the default mid-comparison.
-  const [view, setView] = useState<OddsView>('once');
 
   return (
     <aside className={embedded ? styles.embedded : styles.pane}>
@@ -155,7 +160,7 @@ export function ComparePane({
           criteria={criteria}
           sparkOptions={sparkOptions}
           view={view}
-          onView={setView}
+          onView={onView}
           embedded={embedded}
           onOpenTree={onOpenTree}
         />

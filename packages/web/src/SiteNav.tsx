@@ -1,8 +1,8 @@
-import { ROSTER, SEARCH, TREE, followLink } from './route';
+import { COMPARE, ROSTER, SEARCH, TREE, followLink } from './route';
 import styles from './SiteNav.module.css';
 
 /**
- * THE THREE SCREENS, NAMED IN ONE PLACE.
+ * THE SCREENS, NAMED IN ONE PLACE.
  *
  * Each screen used to carry its own way out: the roster had a one-way "find a
  * pair →" link, the search and the tree each had a "Back to the roster" button.
@@ -68,9 +68,12 @@ export function SiteNav({ current, targets }: { current: string; targets: readon
 export function navTargets({
   hasRoster,
   hasLineage,
+  trayCount,
 }: {
   hasRoster: boolean;
   hasLineage: boolean;
+  /** Pairs in the compare tray. The count rising is the confirmation of an add. */
+  trayCount: number;
 }): NavTarget[] {
   return [
     {
@@ -87,6 +90,13 @@ export function navTargets({
       path: TREE,
       label: 'Breakdown',
       blocked: hasLineage ? null : 'Pick a trainee and two parents first',
+    },
+    // ALWAYS LISTED, like the others. With an empty tray it opens the "nothing
+    // to compare yet" page, which says where pairs come from.
+    {
+      path: COMPARE,
+      label: trayCount > 0 ? `Compare (${trayCount})` : 'Compare',
+      blocked: hasRoster ? null : 'Load your veteran data first',
     },
   ];
 }

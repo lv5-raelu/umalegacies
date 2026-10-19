@@ -28,6 +28,7 @@ import { TraineePicker } from '../roster/TraineePicker';
 import { usePairSearch, type SearchStatus } from './usePairSearch';
 import { viewOf, type PairRowData, type SortBy } from './search-rows';
 import { PairDetail, usePairDetail } from './PairDetail';
+import type { OddsView } from '../lineage/odds';
 import styles from './PairSearch.module.css';
 
 /**
@@ -64,6 +65,8 @@ export function PairSearch({
   onCriteria,
   onShowMore,
   onPick,
+  oddsView,
+  onOddsView,
   nav,
 }: {
   roster: RosterResolveResponse;
@@ -87,6 +90,9 @@ export function PairSearch({
   onShowMore: () => void;
   /** Take this pair, picked, to its breakdown. */
   onPick: (a: number, b: number, lineage: LineageResponse | null) => void;
+  /** App's odds window, for the detail's embedded pane. */
+  oddsView: OddsView;
+  onOddsView: (view: OddsView) => void;
   /**
    * Rendered by `App`, which is the only place that knows whether the OTHER
    * screens are reachable. A screen that worked out its own navigation could
@@ -449,6 +455,8 @@ export function PairSearch({
                       row={inspecting}
                       criteria={searched}
                       sparkOptions={roster.sparkOptions}
+                      view={oddsView}
+                      onView={onOddsView}
                       onClose={() => setInspecting(null)}
                       onChoose={() => {
                         // The detail already explained this pair locally, so

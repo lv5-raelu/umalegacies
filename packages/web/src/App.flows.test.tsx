@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { IDBFactory } from 'fake-indexeddb';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExplainPairRequest, LineageResponse } from '@umalegacies/types';
 import { CACHE_VERSION } from './roster/cache-policy';
-import { writeRoster, writeSelection } from './roster/cache';
+import { readSelection, writeRoster, writeSelection } from './roster/cache';
 import type { CachedSelection } from './roster/selection';
-import { ROSTER, TREE } from './route';
+import { COMPARE, ROSTER, SEARCH, TREE, navigate } from './route';
 
 /**
  * THE APP'S WIRING, IN A DOM.
@@ -54,6 +54,12 @@ const search: { status: import('./search/usePairSearch').SearchStatus } = {
 };
 vi.mock('./search/usePairSearch', () => ({
   usePairSearch: () => search.status,
+}));
+
+/** The game data, as far as /compare's row headings need it. */
+vi.mock('./lineage/master-source', async (importActual) => ({
+  ...(await importActual<typeof import('./lineage/master-source')>()),
+  loadMaster: () => Promise.resolve({ hash: 'abc', master: { skillTiming: () => null } }),
 }));
 
 vi.mock('./lineage/TreePage', () => ({
@@ -145,6 +151,26 @@ async function seed(selection: Partial<CachedSelection> = {}): Promise<void> {
   });
 }
 
+/** Settle the pending explain for the pair A x B (by card), for the given trainee. */
+async function explainAs(aCard: number, bCard: number, lineage: LineageResponse, traineeCharaId?: number) {
+  const at = explains.findIndex(
+    (e) =>
+      e.request.veteranA.self.cardId === aCard &&
+      e.request.veteranB.self.cardId === bCard &&
+      (traineeCharaId === undefined || e.request.traineeCharaId === traineeCharaId),
+  );
+  if (at === -1) throw new Error(`no pending explain for ${aCard} x ${bCard}`);
+  const [pending] = explains.splice(at, 1);
+  await act(async () => pending?.resolve(lineage));
+}
+
+const OGURI = 100601;
+const GOLD_SHIP = 101401;
+const TAMAMO = 100901;
+const pairOf = (a: number, b: number) => [own(a), own(b)];
+/** A column's header, by its letter: where its pair total is printed. */
+const column = (letter: string) => within(screen.getByRole('columnheader', { name: `Pair ${letter}` }));
+
 /** Records whether the drop zone was EVER in the document, not only at the end. */
 function watchForDropZone(): () => boolean {
   let seen = false;
@@ -220,11 +246,132 @@ describe('a reload', () => {
     expect(screen.getByText('tree of 284')).toBeTruthy();
   });
 
+  /*
+   * Regression 10 (eng re-review, Codex #6). The grid is rebuilt after every
+   * visit to the search, and the effect that published --pane-top only re-ran
+   * when the roster changed, so the new grid fell back to 80px.
+   */
+  it('publishes --pane-top on the roster grid rebuilt after a visit to /search', async () => {
+    await seed();
+    at(ROSTER);
+    render(<App />);
+    await settle();
+    const published = () => document.querySelector('[style*="--pane-top"]');
+    expect(published()).not.toBeNull();
+    await act(async () => navigate(SEARCH));
+    expect(published()).toBeNull();
+    await act(async () => navigate(ROSTER));
+    expect(published()).not.toBeNull();
+  });
+
   it('leaves /tree when no pair can come', async () => {
     await seed({ picks: [own(0)] });
     at(TREE);
     render(<App />);
     await settle();
     expect(location.pathname).not.toBe(TREE);
+  });
+});
+
+describe('/compare', () => {
+  const tray = [pairOf(0, 1), pairOf(0, 2), pairOf(1, 2)];
+
+  it('restores its tray on a reload with no drop zone, then draws each column', async () => {
+    await seed({ tray });
+    at(COMPARE);
+    const dropZoneSeen = watchForDropZone();
+    render(<App />);
+    expect(screen.getByText('Restoring your roster…')).toBeTruthy();
+    await settle();
+    expect(screen.getAllByText('Explaining…').length).toBeGreaterThan(0);
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    await explainAs(OGURI, TAMAMO, lineageOf(250));
+    await explainAs(GOLD_SHIP, TAMAMO, lineageOf(222));
+    expect(column('A').getByText('284')).toBeTruthy();
+    expect(column('B').getByText('250')).toBeTruthy();
+    expect(column('C').getByText('222')).toBeTruthy();
+    expect(screen.getByText('3 of 4')).toBeTruthy();
+    expect(dropZoneSeen()).toBe(false);
+  });
+
+  it('never paints a late result for the previous trainee', async () => {
+    await seed({ tray: [pairOf(0, 1)] });
+    at(COMPARE);
+    render(<App />);
+    await settle();
+    // Special Week's explain is still pending; switch to Mejiro Ryan.
+    fireEvent.click(screen.getByRole('button', { name: 'TRAINEE' }));
+    fireEvent.click(screen.getByRole('option', { name: /Mejiro Ryan/ }));
+    await settle();
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(111), 1001);
+    expect(screen.queryByText('111')).toBeNull();
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284), 1013);
+    expect(column('A').getByText('284')).toBeTruthy();
+  });
+
+  it("opens C's own tree from C's Show breakdown, not the roster pair", async () => {
+    await seed({ tray, picks: [own(0), own(1)] });
+    at(COMPARE);
+    render(<App />);
+    await settle();
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    await explainAs(OGURI, TAMAMO, lineageOf(250));
+    await explainAs(GOLD_SHIP, TAMAMO, lineageOf(222));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Show breakdown' })[2] as HTMLElement);
+    await settle();
+    expect(location.pathname).toBe(TREE);
+    expect(screen.getByText('tree of 222')).toBeTruthy();
+  });
+
+  it('puts a removed pair back in place with its numbers, no loading state', async () => {
+    await seed({ tray: tray.slice(0, 2) });
+    at(COMPARE);
+    render(<App />);
+    await settle();
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    await explainAs(OGURI, TAMAMO, lineageOf(250));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove pair A' }));
+    expect(screen.queryByText('284')).toBeNull();
+    expect(screen.getByText('1 of 4')).toBeTruthy();
+    expect(screen.getByText('Compare (1)')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'undo' }));
+    expect(column('A').getByText('284')).toBeTruthy();
+    expect(screen.queryByText('Explaining…')).toBeNull();
+    expect(explains).toHaveLength(0);
+  });
+
+  it('keeps its toggles and open rows across a round trip to the tree', async () => {
+    await seed({ tray: tray.slice(0, 2) });
+    at(COMPARE);
+    render(<App />);
+    await settle();
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    await explainAs(OGURI, TAMAMO, lineageOf(250));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hide rows identical in every pair' }));
+    fireEvent.click(screen.getByRole('button', { name: /Stamina/ }));
+    expect(screen.getByRole('button', { name: /Stamina/ }).getAttribute('aria-expanded')).toBe('true');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Show breakdown' })[0] as HTMLElement);
+    await settle();
+    expect(location.pathname).toBe(TREE);
+    await act(async () => navigate(COMPARE));
+    await settle();
+
+    expect(
+      (screen.getByRole('checkbox', { name: 'Hide rows identical in every pair' }) as HTMLInputElement).checked,
+    ).toBe(false);
+    expect(screen.getByRole('button', { name: /Stamina/ }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('is emptied, in memory and in the stored record, when the roster is forgotten', async () => {
+    await seed({ tray });
+    at(ROSTER);
+    render(<App />);
+    await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Forget this roster' }));
+    await settle();
+    expect(await readSelection()).toBeUndefined();
+    expect(screen.getByText('Compare')).toBeTruthy();
   });
 });

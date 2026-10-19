@@ -1,0 +1,158 @@
+/*
+ * The third layout (DESIGN.md amendment 1): a ruled table, max 1400px, with a
+ * 200px sticky spark-name column and up to four equal pair columns.
+ */
+.shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) var(--space-2xl);
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: var(--space-lg) 0 var(--space-snug);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--rule);
+}
+
+.heading {
+  font-size: var(--text-md);
+  font-weight: 500;
+  margin: 0;
+}
+
+.count {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+}
+
+.addLink {
+  font-size: var(--text-xs);
+  color: var(--ink);
+}
+
+.notice {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  margin: 0 0 var(--space-snug);
+}
+
+.empty,
+.hint {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  margin: var(--space-snug) 0 0;
+}
+
+.empty a {
+  color: var(--ink);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-snug) var(--space-md);
+}
+
+.trainee {
+  min-width: 240px;
+}
+
+/* The pane's `.views` idiom: one switch for every number it moves. */
+.views {
+  display: flex;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.view {
+  font-family: var(--font-data);
+  font-size: var(--text-3xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  padding: var(--space-tight) var(--space-snug);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.view + .view {
+  border-left: 1px solid var(--rule);
+}
+
+.view:hover,
+.viewOn {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.view:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Every hidden row is counted, by reason: hiding is only honest if said. */
+.hidden {
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  margin: var(--space-snug) 0 0;
+}
+
+.link {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .toggle,
+  .view {
+    min-height: 44px;
+  }
+}

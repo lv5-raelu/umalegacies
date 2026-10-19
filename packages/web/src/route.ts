@@ -9,8 +9,9 @@ import { useEffect, useState, type MouseEvent } from 'react';
  * pushed, and a link that does not reload the page.
  *
  * Paths need the server's agreement and hashes did not: a reload of `/search`
- * asks the server for `/search`. vercel.json answers those three paths with
- * index.html and nothing else, and Vite's dev server does it on its own.
+ * asks the server for `/search`. vercel.json answers these paths with
+ * index.html and nothing else, and Vite's dev server does it on its own. A new
+ * path needs adding there too, or a reload of it is a 404.
  */
 export const ROOT = '/';
 export const SEARCH = '/search';

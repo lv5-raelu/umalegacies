@@ -32,6 +32,8 @@ const render = (
       criteria={[]}
       sparkOptions={[]}
       pickedCount={picks.length}
+      view="once"
+      onView={() => {}}
       onClearPicks={() => {}}
       onOpenTree={() => {}}
     />,
@@ -183,6 +185,8 @@ const renderOdds = (goldUmaStan: boolean): string =>
       ]}
       sparkOptions={options}
       pickedCount={2}
+      view="once"
+      onView={() => {}}
       onClearPicks={() => {}}
       onOpenTree={() => {}}
     />,

@@ -7,6 +7,7 @@ import type {
 } from '@umalegacies/types';
 import { ComparePane, type PaneState } from '../roster/ComparePane';
 import { explainPairLocally } from '../lineage/explain-local';
+import type { OddsView } from '../lineage/odds';
 import type { PairRowData } from './search-rows';
 import styles from './PairDetail.module.css';
 
@@ -85,6 +86,8 @@ export function PairDetail({
   row,
   criteria,
   sparkOptions,
+  view,
+  onView,
   onClose,
   onChoose,
 }: {
@@ -92,6 +95,9 @@ export function PairDetail({
   row: PairRowData;
   criteria: readonly SparkCriterion[];
   sparkOptions: readonly RosterSparkOption[];
+  /** App's odds window, shared with the roster pane and /compare. */
+  view: OddsView;
+  onView: (view: OddsView) => void;
   onClose: () => void;
   /**
    * Take this pair and open its breakdown.
@@ -149,6 +155,8 @@ export function PairDetail({
           sparkOptions={sparkOptions}
           pickedCount={2}
           embedded
+          view={view}
+          onView={onView}
           onClearPicks={onClose}
           onOpenTree={onChoose}
         />

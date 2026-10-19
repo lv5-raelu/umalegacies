@@ -11,7 +11,7 @@
       "outputDirectory": "dist",
       "rewrites": [
         {
-          "source": "/(search|roster|tree)",
+          "source": "/(search|roster|tree|compare)",
           "destination": "/index.html"
         }
       ]

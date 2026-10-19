@@ -1,0 +1,80 @@
+/*
+ * The authored moment (DESIGN.md amendment 4): a row opening across every
+ * column at once. Height and opacity, 200ms ease-out, from an already-visible
+ * resting state; figures never animate.
+ */
+.slots {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-xs) 0;
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  animation: open var(--duration-short) var(--ease-enter);
+}
+
+@keyframes open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slots {
+    animation: none;
+  }
+}
+
+.parent,
+.grandparent {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 20px;
+  align-items: center;
+}
+
+.grandparent .name {
+  padding-left: var(--space-snug);
+}
+
+.name {
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tag {
+  color: var(--ink-muted);
+}
+
+.figures {
+  display: inline-flex;
+  gap: var(--space-sm);
+  flex: none;
+}
+
+.stars {
+  display: inline-block;
+  width: 3ch;
+  text-align: right;
+  color: var(--ink-muted);
+}
+
+.rate {
+  display: inline-block;
+  width: 4ch;
+  text-align: right;
+  color: var(--ink);
+}
+
+.none {
+  color: var(--ink-faint);
+}
+
+.skeleton {
+  composes: skeleton from './Skeleton.module.css';
+  width: 8ch;
+}

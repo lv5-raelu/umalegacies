@@ -34,10 +34,15 @@ import {
   writeRoster,
   writeSelection,
 } from './roster/cache';
-import { picksToCache, restoreSelection } from './roster/selection';
+import { picksToCache, restoreSelection, restoreTray, trayToCache } from './roster/selection';
+import { ComparePage, FRESH_COMPARE, type CompareMemory } from './compare/ComparePage';
+import type { ColumnResult } from './compare/run-columns';
+import { TRAY_CAP, addToTray, dedupeKey, trayIndexOf, LETTERS, type TrayPair } from './compare/tray';
+import type { OddsView } from './lineage/odds';
 import { PairSearch, PAGE } from './search/PairSearch';
-import { ROOT, SEARCH, TREE, navigate, usePath } from './route';
+import { COMPARE, ROOT, SEARCH, TREE, navigate, usePath } from './route';
 import { shellView, treeShouldRedirect } from './shell';
+import { usePublishedTop } from './usePublishedTop';
 import styles from './App.module.css';
 
 /**
@@ -107,7 +112,6 @@ export function App() {
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairLoading, setPairLoading] = useState(false);
   const path = usePath();
-  const panes = useRef<HTMLDivElement>(null);
   const [masterChanged, setMasterChanged] = useState(false);
   /** How many result rows are rendered. The sweep is complete; the LIST is paged. */
   const [shownResults, setShownResults] = useState(PAGE);
@@ -120,6 +124,30 @@ export function App() {
    * remembering -- for as long as several MB took to read on a phone.
    */
   const [restoring, setRestoring] = useState(true);
+  /**
+   * THE COMPARE TRAY, beside the picks and separate from them: the picks are
+   * the one pair being built, the tray the pairs being read. A trainee change
+   * drops an illegal pick and leaves the tray alone -- an illegal pair keeps
+   * its column on /compare and says why.
+   */
+  const [tray, setTray] = useState<TrayPair[]>([]);
+  const trayNow = useRef(tray);
+  trayNow.current = tray;
+  /** The tray was emptied because the roster changed; /compare says so once. */
+  const [trayCleared, setTrayCleared] = useState(false);
+  /**
+   * THE ODDS WINDOW, one for every surface that prints odds: the roster pane,
+   * the search's detail and /compare. It lived in the pane, which kept it across
+   * a re-explain; it lives here now so the three can never show one pair in two
+   * windows. A reload starts at "at least once".
+   */
+  const [oddsView, setOddsView] = useState<OddsView>('once');
+  /** /compare's place for the round trip, in memory only. */
+  const [compareMemory, setCompareMemory] = useState<CompareMemory>(FRESH_COMPARE);
+  /** The pair "In compare · C" asked to see, until /compare has shown it. */
+  const [compareTarget, setCompareTarget] = useState<string | null>(null);
+  /** /compare's explained pairs, keyed; outlives the page. See `useCompareColumns`. */
+  const [compareResults] = useState(() => new Map<string, ColumnResult>());
   // The extract every number on screen was computed from. Echoed on the next
   // request so a rebuilt extract is caught rather than silently mixed in.
   const seenMasterHash = useRef<string | undefined>(undefined);
@@ -144,33 +172,9 @@ export function App() {
    *
    * The grid container is not sticky, so its offset is genuinely constant. The
    * pane column is its only child in that row, so the two share a top edge.
+   * The rules, and why it is a callback ref, are `usePublishedTop`'s.
    */
-  useEffect(() => {
-    const grid = panes.current;
-    if (!grid) return;
-    let last = -1;
-    const measure = (): void => {
-      const top = Math.round(grid.getBoundingClientRect().top + window.scrollY);
-      // A value taller than the viewport would leave the pane with negative
-      // height and clip it to nothing. Nothing legitimate produces one, so
-      // refuse it rather than render a sliver: whatever measured wrong, the
-      // last good value is a better answer than an empty pane.
-      if (top < 0 || top > window.innerHeight) return;
-      if (top === last) return;
-      last = top;
-      grid.style.setProperty('--pane-top', `${top}px`);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(document.body);
-    addEventListener('resize', measure);
-    return () => {
-      observer.disconnect();
-      removeEventListener('resize', measure);
-    };
-  // The ResizeObserver catches every other layout change; the dep is only for
-  // the first measure after the roster replaces the drop zone.
-  }, [roster]);
+  const panes = usePublishedTop('--pane-top');
 
   /**
    * NO GUARD LIKE /tree's for /search or /roster. The tree is meaningless
@@ -234,6 +238,7 @@ export function App() {
       setSearchCriteria(selection.searchCriteria);
       setPairFrom(selection.pairFrom);
       setPicks(selection.picks);
+      setTray(restoreTray(storedSelection, record.resolved));
       setRestoring(false);
 
       // Now confirm the game data has not moved. A failure here is not worth
@@ -258,6 +263,7 @@ export function App() {
       setTraineeCardId(null);
       setCriteria([]);
       setPicks([]);
+      dropTray();
       setLineage(null);
       seenMasterHash.current = undefined;
       setSaveError(explainDiscard(checked));
@@ -265,7 +271,20 @@ export function App() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * The tray holds indices into ONE roster, so it goes wherever the roster
+   * goes: forgotten, replaced, or found stale. Cleared in memory as well as in
+   * the record, or the selection write puts the old tray straight back.
+   */
+  const dropTray = useCallback(() => {
+    if (trayNow.current.length > 0) setTrayCleared(true);
+    setTray([]);
+    setCompareMemory(FRESH_COMPARE);
+    compareResults.clear();
+  }, [compareResults]);
 
   /** Forget the stored roster and return to the drop zone. */
   const forget = useCallback(() => {
@@ -277,12 +296,13 @@ export function App() {
     setTraineeCardId(null);
     setCriteria([]);
     setPicks([]);
+    dropTray();
     setLineage(null);
     setSaveError(null);
     seenMasterHash.current = undefined;
     // Back to the landing: with nothing loaded, the root is the drop zone.
     navigate(ROOT, { replace: true });
-  }, []);
+  }, [dropTray]);
 
   const loadFile = useCallback(async (file: File) => {
     setParsing(true);
@@ -300,6 +320,7 @@ export function App() {
       setRoster(resolved);
       setTrainees(traineeList.trainees);
       setPicks([]);
+      dropTray();
       setLineage(null);
       // Wherever the file was dropped, the next step is finding a pair.
       toSearch();
@@ -330,7 +351,7 @@ export function App() {
     } finally {
       setParsing(false);
     }
-  }, []);
+  }, [dropTray]);
 
   /**
    * The requirements a pair is EXPLAINED against, wherever it is explained.
@@ -504,8 +525,48 @@ export function App() {
       searchCriteria: [...searchCriteria],
       pairFrom,
       picks: picksToCache(picks, roster),
+      tray: trayToCache(tray, roster),
     });
-  }, [restoring, roster, traineeCardId, criteria, searchCriteria, pairFrom, picks]);
+  }, [restoring, roster, traineeCardId, criteria, searchCriteria, pairFrom, picks, tray]);
+
+  /**
+   * "Show breakdown" for a pair the reader did not build on the roster: from a
+   * search result or a /compare column. ONE handoff for both.
+   *
+   * The pair becomes the roster's pair -- which is what "show me this pair"
+   * means, and /tree draws App's single lineage -- and the lineage arrives WITH
+   * it. The explain effect below would otherwise leave `lineage` on the old
+   * pair for a moment, and /tree would open the roster's pair, not this one.
+   * `pairFrom` is the caller's: /compare leaves it, so the tree highlights the
+   * criteria /compare showed.
+   */
+  const takePair = useCallback((pair: TrayPair, explained: LineageResponse | null) => {
+    setPicks([pair[0], pair[1]]);
+    if (explained !== null) setLineage(explained);
+    navigate(TREE);
+  }, []);
+
+  /** Where a pair stands in the tray, for the control that adds it. */
+  const compareState = useCallback(
+    (pair: TrayPair) => {
+      const at = trayIndexOf(tray, pair);
+      if (at !== -1) return { kind: 'in' as const, letter: LETTERS[at] ?? '?' };
+      if (tray.length >= TRAY_CAP) return { kind: 'full' as const };
+      return { kind: 'add' as const };
+    },
+    [tray],
+  );
+  const addToCompare = useCallback((pair: TrayPair) => {
+    setTray((current) => {
+      const added = addToTray(current, pair);
+      return added.ok ? added.tray : current;
+    });
+  }, []);
+  /** Open /compare at this pair: the target wins over the saved scroll. */
+  const openCompare = useCallback((pair: TrayPair | null) => {
+    setCompareTarget(pair === null ? null : dedupeKey(pair));
+    navigate(COMPARE);
+  }, []);
 
   // Explain the pair whenever the trainee or either pick changes.
   useEffect(() => {
@@ -576,6 +637,8 @@ export function App() {
           setShownResults(PAGE);
         }}
         onShowMore={() => setShownResults((n) => n + PAGE)}
+        oddsView={oddsView}
+        onOddsView={setOddsView}
         onPick={(a, b, explained) => {
           // Both halves at once, because a search result IS a pair -- unlike a
           // click in the roster list, which can only ever add one. `ownPick`
@@ -583,7 +646,6 @@ export function App() {
           // does, so a restore checks them the same way.
           const picked = [roster.veterans[a], roster.veterans[b]];
           if (picked[0] === undefined || picked[1] === undefined) return;
-          setPicks([ownPick(picked[0]), ownPick(picked[1])]);
           setPairFrom('search');
           /*
            * THE LINEAGE ARRIVES WITH THE PICK, which matters for the tree.
@@ -596,13 +658,44 @@ export function App() {
            * explained this exact pair locally, so handing it over closes the
            * window rather than racing it.
            */
-          if (explained !== null) setLineage(explained);
-          navigate(TREE);
+          takePair([ownPick(picked[0]), ownPick(picked[1])], explained);
         }}
         nav={
           <SiteNav
             current={SEARCH}
-            targets={navTargets({ hasRoster: true, hasLineage: lineage !== null })}
+            targets={navTargets({ hasRoster: true, hasLineage: lineage !== null, trayCount: tray.length })}
+          />
+        }
+      />
+    );
+  }
+
+  if (view === 'compare' && roster && save) {
+    return (
+      <ComparePage
+        roster={roster}
+        veterans={save.veterans}
+        trainees={trainees}
+        traineeCardId={traineeCardId}
+        onTrainee={setTraineeCardId}
+        tray={tray}
+        onTray={setTray}
+        criteria={pairCriteria}
+        view={oddsView}
+        onView={setOddsView}
+        memory={compareMemory}
+        onMemory={setCompareMemory}
+        results={compareResults}
+        onStale={markMasterStale}
+        onShowBreakdown={takePair}
+        trayCleared={trayCleared}
+        onTrayClearedSeen={() => setTrayCleared(false)}
+        target={compareTarget}
+        onTargetUsed={() => setCompareTarget(null)}
+        nav={
+          <SiteNav
+            current={COMPARE}
+            targets={navTargets({ hasRoster: true, hasLineage: lineage !== null, trayCount: tray.length })}
           />
         }
       />
@@ -614,7 +707,7 @@ export function App() {
       <TreePage
         lineage={lineage}
         criteria={pairCriteria}
-        nav={<SiteNav current={TREE} targets={navTargets({ hasRoster: true, hasLineage: true })} />}
+        nav={<SiteNav current={TREE} targets={navTargets({ hasRoster: true, hasLineage: true, trayCount: tray.length })} />}
       />
     );
   }
@@ -622,7 +715,7 @@ export function App() {
   const header = (
     <header className={styles.top}>
       <h1 className={styles.wordmark}>Uma Legacies</h1>
-      <SiteNav current={path} targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null })} />
+      <SiteNav current={path} targets={navTargets({ hasRoster: roster !== null, hasLineage: lineage !== null, trayCount: tray.length })} />
     </header>
   );
 
@@ -758,6 +851,8 @@ export function App() {
                 criteria={pairCriteria}
                 sparkOptions={roster.sparkOptions}
                 pickedCount={picks.length}
+                view={oddsView}
+                onView={setOddsView}
                 onClearPicks={() => setPicks([])}
                 onOpenTree={() => {
                   navigate(TREE);
