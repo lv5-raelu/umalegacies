@@ -251,7 +251,7 @@ by `chara_id` drew one costume's face directly above another costume's spark.
 
 `scripts/fetch-portraits.mjs` reads `card_data` from the committed extract,
 verifies PNG magic bytes rather than trusting a 200, and skips anything already
-on disk, so a re-run after a patch fetches only what is new. 107 of 109 cards,
+on disk, so a re-run after a patch fetches only what is new. 109 of 111 cards,
 about 900 KB. The two misses are `9100101` and `9101101` — the same pair the
 `card_id / 100` gotcha below calls out. gametora does not host them because they are
 not real costumes: both have `default_rarity` 0 and no skill set, so nobody can train
