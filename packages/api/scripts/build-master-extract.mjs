@@ -99,7 +99,7 @@ const TABLES = [
   // the same five headings the pre-race screen shows, verified against it.
   //
   // PROJECTED, because the real table is 78 columns of race-simulation
-  // parameters and 726 rows: dumping it whole would roughly double the extract
+  // parameters and 734 rows: dumping it whole would roughly double the extract
   // to carry two integers per skill. `rarity` rides along because it is the
   // one other column this app has a use for (1 white, 2 gold, 3-5 unique and
   // evolved), and it is free once the row is being written.
@@ -112,8 +112,9 @@ const TABLES = [
   //
   // PROJECTED AND DEDUPLICATED. The table has one row per card per rarity, 352
   // in all, and the aptitudes are identical across a card's rarities: 109 cards
-  // give exactly 109 distinct rows, checked. Carrying the stat-growth columns
-  // beside them would be 17 more per row for nothing that is read.
+  // give exactly 109 distinct rows, checked on every extraction by `unique`.
+  // Carrying the stat-growth columns beside them would be 17 more per row for
+  // nothing that is read.
   {
     name: 'card_rarity_data',
     columns: [
@@ -130,6 +131,10 @@ const TABLES = [
       'proper_ground_dirt',
     ],
     distinct: true,
+    // MasterData maps aptitudes by card_id and keeps the LAST row it sees, so a
+    // card whose rarities ever disagree would silently price its pink sparks
+    // from whichever row came last. Refuse to write that extract instead.
+    unique: 'card_id',
   },
 ];
 
@@ -145,7 +150,7 @@ const literal = (v) => {
 
 const body = [];
 const counts = [];
-for (const { name, where, columns, distinct } of TABLES) {
+for (const { name, where, columns, distinct, unique } of TABLES) {
   const ddl = db
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
     .get(name);
@@ -182,6 +187,16 @@ for (const { name, where, columns, distinct } of TABLES) {
   const rows = db
     .prepare(`SELECT ${distinct ? 'DISTINCT ' : ''}${picked} FROM ${name} ${where ?? ''}`)
     .all();
+  if (unique) {
+    const seen = new Set();
+    for (const row of rows) {
+      if (seen.has(row[unique])) {
+        console.error(`${name}: more than one distinct row for ${unique} ${row[unique]}`);
+        process.exit(1);
+      }
+      seen.add(row[unique]);
+    }
+  }
   counts.push(`${name}: ${rows.length.toLocaleString()}`);
   for (const row of rows) {
     body.push(`INSERT INTO ${name} VALUES (${Object.values(row).map(literal).join(',')});`);
