@@ -1,0 +1,230 @@
+// @vitest-environment jsdom
+import { IDBFactory } from 'fake-indexeddb';
+import { act, cleanup, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ExplainPairRequest, LineageResponse } from '@umalegacies/types';
+import { CACHE_VERSION } from './roster/cache-policy';
+import { writeRoster, writeSelection } from './roster/cache';
+import type { CachedSelection } from './roster/selection';
+import { ROSTER, TREE } from './route';
+
+/**
+ * THE APP'S WIRING, IN A DOM.
+ *
+ * Every other web test renders through `renderToStaticMarkup` in node, which
+ * cannot reach an effect -- and this feature's riskiest bugs were all effect
+ * wiring: a reload bounced off /tree by a guard that ran before the restored
+ * pair was explained, a drop zone flashed on every reload, a late result
+ * painting over a newer one. This file opts into jsdom on its own (the comment
+ * on line 1), so every other test stays in node, untouched.
+ *
+ * What is real: App, IndexedDB (fake-indexeddb, a fresh database per test),
+ * the restore, routing. What is not: the network (`api/client`), the engine
+ * (`explainPairLocally`, a deferred promise per call so each test decides when
+ * a pair finishes), and the tree, which is stubbed to its pair total -- what is
+ * under test is that App reaches it with the right lineage, not how it draws.
+ */
+
+vi.mock('./api/client', async (importActual) => ({
+  ...(await importActual<typeof import('./api/client')>()),
+  fetchMasterMeta: () => Promise.resolve({ masterHash: 'abc' }),
+}));
+
+/** Every explain the app asks for, in order, each waiting to be settled by the test. */
+const explains: Array<{
+  request: ExplainPairRequest;
+  resolve: (lineage: LineageResponse) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+vi.mock('./lineage/explain-local', async (importActual) => ({
+  ...(await importActual<typeof import('./lineage/explain-local')>()),
+  explainPairLocally: (request: ExplainPairRequest) =>
+    new Promise<LineageResponse>((resolve, reject) => {
+      explains.push({ request, resolve, reject });
+    }),
+}));
+
+/**
+ * The search's sweep runs in a Web Worker, which jsdom has not got. A test that
+ * needs results sets this; otherwise the search sits idle.
+ */
+const search: { status: import('./search/usePairSearch').SearchStatus } = {
+  status: { kind: 'idle' },
+};
+vi.mock('./search/usePairSearch', () => ({
+  usePairSearch: () => search.status,
+}));
+
+vi.mock('./lineage/TreePage', () => ({
+  TreePage: ({ lineage }: { lineage: LineageResponse }) => (
+    <p>tree of {lineage.pairTotal.value}</p>
+  ),
+}));
+
+const { App } = await import('./App');
+
+// ------------------------------------------------------------------ fixtures
+
+const member = (cardId: number, charaId: number, name: string) => ({
+  cardId,
+  charaId,
+  name,
+  costume: null,
+  resolution: { ok: true as const },
+});
+
+/** Three veterans of three characters, and two trainees who are none of them. */
+const resolved = {
+  veterans: [
+    { index: 0, score: 18571, self: member(100601, 1006, 'Oguri Cap'), parents: [null, null], sparks: [{ groupId: 2, stars: [3, 0, 0] }], unknownFactorIds: [], ok: true },
+    { index: 1, score: 24878, self: member(101401, 1014, 'Gold Ship'), parents: [null, null], sparks: [{ groupId: 2, stars: [2, 0, 0] }], unknownFactorIds: [], ok: true },
+    { index: 2, score: 16000, self: member(100901, 1009, 'Tamamo Cross'), parents: [null, null], sparks: [], unknownFactorIds: [], ok: true },
+  ],
+  sparkOptions: [{ groupId: 2, kind: 'blue', name: 'Stamina', veterans: 2 }],
+  unresolvedCount: 0,
+  masterHash: 'abc',
+};
+const trainees = [
+  { cardId: 100101, charaId: 1001, name: 'Special Week', costume: null, ambiguous: false },
+  { cardId: 101301, charaId: 1013, name: 'Mejiro Ryan', costume: null, ambiguous: false },
+];
+const veterans = resolved.veterans.map((v) => ({
+  score: v.score,
+  self: { cardId: v.self.cardId, factorIds: [], winSaddleIds: [] },
+  parents: [null, null] as [null, null],
+}));
+
+const own = (index: number) => ({
+  kind: 'own' as const,
+  index,
+  cardId: resolved.veterans[index]?.self.cardId ?? 0,
+});
+
+/** The thinnest lineage the pane and the stubbed tree will draw. */
+const lineageOf = (total: number): LineageResponse =>
+  ({
+    pairTotal: {
+      ruleId: 'total.pair',
+      label: 'Pair total',
+      value: total,
+      sources: [],
+      children: [
+        { ruleId: 'base.two_way', label: 'base', value: total - 10, sources: [], children: [] },
+        { ruleId: 'bonus.shared_g1', label: 'bonus', value: 10, sources: [], children: [] },
+      ],
+    },
+    individualAffinity: {},
+    relationRank: { value: 3, ruleId: 'rank.lookup', sources: [] },
+    rankBounds: { min: 151, max: 999 },
+    masterHash: 'abc',
+    trainee: { charaId: 1001, name: 'Special Week', portraitCardId: 100101, resolution: { ok: true } },
+    ancestors: {},
+    sparks: [],
+  }) as unknown as LineageResponse;
+
+async function seed(selection: Partial<CachedSelection> = {}): Promise<void> {
+  await writeRoster({
+    version: CACHE_VERSION,
+    masterHash: 'abc',
+    fileName: 'data.json',
+    savedAt: 0,
+    veterans,
+    skipped: [],
+    resolved: resolved as never,
+    trainees,
+  });
+  await writeSelection({
+    version: CACHE_VERSION,
+    traineeCardId: 100101,
+    criteria: [],
+    searchCriteria: [],
+    pairFrom: 'list',
+    picks: [],
+    ...selection,
+  });
+}
+
+/** Records whether the drop zone was EVER in the document, not only at the end. */
+function watchForDropZone(): () => boolean {
+  let seen = false;
+  const check = () => {
+    if (document.body.textContent?.includes('Drop your data.json here')) seen = true;
+  };
+  const observer = new MutationObserver(check);
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  check();
+  return () => {
+    check();
+    observer.disconnect();
+    return seen;
+  };
+}
+
+/** Let IndexedDB and every resolved promise run. */
+const settle = () => act(() => new Promise((r) => setTimeout(r, 30)));
+
+beforeEach(() => {
+  // A fresh, empty database per test: a restore must only ever see what this
+  // test stored.
+  globalThis.indexedDB = new IDBFactory();
+  explains.length = 0;
+  search.status = { kind: 'idle' };
+  // jsdom has no layout and no observers of it; App only needs them to exist.
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+  cleanup();
+});
+
+const at = (path: string) => history.replaceState(null, '', path);
+
+// ------------------------------------------------------------------ flows
+
+describe('a reload', () => {
+  it('says it is restoring from the first render, and never shows the drop zone', async () => {
+    await seed();
+    at(ROSTER);
+    const dropZoneSeen = watchForDropZone();
+    render(<App />);
+    expect(screen.getByText('Restoring your roster…')).toBeTruthy();
+    await settle();
+    expect(screen.queryByText('Restoring your roster…')).toBeNull();
+    expect(screen.getByText('Parents for Special Week')).toBeTruthy();
+    expect(dropZoneSeen()).toBe(false);
+  });
+
+  it('shows the drop zone once the restore finds nothing', async () => {
+    at(ROSTER);
+    render(<App />);
+    await settle();
+    expect(screen.getByText(/Drop your data.json here/)).toBeTruthy();
+  });
+
+  /* Regression 3 (eng review 1A): the /tree guard used to bounce this to the search. */
+  it('stays on /tree with a stored full pair, and draws it once explained', async () => {
+    await seed({ picks: [own(0), own(1)] });
+    at(TREE);
+    render(<App />);
+    await settle();
+    expect(location.pathname).toBe(TREE);
+    expect(screen.getByText('Explaining…')).toBeTruthy();
+    expect(explains).toHaveLength(1);
+    await act(async () => explains[0]?.resolve(lineageOf(284)));
+    expect(location.pathname).toBe(TREE);
+    expect(screen.getByText('tree of 284')).toBeTruthy();
+  });
+
+  it('leaves /tree when no pair can come', async () => {
+    await seed({ picks: [own(0)] });
+    at(TREE);
+    render(<App />);
+    await settle();
+    expect(location.pathname).not.toBe(TREE);
+  });
+});
