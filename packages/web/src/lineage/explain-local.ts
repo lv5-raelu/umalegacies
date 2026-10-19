@@ -1,6 +1,21 @@
 import type { ExplainPairRequest, LineageResponse } from '@umalegacies/types';
 import { explainLineage, lineageFromPair } from '@umalegacies/core';
-import { loadMaster, requireFresh } from './master-source';
+import { StaleMasterError, loadMaster, requireFresh } from './master-source';
+
+/**
+ * What a failed explain means to the screen, decided ONCE for every caller.
+ *
+ * A stale extract is not this pair's failure: it is the whole page's, and it
+ * goes to the app's one banner rather than to a message per pair. The roster
+ * pane and every compare column call this, so "four copies of one message" is
+ * not something a fifth caller can reintroduce.
+ */
+export function explainFailure(error: unknown): { stale: boolean; message: string } {
+  return {
+    stale: error instanceof StaleMasterError,
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
 
 /**
  * THE PAIR, EXPLAINED WITHOUT ASKING THE SERVER.

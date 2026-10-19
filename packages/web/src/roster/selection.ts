@@ -9,6 +9,7 @@ import type {
 import { CACHE_VERSION } from './cache-policy';
 import { maxStarsFor, pickBlock, type StarSubject } from '@umalegacies/core';
 import { ownPick } from './picks';
+import { TRAY_CAP, trayIndexOf, type TrayPair } from '../compare/tray';
 
 /**
  * What was chosen last time: the trainee, the spark requirements, and the pair.
@@ -65,6 +66,16 @@ export interface CachedSelection {
    * that must agree rather than one that cannot disagree.
    */
   picks: ParentPick[];
+  /**
+   * The compare tray: up to four whole pairs, P1 then P2, in the order added.
+   *
+   * OPTIONAL, AND NO VERSION BUMP. `CACHE_VERSION` is shared with the roster
+   * record, so bumping it to add this field would make every reader re-upload
+   * their save and lose their trainee, filters and picks to gain a field that
+   * was empty anyway. A record written before it existed simply has none, and
+   * restores an empty tray. See `restoreTray`.
+   */
+  tray?: ParentPick[][];
 }
 
 /** Exactly what `App` holds, so a restore is three `set` calls and no mapping. */
@@ -265,4 +276,58 @@ export function picksToCache(
   roster: RosterResolveResponse,
 ): ParentPick[] {
   return picks.filter((pick) => pick.kind !== 'own' || roster.veterans[pick.index] !== undefined);
+}
+
+/**
+ * The compare tray that is still the same pairs of the same umas.
+ *
+ * Each own pick is held to the check `restorePicks` makes -- the index is in
+ * range and still holds the card it was picked as -- because an own pick is an
+ * index into ONE roster, and a tray that trusted one against a different save
+ * would compare two confident, wrong pairs.
+ *
+ * THE LEGALITY RULES ARE NOT APPLIED, which is the difference from
+ * `restorePicks`. A pair the current trainee makes illegal stays in the tray as
+ * a column that says why (Premise 1); it was legal when it was added, and the
+ * reader may switch the trainee back. A pair loses its place only when one of
+ * its halves no longer exists. Missing or malformed: an empty tray.
+ */
+export function restoreTray(stored: unknown, roster: RosterResolveResponse): TrayPair[] {
+  if (typeof stored !== 'object' || stored === null) return [];
+  const record = stored as Record<string, unknown>;
+  if (record.version !== CACHE_VERSION || !Array.isArray(record.tray)) return [];
+
+  const tray: TrayPair[] = [];
+  for (const raw of record.tray) {
+    if (tray.length >= TRAY_CAP) break;
+    if (!Array.isArray(raw) || raw.length !== 2) continue;
+    const a = restoreOwnPick(raw[0], roster);
+    const b = restoreOwnPick(raw[1], roster);
+    if (!a || !b) continue;
+    const pair: TrayPair = [a, b];
+    // Not twice, in either order: the UI cannot have written that.
+    if (trayIndexOf(tray, pair) !== -1) continue;
+    tray.push(pair);
+  }
+  return tray;
+}
+
+/** One stored pick, rebuilt from the roster row it names, or null. Own picks only, as above. */
+function restoreOwnPick(raw: unknown, roster: RosterResolveResponse): ParentPick | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const p = raw as Record<string, unknown>;
+  if (p.kind !== 'own' || typeof p.index !== 'number' || !Number.isInteger(p.index)) return null;
+  const veteran = roster.veterans[p.index];
+  if (!veteran || veteran.self.cardId !== p.cardId) return null;
+  return ownPick(veteran);
+}
+
+/** The tray as it is stored: a pair with an own half that has nothing behind it is not written. */
+export function trayToCache(
+  tray: readonly TrayPair[],
+  roster: RosterResolveResponse,
+): ParentPick[][] {
+  return tray
+    .filter((pair) => picksToCache(pair, roster).length === 2)
+    .map((pair) => [pair[0], pair[1]]);
 }

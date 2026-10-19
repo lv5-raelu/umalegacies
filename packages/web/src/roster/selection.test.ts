@@ -7,7 +7,14 @@ import type {
 } from '@umalegacies/types';
 import { CACHE_VERSION } from './cache-policy';
 import { ownPick } from './picks';
-import { EMPTY_SELECTION, picksToCache, restoreSelection, type CachedSelection } from './selection';
+import {
+  EMPTY_SELECTION,
+  picksToCache,
+  restoreSelection,
+  restoreTray,
+  trayToCache,
+  type CachedSelection,
+} from './selection';
 
 /**
  * What of the last session's choices may come back.
@@ -466,5 +473,58 @@ describe('the two requirement lists are kept apart', () => {
     const restored = restoreSelection(before, roster(), trainees);
     expect(restored.searchCriteria).toEqual([]);
     expect(restored.criteria).toHaveLength(1);
+  });
+});
+
+/*
+ * The compare tray rides in the same record, as an optional field, because
+ * bumping the shared CACHE_VERSION would cost every reader their roster.
+ */
+describe('the compare tray restored from this browser', () => {
+  const pairOf = (a: ParentPick, b: ParentPick) => [a, b];
+
+  it('restores an empty tray from a record written before the tray existed', () => {
+    expect(restoreTray(stored(), roster())).toEqual([]);
+    // And the rest of that record still restores exactly as before.
+    expect(restoreSelection(stored(), roster(), trainees).picks).toEqual([
+      own(1, 101401),
+      own(2, 100901),
+    ]);
+  });
+
+  it('restores an empty tray from a malformed one, and never throws', () => {
+    expect(restoreTray(stored({ tray: 'nope' as never }), roster())).toEqual([]);
+    expect(restoreTray(stored({ tray: [[own(0, 100601)]] }), roster())).toEqual([]);
+    expect(restoreTray(null, roster())).toEqual([]);
+  });
+
+  it('comes back in order when nothing has moved', () => {
+    const tray = [pairOf(own(0, 100601), own(1, 101401)), pairOf(own(1, 101401), own(2, 100901))];
+    expect(restoreTray(stored({ tray }), roster())).toEqual(tray);
+  });
+
+  it('drops a pair whose own pick now holds a different card', () => {
+    const tray = [pairOf(own(0, 100601), own(1, 999999)), pairOf(own(1, 101401), own(2, 100901))];
+    expect(restoreTray(stored({ tray }), roster())).toEqual([tray[1]]);
+  });
+
+  it('KEEPS a pair the trainee makes illegal, to show it as blocked', () => {
+    // 100601 is Oguri Cap, the trainee: restorePicks would drop her; the tray does not.
+    const tray = [pairOf(own(0, 100601), own(1, 101401))];
+    expect(restoreTray(stored({ traineeCardId: 100601, tray }), roster())).toEqual(tray);
+  });
+
+  it('refuses a record from another build, without bumping the shared version', () => {
+    const tray = [pairOf(own(0, 100601), own(1, 101401))];
+    expect(restoreTray(stored({ version: CACHE_VERSION + 1, tray }), roster())).toEqual([]);
+    expect(CACHE_VERSION).toBe(3);
+  });
+
+  it('writes only pairs whose own halves exist', () => {
+    const tray = [
+      [own(0, 100601), own(1, 101401)] as const,
+      [own(1, 101401), own(9, 123456)] as const,
+    ];
+    expect(trayToCache(tray, roster())).toEqual([[own(0, 100601), own(1, 101401)]]);
   });
 });

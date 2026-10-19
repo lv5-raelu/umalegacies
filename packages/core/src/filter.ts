@@ -177,6 +177,42 @@ const starsInHalf = (veteran: ResolvedVeteran, groupId: number, scope: FilterSco
 };
 
 /**
+ * Every spark a PAIR's six ancestors carry, read off the two packages alone.
+ *
+ * TRAINEE-INDEPENDENT, which is the point. A lineage carries the same totals,
+ * but a lineage needs a trainee and a finished explain; the compare page needs
+ * its rows and each cell's stars and carriers the moment a pair is in the tray,
+ * and needs them to stay put while a trainee switch recomputes the odds. Both
+ * come from the same factor ids, so they agree by construction, and a parity
+ * test in the API holds them to it against a committed fixture.
+ *
+ * `stars` sums all six members, exactly as a lineage's `stars` does.
+ * `carriers` counts members holding any star of it, 0-6, which is the
+ * lineage's `lineageCarriers`.
+ */
+export interface PairSpark {
+  groupId: number;
+  stars: number;
+  carriers: number;
+}
+
+export function pairSparks(
+  a: readonly PackageSpark[],
+  b: readonly PackageSpark[],
+): PairSpark[] {
+  const byGroup = new Map<number, PairSpark>();
+  for (const spark of [...a, ...b]) {
+    const entry = byGroup.get(spark.groupId) ?? { groupId: spark.groupId, stars: 0, carriers: 0 };
+    for (const stars of spark.stars) {
+      entry.stars += stars;
+      if (stars > 0) entry.carriers += 1;
+    }
+    byGroup.set(spark.groupId, entry);
+  }
+  return [...byGroup.values()];
+}
+
+/**
  * Does this PAIR satisfy one criterion?
  *
  * The sweep's per-criterion test, and the pair-shaped twin of

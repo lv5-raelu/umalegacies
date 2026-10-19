@@ -23,8 +23,7 @@ import { catalogueOf } from './roster/catalogue';
 import { VeteranList } from './roster/VeteranList';
 import { filterVeterans, pickBlock } from '@umalegacies/core';
 import { explainPairRequest, isOwnPickOf, ownPick, ownVeterans } from './roster/picks';
-import { explainPairLocally } from './lineage/explain-local';
-import { StaleMasterError } from './lineage/master-source';
+import { explainFailure, explainPairLocally } from './lineage/explain-local';
 import { SaveError, slimSave, type SkippedEntry } from './roster/save';
 import { CACHE_VERSION, explainDiscard, inspectCache } from './roster/cache-policy';
 import {
@@ -124,6 +123,11 @@ export function App() {
   // The extract every number on screen was computed from. Echoed on the next
   // request so a rebuilt extract is caught rather than silently mixed in.
   const seenMasterHash = useRef<string | undefined>(undefined);
+  /** The game data moved under this tab: drop the pin and raise the one banner. */
+  const markMasterStale = useCallback(() => {
+    seenMasterHash.current = undefined;
+    setMasterChanged(true);
+  }, []);
 
   /**
    * Publishes where the two-pane grid starts, as `--pane-top`, so the compare
@@ -535,11 +539,9 @@ export function App() {
         if (cancelled) return;
         // Same banner, different messenger: the server used to answer 409
         // STALE_MASTER_HASH, and now the page notices the disagreement itself.
-        if (error instanceof StaleMasterError) {
-          seenMasterHash.current = undefined;
-          setMasterChanged(true);
-        }
-        setPairError(error instanceof Error ? error.message : String(error));
+        const failure = explainFailure(error);
+        if (failure.stale) markMasterStale();
+        setPairError(failure.message);
       })
       .finally(() => {
         if (!cancelled) setPairLoading(false);

@@ -151,6 +151,8 @@ export class MasterData {
   private readonly saddleNames = new Map<number, string>();
   /** factor_id -> the succession_factor row, joined to its category 147 name. */
   private readonly factors = new Map<number, Factor>();
+  /** White-skill groups only; see `skillTiming`. */
+  private readonly timingByGroup = new Map<number, SkillTiming>();
   private readonly aptitudes = new Map<number, CardAptitudes>();
 
   constructor(tables: MasterTables) {
@@ -264,7 +266,7 @@ export class MasterData {
      */
     const categoryBySkill = new Map<number, number>();
     for (const r of tables.skillData) categoryBySkill.set(r.id, r.skill_category);
-    const timingByGroup = new Map<number, SkillTiming>();
+    const timingByGroup = this.timingByGroup;
     for (const r of tables.factorSkill) {
       const category = categoryBySkill.get(r.value_1);
       if (category === undefined) continue;
@@ -300,6 +302,11 @@ export class MasterData {
         // it in a heading that says nothing about it.
         timing: kind === 'white_skill' ? (timingByGroup.get(r.factor_group_id) ?? null) : null,
       });
+    }
+    // Keep only the white-skill groups, for the same reason as above: a race
+    // spark's group is the G1, whatever skill it happens to hint.
+    for (const factor of this.factors.values()) {
+      if (factor.kind !== 'white_skill') timingByGroup.delete(factor.groupId);
     }
   }
 
@@ -436,6 +443,18 @@ export class MasterData {
 
   factor(factorId: number): Factor | null {
     return this.factors.get(factorId) ?? null;
+  }
+
+  /**
+   * When a white SKILL spark's skill fires, by group, or null.
+   *
+   * For a screen that groups sparks before any lineage exists: the compare page
+   * lays its rows out from the roster the moment a pair is added, and a row that
+   * jumped headings when its pair finished explaining would move under the
+   * reader. Same answer as `Factor.timing`, from the same join.
+   */
+  skillTiming(groupId: number): SkillTiming | null {
+    return this.timingByGroup.get(groupId) ?? null;
   }
 
   /** The ◎/〇/△ bucket a pair total falls in. 151+ is ◎. */
