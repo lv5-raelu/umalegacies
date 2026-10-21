@@ -6,7 +6,7 @@ import type {
   SparkCriterion,
 } from '@umalegacies/types';
 import { ComparePane, type PaneState } from '../roster/ComparePane';
-import { explainPairLocally } from '../lineage/explain-local';
+import { explainFailure, explainPairLocally } from '../lineage/explain-local';
 import type { OddsView } from '../lineage/odds';
 import type { PairRowData } from './search-rows';
 import styles from './PairDetail.module.css';
@@ -36,6 +36,8 @@ export function usePairDetail(
   traineeCardId: number | null,
   masterHash: string,
   row: PairRowData | null,
+  /** The game data moved under this tab: App's one banner, as for every other explain. */
+  onStale: () => void,
 ): PaneState {
   const [state, setState] = useState<PaneState>({ kind: 'need-picks', picked: 0 });
 
@@ -69,13 +71,18 @@ export function usePairDetail(
         if (live) setState({ kind: 'ok', lineage });
       })
       .catch((error: unknown) => {
-        if (live) {
-          setState({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
-        }
+        if (!live) return;
+        // Through the shared rule, so a stale extract raises the app's banner
+        // here exactly as it does on the roster pane and on /compare.
+        const failure = explainFailure(error);
+        if (failure.stale) onStale();
+        setState({ kind: 'error', message: failure.message });
       });
     return () => {
       live = false;
     };
+    // `onStale` is App's stable callback; a new identity must not re-explain.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [packages, traineeCharaId, traineeCardId, masterHash, row]);
 
   return state;

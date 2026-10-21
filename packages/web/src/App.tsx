@@ -671,6 +671,7 @@ export function App() {
         compareStatus={compareStatusAt}
         onCompareAdd={addToCompareAt}
         onCompareOpen={openCompareAt}
+        onStale={markMasterStale}
         onPick={(a, b, explained) => {
           // Both halves at once, because a search result IS a pair -- unlike a
           // click in the roster list, which can only ever add one. `ownPick`

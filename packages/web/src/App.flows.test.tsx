@@ -8,6 +8,7 @@ import { CACHE_VERSION } from './roster/cache-policy';
 import { readSelection, writeRoster, writeSelection } from './roster/cache';
 import type { CachedSelection } from './roster/selection';
 import { COMPARE, ROSTER, SEARCH, TREE, navigate } from './route';
+import { StaleMasterError } from './lineage/master-source';
 
 /**
  * THE APP'S WIRING, IN A DOM.
@@ -29,6 +30,9 @@ import { COMPARE, ROSTER, SEARCH, TREE, navigate } from './route';
 vi.mock('./api/client', async (importActual) => ({
   ...(await importActual<typeof import('./api/client')>()),
   fetchMasterMeta: () => Promise.resolve({ masterHash: 'abc' }),
+  // A new upload resolves to the same small roster; see `resolved` below.
+  resolveRoster: () => Promise.resolve(resolved),
+  fetchTrainees: () => Promise.resolve({ trainees, masterHash: 'abc' }),
 }));
 
 /** Every explain the app asks for, in order, each waiting to be settled by the test. */
@@ -365,6 +369,51 @@ describe('/compare', () => {
     expect(screen.getByRole('button', { name: /Stamina/ }).getAttribute('aria-expanded')).toBe('true');
   });
 
+  /*
+   * The scroll offset itself. jsdom does no layout, so the page's offset is
+   * faked -- what is under test is the plumbing: saved on the way out, put
+   * back on the way in, once the columns have settled.
+   */
+  it('puts the page back where it was on a return', async () => {
+    await seed({ tray: tray.slice(0, 2) });
+    at(COMPARE);
+    render(<App />);
+    await settle();
+    await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
+    await explainAs(OGURI, TAMAMO, lineageOf(250));
+    Object.defineProperty(window, 'scrollY', { value: 700, configurable: true });
+    fireEvent.scroll(window);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    fireEvent.click(screen.getAllByRole('button', { name: 'Show breakdown' })[0] as HTMLElement);
+    await settle();
+    expect(scrollTo).not.toHaveBeenCalledWith(0, 700);
+    await act(async () => navigate(COMPARE));
+    await settle();
+    expect(scrollTo).toHaveBeenCalledWith(0, 700);
+    scrollTo.mockRestore();
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+  });
+
+  it('is emptied by a new upload, and says so once', async () => {
+    await seed({ tray });
+    at(ROSTER);
+    const { container } = render(<App />);
+    await settle();
+    const input = container.querySelector('input[type=file]') as HTMLInputElement;
+    const file = new File([JSON.stringify([{ rank_score: 100, card_id: 100601 }])], 'data.json');
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+    });
+    await settle();
+    await act(async () => navigate(COMPARE));
+    expect(screen.getByText('Your compare tray was cleared because the roster changed.')).toBeTruthy();
+    expect(screen.getByText(/Nothing to compare yet/)).toBeTruthy();
+    // Once: leave and come back, and the notice has been seen.
+    await act(async () => navigate(ROSTER));
+    await act(async () => navigate(COMPARE));
+    expect(screen.queryByText('Your compare tray was cleared because the roster changed.')).toBeNull();
+  });
+
   it('is emptied, in memory and in the stored record, when the roster is forgotten', async () => {
     await seed({ tray });
     at(ROSTER);
@@ -466,6 +515,18 @@ describe('a search row', () => {
     expect(location.pathname).toBe(COMPARE);
     await explainAs(OGURI, GOLD_SHIP, lineageOf(284));
     expect(document.activeElement).toBe(screen.getByRole('columnheader', { name: 'Pair A' }));
+  });
+
+  it("raises the app's one banner when the detail finds the game data moved", async () => {
+    await openSearch();
+    fireEvent.click(pickButton());
+    const pending = explains.splice(0, 1)[0];
+    await act(async () => pending?.reject(new StaleMasterError('abc', 'def')));
+    // The detail says why in place; the banner rides on every other screen.
+    expect(within(dialog() as HTMLElement).getByText(/Reload to pick up the new data/)).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await act(async () => navigate(ROSTER));
+    expect(screen.getByText(/The master data changed while this page was open/)).toBeTruthy();
   });
 
   it("still opens /tree with that pair from the detail's Show breakdown", async () => {

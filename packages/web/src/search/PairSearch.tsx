@@ -71,6 +71,7 @@ export function PairSearch({
   compareStatus,
   onCompareAdd,
   onCompareOpen,
+  onStale,
   nav,
 }: {
   roster: RosterResolveResponse;
@@ -102,6 +103,8 @@ export function PairSearch({
   onCompareAdd: (a: number, b: number) => void;
   /** Open /compare at this pair. */
   onCompareOpen: (a: number, b: number) => void;
+  /** The game data moved under this tab; see `explainFailure`. */
+  onStale: () => void;
   /**
    * Rendered by `App`, which is the only place that knows whether the OTHER
    * screens are reachable. A screen that worked out its own navigation could
@@ -149,6 +152,7 @@ export function PairSearch({
     traineeCardId,
     roster.masterHash,
     inspecting,
+    onStale,
   );
 
   const catalogue = useMemo(() => catalogueOf(roster.sparkOptions), [roster]);
