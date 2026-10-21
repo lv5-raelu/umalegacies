@@ -850,9 +850,12 @@ the plan, and what is still unverified:
   filter (the hidden-rows parts add up, "show all" clears both toggles); `--pane-top` after
   `/search`; reloads of `/compare`, `/search` and `/tree` watched every few milliseconds with
   no drop zone at any point. Five layout faults found and fixed.
-- **Not covered:** the shimmer's motion and the 44px coarse-pointer targets (CSS only; the
-  headless browser cannot emulate a coarse pointer). The scroll offset's restore is covered
-  by a jsdom flow with a faked offset.
+- **Touch targets, measured in Aside** at 375x667 with touch emulation on (`pointer: coarse`
+  matches): spark rows 30px → 45px (44 + the rule), the expand button 38x18 → 44x44, remove ×
+  24x24 → 44x44, Show breakdown, the window switch and the hide-identical toggle all 44px
+  tall. With a mouse, the approved 30px density is unchanged.
+- **Not covered:** the shimmer's motion (CSS only). The scroll offset's restore is covered by
+  a jsdom flow with a faked offset.
 
 ## Engineering Review (2026-10-14)
 
