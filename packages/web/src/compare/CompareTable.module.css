@@ -24,7 +24,13 @@
 @media (max-width: 1079.98px) {
   .box {
     overflow: auto;
-    height: calc(100dvh - var(--compare-box-top, 0px));
+    /*
+     * Never shorter than 300px (or the screen). On a short screen the
+     * controls above leave almost nothing -- 101px at 740x360, measured -- so
+     * the box keeps a usable height and the PAGE scrolls the controls away.
+     * At 375x667 the first term wins and nothing changes.
+     */
+    height: max(calc(100dvh - var(--compare-box-top, 0px)), min(100dvh, 300px));
     /* Keyboard focus and find-in-page never land under a pinned region. */
     scroll-padding-top: var(--compare-head, 0px);
     scroll-padding-left: 200px;
@@ -163,12 +169,16 @@
   font-size: var(--text-2xs);
 }
 
-/* Below 600px only: one line per column pins instead of the identity block. */
+/*
+ * One line per column pins instead of the identity block below 600px wide --
+ * AND on a short screen. The whole identity block is ~280px; on a landscape
+ * phone (740x360, measured) it filled the box and not one spark row showed.
+ */
 .stripRow {
   display: none;
 }
 
-@media (max-width: 599.98px) {
+@media (max-width: 599.98px), (max-height: 500px) {
   .identityRow > * {
     position: static;
   }
@@ -331,10 +341,19 @@
   color: var(--ink-faint);
 }
 
+/* Wraps the scope under the value at a column's 200px minimum, where
+   "0.7743% all skills inherited" ran into the next column. */
 .together {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: baseline;
-  gap: var(--space-sm);
+  gap: 0 var(--space-sm);
+  white-space: normal;
+}
+
+.together > * {
+  white-space: nowrap;
 }
 
 .togetherValue {

@@ -840,11 +840,19 @@ the plan, and what is still unverified:
   specifies ("no column errors"); the banner says to reload.
 - **A fourth dev dependency, `@testing-library/user-event`**, pinned, for pressing Enter and
   Space on the search row's native open button in regression 4.
-- **Not covered by an automated test:** the scroll OFFSET restored on return (jsdom does no
-  layout; toggles and open rows are covered), the cleared-tray notice after a NEW UPLOAD
-  (forget is covered), and the shimmer itself. A real-browser pass on the builder's roster at
-  1280x900 and 375x667 checked the pinned header, strip and name column, keyboard expansion,
-  hover titles and `--pane-top` after `/search`, and fixed three faults it found.
+- **The compact strip also pins on SHORT screens** (height 500px or less), and the narrow box
+  is never shorter than `min(100dvh, 300px)`. Found in QA at 740x360 landscape: the controls
+  left the box 101px, the whole identity block (~280px) pinned inside it, and not one spark
+  row was visible. Now the page scrolls the controls away and 8 rows show under the strip.
+- **QA, real browser, the builder's roster:** 1280x900, 375x667, 740x360 and 200% zoom
+  (640x450 at 2x); the pinned header, strip and name column in each regime; keyboard
+  expansion; hover titles; the "Your sparks" band and together rows with a three-spark
+  filter (the hidden-rows parts add up, "show all" clears both toggles); `--pane-top` after
+  `/search`; reloads of `/compare`, `/search` and `/tree` watched every few milliseconds with
+  no drop zone at any point. Five layout faults found and fixed.
+- **Not covered:** the shimmer's motion and the 44px coarse-pointer targets (CSS only; the
+  headless browser cannot emulate a coarse pointer). The scroll offset's restore is covered
+  by a jsdom flow with a faked offset.
 
 ## Engineering Review (2026-10-14)
 
