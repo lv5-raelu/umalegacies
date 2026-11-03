@@ -32,6 +32,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
 const masterPath = process.env.MASTER_DB_PATH ?? resolve(repoRoot, 'master.mdb');
 const outPath = resolve(here, '../data/master-extract.sql');
+const metaPath = resolve(here, '../data/master-meta.json');
 
 if (!existsSync(masterPath)) {
   console.error(
@@ -78,7 +79,7 @@ const TABLES = [
   // Category 5 is keyed by CARD id and holds the bracketed costume alone
   // ("[Special Dreamer]"); category 4 is the same label with the character
   // name already appended, which would force splitting a string to get either
-  // half back. All 114 cards have a row in 5, and 84 of them belong to a
+  // half back. Every card has a row in 5, and most of them belong to a
   // character with more than one card, so without this the trainee picker
   // lists "Oguri Cap" three times identically.
   // Category 172 holds spark DESCRIPTIONS ("A Spark that increases Guts and max
@@ -111,9 +112,9 @@ const TABLES = [
   // sashi/oikomi are the four running styles -- and the values are 1-8 for
   // G through S.
   //
-  // PROJECTED AND DEDUPLICATED. The table has one row per card per rarity, 361
-  // in all, and the aptitudes are identical across a card's rarities: 112 cards
-  // give exactly 112 distinct rows, checked on every extraction by `unique`.
+  // PROJECTED AND DEDUPLICATED. The table has one row per card per rarity,
+  // and the aptitudes are identical across a card's rarities, so N cards give
+  // exactly N distinct rows, checked on every extraction by `unique`.
   // Carrying the stat-growth columns beside them would be 17 more per row for
   // nothing that is read.
   {
@@ -232,9 +233,75 @@ const header = [
 const sql = header.join('\n') + '\n' + body.join('\n') + '\n';
 writeFileSync(outPath, sql);
 
+/*
+ * master-meta.json: WHICH game data this is, and the counts the tests check.
+ *
+ * THE COUNTS ARE COMPUTED HERE, IN SQL, ON PURPOSE. The roster tests used to pin
+ * them as literals -- 112 trainee options, 82 ambiguous -- so every patch that
+ * added a card failed the suite by design and someone edited two numbers. That
+ * made an automated update impossible: it could never go green. Writing them
+ * here moves the change into a reviewable diff ("playableCards: 109 -> 112")
+ * and leaves the tests to check what they were really for: that the picker
+ * agrees with the data.
+ *
+ * Which only means something because the two are computed DIFFERENTLY. These
+ * are raw SQL against master.mdb; the test runs `traineeOptions` over the
+ * extract. If the picker ever let the two placeholder cards back in, or lost a
+ * costume, the two would disagree. Computing them here with the picker's own
+ * code would make that test incapable of failing.
+ *
+ * `game` comes from the marker fetch:master writes beside master.mdb, and only
+ * when the marker's sha256 is THIS file's: a master.mdb copied from a Steam
+ * install afterwards must not inherit the downloaded one's version. Absent a
+ * matching marker it is null, and the scheduled check reads null as "unknown, so
+ * fetch once and record it".
+ */
+const markerPath = `${masterPath}.version`;
+let game = null;
+if (existsSync(markerPath)) {
+  try {
+    const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
+    if (marker.sha256 === sourceHash) {
+      game = {
+        appVersion: marker.appVersion,
+        resourceVersion: marker.resourceVersion,
+        cdnName: marker.cdnName,
+      };
+    }
+  } catch {
+    // A first-version `app:resource` marker carries no hash, so it cannot be
+    // matched to this file. Unknown is the honest answer.
+  }
+}
+
+const count = (sqlText) => db.prepare(sqlText).get().n;
+// Playable means default_rarity > 0: the two 91xxxxx placeholder cards have 0.
+const PLAYABLE = 'SELECT id, chara_id FROM card_data WHERE default_rarity > 0';
+const meta = {
+  generatedBy: 'packages/api/scripts/build-master-extract.mjs -- do not edit by hand',
+  source: { sha256: sourceHash, extracted: new Date().toISOString().slice(0, 10) },
+  game,
+  counts: {
+    cards: count('SELECT COUNT(*) AS n FROM card_data'),
+    playableCards: count(`SELECT COUNT(*) AS n FROM (${PLAYABLE})`),
+    characters: count(`SELECT COUNT(DISTINCT chara_id) AS n FROM (${PLAYABLE})`),
+    charactersWithSeveralCards: count(
+      `SELECT COUNT(*) AS n FROM (SELECT chara_id FROM (${PLAYABLE}) GROUP BY chara_id HAVING COUNT(*) > 1)`,
+    ),
+    // A card whose character has more than one playable card: its name alone
+    // is ambiguous, so the picker tags it with the costume.
+    ambiguousCards: count(
+      `SELECT COUNT(*) AS n FROM (${PLAYABLE}) p WHERE (SELECT COUNT(*) FROM (${PLAYABLE}) q WHERE q.chara_id = p.chara_id) > 1`,
+    ),
+  },
+};
+writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n');
+
 const bytes = Buffer.byteLength(sql);
 console.log(
   `wrote data/master-extract.sql: ${(bytes / 1024).toFixed(0)} KB, ` +
     `${sql.split('\n').length.toLocaleString()} lines\n  ${counts.join('\n  ')}\n` +
-    `  source master.mdb ${sourceHash.slice(0, 12)}`,
+    `  source master.mdb ${sourceHash.slice(0, 12)}` +
+    `\nwrote data/master-meta.json: game ${game ? `${game.appVersion} (${game.cdnName})` : 'unknown -- no matching fetch:master marker'}, ` +
+    Object.entries(meta.counts).map(([k, v]) => `${k} ${v}`).join(', '),
 );

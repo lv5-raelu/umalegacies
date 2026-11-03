@@ -76,8 +76,19 @@ db.exec(readFileSync(extractPath, 'utf8'));
  * node. gametora's filename carries both ids, so the correct image was always
  * one join away.
  */
+/*
+ * PLAYABLE CARDS ONLY (default_rarity > 0), the same rule the trainee picker
+ * uses. The two placeholders, 9100101 and 9101101, have default_rarity 0:
+ * nobody can train them, so they can never be a veteran or an ancestor, and
+ * gametora has never hosted them. Asking anyway made them the only two misses
+ * on a run with no new cards -- and two misses out of two read as "every fetch
+ * failed", so the game-data workflow's first test run failed on a patch
+ * that needed no portraits at all.
+ */
 const picks = new Map();
-for (const row of db.prepare('SELECT id, chara_id FROM card_data ORDER BY id').all()) {
+for (const row of db
+  .prepare('SELECT id, chara_id FROM card_data WHERE default_rarity > 0 ORDER BY id')
+  .all()) {
   // SQLite is dynamically typed and this extract is generated text, so assert
   // rather than assume. Both values are interpolated into a URL and a filename;
   // a non-integer would be an arbitrary-path write.
@@ -152,7 +163,7 @@ async function fetchOne([cardId, charaId]) {
   }
 }
 
-/** A small pool with a pause between requests. 114 cards is not a reason to hammer anyone. */
+/** A small pool with a pause between requests. A hundred-odd cards is not a reason to hammer anyone. */
 const queue = [...wanted];
 await Promise.all(
   Array.from({ length: Math.min(concurrency, queue.length) }, async () => {

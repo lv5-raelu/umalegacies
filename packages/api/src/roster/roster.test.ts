@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { RosterMemberInput, RosterVeteranInput } from '@umalegacies/types';
-import { extractMaster } from '../master/master-extract.js';
+import { extractMaster, findExtract } from '../master/master-extract.js';
 import { resolveRoster, traineeOptions } from './roster.js';
 
 const master = extractMaster();
@@ -39,7 +40,7 @@ describe('resolveRoster: who each veteran is', () => {
   });
 
   it('tags a costume only where the character has more than one card', () => {
-    // 82 of 112 cards need the tag. On the other 30 it would be noise on every
+    // Most cards need the tag. On the rest it would be noise on every
     // row, and a row is 52px with four other things competing for it.
     const { veterans } = resolveRoster(
       [
@@ -173,13 +174,51 @@ describe('the spark catalogue', () => {
   });
 });
 
+/**
+ * The counts `build:master` computed from master.mdb in plain SQL.
+ *
+ * THESE USED TO BE LITERALS -- `toBe(112)`, `toBe(82)` -- and every patch that
+ * added a card failed this file by design until someone edited them. Three data
+ * PRs in a row did exactly that, and it is what stood between a game patch and
+ * an automated update: a suite that fails on every new character can never go
+ * green on its own. The numbers now move in `master-meta.json`, where a patch
+ * shows them changing in its diff, and these tests check what they were always
+ * really for: that the PICKER agrees with the DATA.
+ *
+ * That only works because the two sides are computed differently -- raw SQL at
+ * extraction time against `traineeOptions` over the extract here -- so a picker
+ * that let the placeholder cards back in, or dropped a costume, still fails.
+ */
+const meta = JSON.parse(
+  readFileSync(new URL('../../data/master-meta.json', import.meta.url), 'utf8'),
+) as {
+  source: { sha256: string };
+  counts: {
+    playableCards: number;
+    characters: number;
+    charactersWithSeveralCards: number;
+    ambiguousCards: number;
+  };
+};
+
+describe('master-meta.json describes the extract it sits beside', () => {
+  it('names the same source master.mdb as the extract header', () => {
+    // Without this, a stale meta file would let the tests below pass against
+    // counts from a different patch. build:master writes both, so they can only
+    // disagree if one was regenerated and the other was not.
+    const header = readFileSync(findExtract(), 'utf8').slice(0, 2000);
+    expect(header).toContain(`source master.mdb sha256: ${meta.source.sha256}`);
+  });
+});
+
 describe('the trainee picker', () => {
   const options = traineeOptions(master);
 
   it('offers every card, not every character, because a card is a costume', () => {
-    // 70 characters span 112 playable cards, and a costume carries its own unique skill.
-    expect(options.length).toBe(112);
-    expect(new Set(options.map((o) => o.charaId)).size).toBe(70);
+    // A costume carries its own unique skill, so the picker lists cards.
+    expect(options.length).toBe(meta.counts.playableCards);
+    expect(new Set(options.map((o) => o.charaId)).size).toBe(meta.counts.characters);
+    expect(options.length).toBeGreaterThan(meta.counts.characters);
   });
 
   it('never offers the two placeholder cards', () => {
@@ -189,14 +228,25 @@ describe('the trainee picker', () => {
     const ids = options.map((o) => o.cardId);
     expect(ids).not.toContain(9100101);
     expect(ids).not.toContain(9101101);
-    const grass = options.filter((o) => o.name === 'Grass Wonder');
-    expect(grass.map((o) => o.costume)).toEqual(['[Stone-Piercing Blue]', '[Saintly Jade Cleric]']);
+    // And so no costume is listed twice. Checked as "no duplicates" rather than
+    // as the exact list, which a third Grass Wonder costume would break for no
+    // reason to do with placeholders.
+    const grass = options.filter((o) => o.name === 'Grass Wonder').map((o) => o.costume);
+    expect(grass).toContain('[Stone-Piercing Blue]');
+    expect(new Set(grass).size).toBe(grass.length);
   });
 
-  it('marks the 82 cards whose bare name is ambiguous', () => {
-    expect(options.filter((o) => o.ambiguous).length).toBe(82);
+  it('marks every card whose bare name is ambiguous, and only those', () => {
+    expect(options.filter((o) => o.ambiguous).length).toBe(meta.counts.ambiguousCards);
+    expect(new Set(options.filter((o) => o.ambiguous).map((o) => o.charaId)).size).toBe(
+      meta.counts.charactersWithSeveralCards,
+    );
+    // Both of Oguri Cap's known costumes, tagged. `toContain` rather than the
+    // exact list: a third costume should add a row here, not fail the test.
     const oguri = options.filter((o) => o.name === 'Oguri Cap');
-    expect(oguri.map((o) => o.costume)).toEqual(['[Starlight Beat]', '[Ashen Miracle]']);
+    expect(oguri.map((o) => o.costume)).toEqual(
+      expect.arrayContaining(['[Starlight Beat]', '[Ashen Miracle]']),
+    );
     expect(oguri.every((o) => o.ambiguous)).toBe(true);
   });
 

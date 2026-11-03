@@ -128,7 +128,7 @@ export class MasterData {
   private readonly baseCardByCharaId = new Map<number, number>();
   /** Playable cards (default_rarity > 0), ascending by id, as card_data delivers them. */
   private readonly playableCards: Array<{ cardId: number; charaId: number }> = [];
-  /** chara_id -> every playable card_id it has, ascending. 40 of 70 characters have more than one. */
+  /** chara_id -> every playable card_id it has, ascending. Over half of all characters have more than one. */
   private readonly cardsByCharaId = new Map<number, number[]>();
   /** card_id -> its bracketed costume label, e.g. "[Special Dreamer]". */
   private readonly costumeByCardId = new Map<number, string>();
@@ -307,7 +307,7 @@ export class MasterData {
    * The ONE place card_id becomes chara_id.
    *
    * The roster and every ancestor carry card_id (101601); succession relations
-   * key on chara_id (1016). `card_id / 100` holds for 112 of 114 cards and
+   * key on chara_id (1016). `card_id / 100` holds for every card but two, and
    * fails on 9100101 -> 1001 and 9101101 -> 1011. hakuraku inlines the division
    * in at least three functions, which means fixing it means fixing it three
    * times and missing the third. Join, do not divide.
@@ -349,7 +349,7 @@ export class MasterData {
    * The costume label for a card, but ONLY where it is load-bearing.
    *
    * Returns null for a character with a single card, where a tag would be noise
-   * on every row. 82 of 112 cards belong to a character with more than one, and
+   * on every row. Most cards belong to a character with more than one, and
    * for those the tag is the only thing separating two otherwise identical rows
    * that carry DIFFERENT unique skills, i.e. different green sparks.
    */

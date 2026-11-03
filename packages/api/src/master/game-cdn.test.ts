@@ -3,10 +3,12 @@ import {
   base32,
   decodeLz4,
   fetchMasterMdb,
+  fetchWithRetry,
   genericUrl,
   hnameOf,
   isLz4Frame,
   isSqlite,
+  liveMasterName,
   manifestEntries,
   manifestUrl,
   parseBsv,
@@ -192,6 +194,23 @@ describe('the whole chain, against a fake CDN', () => {
     expect(result.path).toEqual(seen.map((s) => s.url));
   });
 
+  it('reports the content address of what it downloaded', async () => {
+    const { fetchImpl } = cdn(storedFrame(fakeDatabase));
+    const result = await fetchMasterMdb('10008400', fetchImpl);
+    expect(result.cdnName).toBe('HBKZJDH2HQXIKJSLFSFONM3VSF6M4V7A');
+  });
+
+  it('can name the live master.mdb without downloading it', async () => {
+    // What the daily check runs. Three manifests, under a kilobyte, and the
+    // 5 MB file is never requested -- if it were, this would cost a full
+    // download every day the game did not change.
+    const { fetchImpl, seen } = cdn(storedFrame(fakeDatabase));
+    const live = await liveMasterName('10008400', fetchImpl);
+    expect(live.cdnName).toBe('HBKZJDH2HQXIKJSLFSFONM3VSF6M4V7A');
+    expect(seen).toHaveLength(3);
+    expect(seen.some((s) => s.url.includes('/Generic/'))).toBe(false);
+  });
+
   it('says who it is, and it is not the game client', async () => {
     const { fetchImpl, seen } = cdn(storedFrame(fakeDatabase));
     await fetchMasterMdb('10008400', fetchImpl);
@@ -222,5 +241,41 @@ describe('the whole chain, against a fake CDN', () => {
     expect(isSqlite(fakeDatabase)).toBe(true);
     expect(isSqlite(new TextEncoder().encode('SQLite format 3!'))).toBe(false);
     expect(isSqlite(new Uint8Array(8))).toBe(false);
+  });
+});
+
+describe('a network that fails for a moment', () => {
+  it('retries a connection that never answered, and returns the answer when it comes', async () => {
+    let calls = 0;
+    const flaky = (async () => {
+      calls++;
+      if (calls < 3) throw new TypeError('fetch failed');
+      return new Response('ok');
+    }) as unknown as typeof fetch;
+    const response = await fetchWithRetry(flaky, 'https://example.test/', {}, { pauseMs: 1 });
+    expect(await response.text()).toBe('ok');
+    expect(calls).toBe(3);
+  });
+
+  it('gives up after its attempts and says how many it made', async () => {
+    const down = (async () => {
+      throw new TypeError('fetch failed');
+    }) as unknown as typeof fetch;
+    await expect(
+      fetchWithRetry(down, 'https://example.test/', {}, { attempts: 3, pauseMs: 1 }),
+    ).rejects.toThrow(/fetch failed .*3 attempts/);
+  });
+
+  it('never retries an HTTP error, because a 404 is an answer', async () => {
+    // Asking a server again after it has said no will not change its mind, and
+    // is the kind of thing that gets a client blocked.
+    let calls = 0;
+    const refuses = (async () => {
+      calls++;
+      return new Response(null, { status: 404 });
+    }) as unknown as typeof fetch;
+    const response = await fetchWithRetry(refuses, 'https://example.test/', {}, { pauseMs: 1 });
+    expect(response.status).toBe(404);
+    expect(calls).toBe(1);
   });
 });

@@ -4,6 +4,10 @@
  *   npm run fetch:master --workspace @umalegacies/api [-- --force] [-- --resource-version N]
  *   npm run update:master      # from the repo root: this, then every rebuild step
  *
+ *   --skip-if-committed   stop, without downloading, when the live master.mdb is
+ *                         the one packages/api/data/master-meta.json records.
+ *                         What the scheduled GitHub Action runs.
+ *
  * Writes master.mdb at the repository root -- where build:master has always
  * looked -- or at MASTER_DB_PATH. Nothing it writes is committed: `master.mdb*`
  * in .gitignore covers the database, its `.version` marker, the `.download` it
@@ -24,10 +28,11 @@
  * ever down, `--resource-version` takes the number directly.
  */
 import { DatabaseSync } from 'node:sqlite';
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchMasterMdb, USER_AGENT } from '../dist/master/game-cdn.js';
+import { fetchMasterMdb, fetchWithRetry, liveMasterName, USER_AGENT } from '../dist/master/game-cdn.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
@@ -35,11 +40,40 @@ const target = process.env.MASTER_DB_PATH ?? resolve(repoRoot, 'master.mdb');
 const marker = `${target}.version`;
 const staging = `${target}.download`;
 const backup = `${target}.old`;
+const committedMeta = resolve(here, '../data/master-meta.json');
 
 const VERSION_URL = 'https://uma.moe/api/ver';
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
+const skipIfCommitted = args.includes('--skip-if-committed');
+
+/**
+ * Tells a GitHub Actions workflow what happened, through the file it reads step
+ * outputs from. A no-op anywhere else.
+ */
+function output(values) {
+  if (!process.env.GITHUB_OUTPUT) return;
+  appendFileSync(
+    process.env.GITHUB_OUTPUT,
+    Object.entries(values).map(([k, v]) => `${k}=${v}\n`).join(''),
+  );
+}
+
+/**
+ * The marker next to master.mdb: which file this is. JSON since the content
+ * address was added; the first version wrote `app:resource` on one line, and
+ * that is still read so an older marker means "unknown file", not a crash.
+ */
+function readMarker() {
+  if (!existsSync(marker)) return null;
+  const text = readFileSync(marker, 'utf8').trim();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { legacy: text };
+  }
+}
 
 /** `--resource-version 10008400`, or null. A bare number elsewhere is not read as one. */
 function versionFlag() {
@@ -59,7 +93,7 @@ async function liveVersion() {
 
   let response;
   try {
-    response = await fetch(VERSION_URL, {
+    response = await fetchWithRetry(fetch, VERSION_URL, {
       headers: { 'User-Agent': USER_AGENT, 'Cache-Control': 'no-cache' },
     });
   } catch (error) {
@@ -105,18 +139,60 @@ function verify(path) {
 }
 
 const started = Date.now();
-const version = await liveVersion();
-const label = `${version.app_version}:${version.resource_version}`;
-const current = existsSync(marker) ? readFileSync(marker, 'utf8').trim() : null;
+let version;
+let live;
+try {
+  version = await liveVersion();
+  live = await liveMasterName(version.resource_version);
+} catch (error) {
+  // A message, not a stack trace: this is read in a CI log or a terminal by
+  // someone deciding whether to act, and the stack says nothing to them.
+  console.error(`Could not find the live master.mdb: ${error.message}`);
+  process.exit(1);
+}
+const have = readMarker();
+output({
+  app_version: version.app_version,
+  resource_version: version.resource_version,
+  cdn_name: live.cdnName,
+});
 
-if (!force && current === label && existsSync(target)) {
-  console.log(`master.mdb is already the live version (${label}). Nothing to do; --force refetches.`);
+/*
+ * COMPARED BY CONTENT ADDRESS, not by version number. The resource version
+ * moves for any asset patch; the CDN's name for master.mdb moves only when the
+ * file does. Finding it costs three manifests and under a kilobyte, so neither
+ * check below ever downloads the 5 MB file to learn that nothing changed.
+ */
+if (skipIfCommitted) {
+  const committed = existsSync(committedMeta) ? JSON.parse(readFileSync(committedMeta, 'utf8')) : null;
+  if (!force && committed?.game?.cdnName === live.cdnName) {
+    console.log(
+      `The repository already has the live master.mdb (${live.cdnName}, game ${version.app_version}). ` +
+        'Nothing to do.',
+    );
+    output({ changed: 'false' });
+    process.exit(0);
+  }
+  console.log(
+    `The live master.mdb is ${live.cdnName}; the repository records ` +
+      `${committed?.game?.cdnName ?? 'no CDN name'}. Downloading.`,
+  );
+} else if (!force && have?.cdnName === live.cdnName && existsSync(target)) {
+  console.log(
+    `master.mdb is already the live one (${live.cdnName}, game ${version.app_version}). ` +
+      'Nothing to do; --force refetches.',
+  );
+  output({ changed: 'false' });
   process.exit(0);
 }
 
 console.log(
   `Live game ${version.app_version}, resource version ${version.resource_version}. ` +
-    (current ? `Have ${current}.` : existsSync(target) ? 'Have a master.mdb of unknown version.' : 'Have none.'),
+    (have?.cdnName
+      ? `Have ${have.cdnName} (game ${have.appVersion}).`
+      : existsSync(target)
+        ? 'Have a master.mdb of unknown origin.'
+        : 'Have none.'),
 );
 
 let fetched;
@@ -143,7 +219,23 @@ const before = cardsIn(target);
 // extract reads, comparing against it is the fastest way to see what moved.
 if (existsSync(target)) renameSync(target, backup);
 renameSync(staging, target);
-writeFileSync(marker, `${label}\n`);
+// The sha256 lets build:master confirm the marker describes THIS file before it
+// records the version, so a master.mdb copied over from Steam afterwards is not
+// mislabelled with the downloaded one's version.
+writeFileSync(
+  marker,
+  JSON.stringify(
+    {
+      appVersion: version.app_version,
+      resourceVersion: version.resource_version,
+      cdnName: fetched.cdnName,
+      sha256: createHash('sha256').update(fetched.bytes).digest('hex'),
+    },
+    null,
+    2,
+  ) + '\n',
+);
+output({ changed: 'true' });
 const after = cardsIn(target);
 
 const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;

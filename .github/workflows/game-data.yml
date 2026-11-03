@@ -1,0 +1,187 @@
+# Keeps the game data current without anyone copying master.mdb by hand.
+#
+# Every 6 hours: ask which master.mdb is live -- three manifests from the game's
+# CDN, under a kilobyte -- and stop if the repository already has it, which is
+# most days. When the game has changed it: download it, rebuild the extract,
+# master.json and the portraits, and run the tests.
+#
+#   tests pass  ->  commit to master. Vercel deploys every push to master, so
+#                   the live site updates and GitHub never falls behind it.
+#   tests fail  ->  push a branch, open an issue, deploy NOTHING. The live site
+#                   stays on the data that last passed.
+#
+# WHAT IT CANNOT DO: produce new expected values for the golden fixtures. The
+# fixtures themselves need no regenerating -- each carries its whole lineage, so
+# they run here unchanged -- but their expected values are fixed numbers read off
+# hakuraku and breeding-optimizer. A patch that changes the data those numbers
+# depend on fails the tests and lands as an issue, because re-deriving them means
+# checking those tools again, which is a person's job.
+#
+# AN ISSUE RATHER THAN A PULL REQUEST because this repository does not let
+# Actions open pull requests ("Allow GitHub Actions to create and approve pull
+# requests" is off). The issue links straight to the branch's compare page.
+name: Game data
+
+on:
+  schedule:
+    # Every 6 hours, at 00:30, 06:30, 12:30 and 18:30 UTC.
+    #
+    # EVERY 6 HOURS RATHER THAN DAILY, because nobody knows exactly when a
+    # Global patch lands, and a daily run at the wrong hour could leave the site
+    # a day behind the game. This bounds it at six hours whenever it lands. A
+    # run that finds nothing still bills a minute (GitHub rounds each job up),
+    # so four a day is ~120 of a private repo's 2,000 free minutes a month.
+    #
+    # Half past rather than on the hour: GitHub delays scheduled runs most at
+    # the start of the hour, and drops some under enough load.
+    - cron: '30 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild even if the repository already has the live master.mdb
+        type: boolean
+        default: false
+      dry_run:
+        description: Push to a game-data-dry-run branch instead of master, and open no issue
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+# Two runs at once could both commit the same patch.
+concurrency:
+  group: game-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The full history: the publish step rebases onto whatever master is
+          # by then, and the describe step reads the committed data at HEAD.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Is there new game data?
+        id: fetch
+        run: >
+          npm run fetch:master --workspace @umalegacies/api --
+          --skip-if-committed ${{ inputs.force && '--force' || '' }}
+
+      - name: Rebuild the extract, master.json and portraits
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          npm run build:master --workspace @umalegacies/api
+          npm run build:master-json --workspace @umalegacies/api
+          npm run fetch:portraits --workspace @umalegacies/api
+
+      - name: Test
+        id: test
+        if: steps.fetch.outputs.changed == 'true'
+        continue-on-error: true
+        shell: bash
+        # Plain text: the log is quoted into an issue, where colour codes would
+        # arrive as literal ^[[2m noise. Found by the failure drill.
+        env:
+          NO_COLOR: '1'
+          FORCE_COLOR: '0'
+        run: npm test 2>&1 | tee test.log
+
+      - name: Describe the change
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          node packages/api/scripts/describe-master-change.mjs --subject > subject.txt
+          node packages/api/scripts/describe-master-change.mjs > body.txt
+          cat subject.txt; echo; cat body.txt
+
+      - name: Commit
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add packages/api/data packages/web/public/master.json packages/web/public/portraits
+          if git diff --cached --quiet; then
+            if [ '${{ inputs.dry_run }}' = 'true' ]; then
+              # A dry run exists to exercise the publish path -- including
+              # whether Vercel will deploy a commit the bot made -- so it
+              # publishes something even when the data is already current.
+              git commit --allow-empty -m 'Dry run: the rebuild changed nothing' -m "$(cat body.txt)"
+              exit 0
+            fi
+            echo 'The rebuild produced no change to commit.'
+            echo 'nothing=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          { cat subject.txt; echo; cat body.txt; } > message.txt
+          git commit -F message.txt
+        id: commit
+
+      - name: Publish to master (Vercel deploys it)
+        if: >
+          steps.fetch.outputs.changed == 'true' && steps.commit.outputs.nothing != 'true' &&
+          steps.test.outcome == 'success' && !inputs.dry_run
+        run: |
+          # Someone may have pushed since this run checked out. Replay on top.
+          git pull --rebase origin master
+          git push origin HEAD:master
+
+      - name: Dry run -- publish to a branch instead
+        if: >
+          steps.fetch.outputs.changed == 'true' && steps.commit.outputs.nothing != 'true' &&
+          inputs.dry_run
+        run: git push --force origin HEAD:refs/heads/game-data-dry-run
+
+      - name: Tests failed -- push a branch and open an issue
+        if: >
+          steps.fetch.outputs.changed == 'true' && steps.commit.outputs.nothing != 'true' &&
+          steps.test.outcome == 'failure' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          branch="game-data-${{ steps.fetch.outputs.resource_version }}"
+          git push --force origin "HEAD:refs/heads/$branch"
+          {
+            echo "The scheduled game-data run found a new master.mdb, but the tests failed, so"
+            echo "nothing was deployed. The live site is still on the data that last passed."
+            echo
+            echo '```'
+            cat body.txt
+            echo '```'
+            echo
+            echo "**Branch:** \`$branch\` -- [compare and open a pull request](${{ github.server_url }}/${{ github.repository }}/compare/master...$branch?expand=1)"
+            echo
+            echo '<details><summary>Failing tests</summary>'
+            echo
+            echo '```'
+            # Failing test names, their assertions, and each package's totals.
+            # Not every "Error:" line: several tests log errors ON PURPOSE (the
+            # error filter's), and quoting those buried the real failure. Any
+            # colour code that slipped past NO_COLOR is stripped too, in either
+            # form: the escape byte, or the literal "^[" GitHub renders it as.
+            sed -E 's/(\x1b|\^\[)\[[0-9;]*m//g' test.log \
+              | grep -E '(^| )FAIL |AssertionError|Test Files|^ *Tests ' \
+              | grep -v '^::' | head -60
+            echo '```'
+            echo '</details>'
+            echo
+            echo "[Run log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > issue.md
+          gh issue create --title "$(cat subject.txt) -- tests failed" --body-file issue.md
+
+      - name: Fail the run when the tests failed
+        if: steps.test.outcome == 'failure'
+        run: |
+          echo 'The tests failed; see the issue this run opened.'
+          exit 1
