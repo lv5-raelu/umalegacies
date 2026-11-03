@@ -17,6 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:roster": "node scripts/check-roster.mjs",
     "build:fixtures": "node --import ts-node/esm scripts/build-fixtures.ts",
+    "fetch:master": "npm run build && node scripts/fetch-master.mjs",
     "build:master": "node scripts/build-master-extract.mjs",
     "build:master-json": "npm run build --workspace @umalegacies/core --prefix ../.. && node scripts/build-master-json.mjs",
     "fetch:portraits": "node scripts/fetch-portraits.mjs",

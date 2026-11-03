@@ -289,9 +289,17 @@ carries the 12-digit trainer IDs of everyone you have borrowed an ancestor from.
 
 ### After a game update
 
-Put the new `master.mdb` at the repository root, then:
+One command, from the repository root:
 
 ```bash
+npm run update:master
+```
+
+It downloads the live Global `master.mdb` and then runs every rebuild step in order.
+Run the steps separately when one of them needs attention:
+
+```bash
+npm run fetch:master   --workspace @umalegacies/api   # download the live master.mdb
 npm run build:master   --workspace @umalegacies/api   # regenerate the extract
 npm run build:fixtures --workspace @umalegacies/api   # regenerate the fixtures
 npm run build:master-json --workspace @umalegacies/api # regenerate web/public/master.json
@@ -299,9 +307,22 @@ npm run fetch:portraits --workspace @umalegacies/api  # new cards' portraits; co
 npm test
 ```
 
-If a patch moved anything the affinity rules read, the golden boot check fails
-loudly rather than quietly serving different numbers. To run the API against the
-full `master.mdb` instead of the extract, set `MASTER_DB_PATH`.
+**`fetch:master` downloads from the same place the game does.** The client has no
+special source for `master.mdb`: it follows a chain of public manifests on Cygames'
+asset CDN, keyed by the live resource version, with no login. `fetch:master` walks the
+same chain (`packages/api/src/master/game-cdn.ts`), checks the result is an intact
+SQLite database with the tables this app is built on, and only then replaces
+`master.mdb`. The previous one is kept as `master.mdb.old`, and a `master.mdb.version`
+marker means a second run does nothing until the game updates; `--force` refetches.
+
+The live version number comes from uma.moe's public `/api/ver`, which needs no key. If
+that is ever down, pass it directly: `-- --resource-version 10008400`. Copying the file
+from a Steam install still works exactly as before; put it at the repository root.
+
+It is still not fully hands-off, and should not be. If a patch moved anything the
+affinity rules read, the golden boot check fails loudly rather than quietly serving
+different numbers, and a person has to look. To run the API against the full
+`master.mdb` instead of the extract, set `MASTER_DB_PATH`.
 
 ## Conventions
 
