@@ -463,4 +463,9 @@ this tool reads. Without it there is no input and no product.
 **[ayaliz/hakuraku](https://github.com/ayaliz/hakuraku)** (MIT), and its ancestor
 [SSHZ-ORG/hakuraku](https://github.com/SSHZ-ORG/hakuraku), are the reference implementation
 of the affinity engine and the correctness oracle this project tests against. Any ported
-code ships their `LICENSE` and copyright notice.
+code ships their `LICENSE` and copyright notice. The transcription lives in
+`packages/api/src/affinity/hakuraku-oracle.ts`, and `oracle.test.ts` compares all six
+Individual Affinities against it on every test run, over a committed corpus of public
+uma.moe lineages plus seeded synthetic ones. Because both sides compute from the current
+game data, that check keeps working across game patches; `npm run check:roster` runs the
+same comparison over your own roster.
