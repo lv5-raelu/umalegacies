@@ -10,11 +10,12 @@
 #   tests fail  ->  push a branch, open an issue, deploy NOTHING. The live site
 #                   stays on the data that last passed.
 #
-# WHAT IT CANNOT DO: regenerate the golden fixtures. build:fixtures needs the
-# builder's data.json, which carries other players' trainer ids and never leaves
-# their machine. The committed fixtures still run against the new extract, so a
-# patch that moves anything the affinity rules read fails the tests and lands as
-# an issue, which is the right outcome.
+# WHAT IT CANNOT DO: produce new expected values for the golden fixtures. The
+# fixtures themselves need no regenerating -- each carries its whole lineage, so
+# they run here unchanged -- but their expected values are fixed numbers read off
+# hakuraku and breeding-optimizer. A patch that changes the data those numbers
+# depend on fails the tests and lands as an issue, because re-deriving them means
+# checking those tools again, which is a person's job.
 #
 # AN ISSUE RATHER THAN A PULL REQUEST because this repository does not let
 # Actions open pull requests ("Allow GitHub Actions to create and approve pull

@@ -304,9 +304,11 @@ the CDN's content address for `master.mdb` differs from the one `master-meta.jso
 records. Run it by hand from the Actions tab: `force` rebuilds regardless, and `dry_run`
 publishes to a `game-data-dry-run` branch instead of `master`.
 
-It cannot regenerate the golden fixtures, which need your `data.json`. The committed
-fixtures still run against every new extract, so a patch that moves anything the
-affinity rules read fails the tests and arrives as an issue for you to fix locally.
+The golden fixtures run in every check, and need nothing regenerated: each one
+carries its whole lineage, and a patch does not change your veterans. Their expected
+values are fixed numbers read off hakuraku and breeding-optimizer, though, so a patch
+that changes the data those numbers depend on fails the tests and arrives as an issue.
+Producing new expected values means checking those tools again, which is a person's job.
 
 **To do it by hand,** one command from the repository root:
 
