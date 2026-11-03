@@ -8,8 +8,8 @@ import styles from './Combobox.module.css';
  * Who you are about to train.
  *
  * NOT a native <select>. An <option> can hold text and nothing else, and text is
- * exactly what fails here: 70 characters span 112 cards, so the list holds
- * "Oguri Cap" three times over, and the costume tag is the only thing telling
+ * exactly what fails here: there are more cards than characters, so the list
+ * holds "Oguri Cap" twice, and the costume tag is the only thing telling
  * them apart. The costume is not cosmetic -- it carries its own unique skill,
  * which is the green spark this whole tool is about -- so the picture is the
  * fastest way to know which one you are choosing.
@@ -116,7 +116,7 @@ export function TraineePicker({
                       </span>
                       <span className={styles.optionText}>
                         <span className={styles.optionName}>{option.name}</span>
-                        {/* Only where it is load-bearing: 82 of 112 cards. */}
+                        {/* Only where it is load-bearing, which is most cards. */}
                         {option.costume && (
                           <span className={styles.optionCostume}>{option.costume}</span>
                         )}

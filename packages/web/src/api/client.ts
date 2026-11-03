@@ -99,8 +99,8 @@ const post = <T>(path: string, body: unknown): Promise<T> =>
  * since 2026-09-18 so a clone deploys with its artwork. A card with no portrait
  * is a 404 and the component falls back to initials.
  *
- * Keyed by CARD id, which is the costume. 40 of 70 characters have more than
- * one, and a costume carries its own unique skill -- the green spark printed
+ * Keyed by CARD id, which is the costume. Over half of all characters have more
+ * than one, and a costume carries its own unique skill -- the green spark printed
  * directly under this image.
  */
 export const portraitUrl = (cardId: number): string => `/portraits/${cardId}.png`;
