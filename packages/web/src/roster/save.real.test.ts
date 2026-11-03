@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { slimSave } from './save';
 
 /**
@@ -14,15 +14,28 @@ import { slimSave } from './save';
  * SKIPPED when the file is absent, which is the normal case -- `data.json` is
  * gitignored and never in CI. It runs on the builder's machine, which is where
  * the real file is.
+ *
+ * THE FILE IS READ IN `beforeAll`, NEVER IN THE `describe` BODY. `skipIf` skips
+ * the tests but still RUNS the describe callback while collecting them, so a
+ * read at that level crashed the whole suite on any checkout without the file
+ * -- the opposite of skipping. It went unnoticed because this repository had no
+ * CI to be such a checkout; the first clean run, on 2026-11-03, found it.
  */
 // vitest runs with the workspace as cwd, and this file is ESM, so no __dirname.
 const SAVE = resolve(process.cwd(), '../../data.json');
 const present = existsSync(SAVE);
 
 describe.skipIf(!present)("slimSave against a real data.json", () => {
-  const text = readFileSync(SAVE, 'utf8');
-  const { veterans, skipped } = slimSave(text);
-  const wire = JSON.stringify({ veterans });
+  let text: string;
+  let veterans: ReturnType<typeof slimSave>['veterans'];
+  let skipped: ReturnType<typeof slimSave>['skipped'];
+  let wire: string;
+
+  beforeAll(() => {
+    text = readFileSync(SAVE, 'utf8');
+    ({ veterans, skipped } = slimSave(text));
+    wire = JSON.stringify({ veterans });
+  });
 
   it('reads every veteran in the file, skipping none', () => {
     expect(veterans.length).toBe((JSON.parse(text) as unknown[]).length);
