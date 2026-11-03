@@ -36,8 +36,9 @@ const outPath = resolve(here, '../data/master-extract.sql');
 if (!existsSync(masterPath)) {
   console.error(
     `missing ${masterPath}\n` +
-      `Extract master.mdb from your game install (Steam local files) and put it ` +
-      `at the repository root, or set MASTER_DB_PATH.`,
+      `Download the live one with \`npm run fetch:master --workspace @umalegacies/api\`, ` +
+      `or copy it from your game install (Steam local files) to the repository root, ` +
+      `or set MASTER_DB_PATH.`,
   );
   process.exit(1);
 }

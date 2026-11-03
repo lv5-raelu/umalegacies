@@ -18,7 +18,8 @@
     "dev:web": "npm run dev --workspace @umalegacies/web",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run typecheck --workspaces",
+    "update:master": "npm run fetch:master -w @umalegacies/api && npm run build:master -w @umalegacies/api && npm run build:fixtures -w @umalegacies/api && npm run build:master-json -w @umalegacies/api && npm run fetch:portraits -w @umalegacies/api && npm test"
   },
   "overrides": {
     "multer": "2.3.0"
