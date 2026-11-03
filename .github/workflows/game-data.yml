@@ -83,6 +83,11 @@ jobs:
         if: steps.fetch.outputs.changed == 'true'
         continue-on-error: true
         shell: bash
+        # Plain text: the log is quoted into an issue, where colour codes would
+        # arrive as literal ^[[2m noise. Found by the failure drill.
+        env:
+          NO_COLOR: '1'
+          FORCE_COLOR: '0'
         run: npm test 2>&1 | tee test.log
 
       - name: Describe the change
@@ -152,7 +157,14 @@ jobs:
             echo '<details><summary>Failing tests</summary>'
             echo
             echo '```'
-            grep -E 'FAIL|AssertionError|Error:|Tests ' test.log | head -60
+            # Failing test names, their assertions, and each package's totals.
+            # Not every "Error:" line: several tests log errors ON PURPOSE (the
+            # error filter's), and quoting those buried the real failure. Any
+            # colour code that slipped past NO_COLOR is stripped too, in either
+            # form: the escape byte, or the literal "^[" GitHub renders it as.
+            sed -E 's/(\x1b|\^\[)\[[0-9;]*m//g' test.log \
+              | grep -E '(^| )FAIL |AssertionError|Test Files|^ *Tests ' \
+              | grep -v '^::' | head -60
             echo '```'
             echo '</details>'
             echo
