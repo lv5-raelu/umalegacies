@@ -244,14 +244,14 @@ So after a game patch, run `fetch:portraits` and commit whatever it writes. A ne
 card with no committed portrait deploys as initials.
 
 **Keyed by card, not by character.** A card is a costume, and a costume carries
-its own unique skill, which IS the green spark. 40 of the 70 characters have
+its own unique skill, which IS the green spark. Over half of the characters have
 more than one card, and on a real roster 15 appear with two different greens:
 Oguri Cap `100601` is *Triumphant Pulse*, `100602` is *Festive Miracle*. Keying
 by `chara_id` drew one costume's face directly above another costume's spark.
 
 `scripts/fetch-portraits.mjs` reads `card_data` from the committed extract,
 verifies PNG magic bytes rather than trusting a 200, and skips anything already
-on disk, so a re-run after a patch fetches only what is new. 112 of 114 cards,
+on disk, so a re-run after a patch fetches only what is new. Every card but two,
 about 900 KB. The two misses are `9100101` and `9101101` — the same pair the
 `card_id / 100` gotcha below calls out. gametora does not host them because they are
 not real costumes: both have `default_rarity` 0 and no skill set, so nobody can train
@@ -263,15 +263,16 @@ second, portrait-less copy of a real costume.
 
 **`master.mdb` is not in the repository, and is not needed to run the app.**
 `packages/api/data/master-extract.sql` is, and the API serves from it by default.
-The extract holds 12 of `master.mdb`'s 416 tables and 1,775 of `text_data`'s 54,253
-rows, against a 16 MB binary.
+The extract holds 12 of `master.mdb`'s 400-odd tables and under 2,000 of `text_data`'s
+54,000-odd rows, against a 16 MB binary. Its header carries the exact counts, and
+`packages/api/data/master-meta.json` the card counts the tests check.
 
 Three of those tables are **projected to the columns this app reads** rather than copied
 whole: `skill_data` is 78 columns of race-simulation parameters and only `id`,
 `skill_category` and `rarity` are used, and `succession_factor_effect` collapses to the
 factor-to-skill mapping once its five hint-level rows per factor are deduplicated.
 `card_rarity_data` is both projected and deduplicated: it stores one row per card per
-rarity and the ten aptitudes are identical across them, so 361 rows become 112.
+rarity and the ten aptitudes are identical across them, so a few hundred rows become one per card.
 
 A projected table gets a `CREATE TABLE` written from the columns asked for, with types
 read back from the source schema so a projection cannot quietly change one.
@@ -289,7 +290,26 @@ carries the 12-digit trainer IDs of everyone you have borrowed an ancestor from.
 
 ### After a game update
 
-One command, from the repository root:
+**Usually, nothing.** `.github/workflows/game-data.yml` checks once a day whether the
+game has shipped a new `master.mdb`. When it has, the workflow downloads it, rebuilds the
+extract, `master.json` and the portraits, and runs the tests:
+
+- **Tests pass:** it commits the update to `master`, and Vercel deploys it. The commit
+  message names the new cards, and `packages/api/data/master-meta.json` shows the counts
+  moving in its diff.
+- **Tests fail:** it pushes a `game-data-<version>` branch, opens an issue with the
+  failures, and deploys nothing. The live site stays on the data that last passed.
+
+The check costs three manifest requests, under a kilobyte, and downloads nothing unless
+the CDN's content address for `master.mdb` differs from the one `master-meta.json`
+records. Run it by hand from the Actions tab: `force` rebuilds regardless, and `dry_run`
+publishes to a `game-data-dry-run` branch instead of `master`.
+
+It cannot regenerate the golden fixtures, which need your `data.json`. The committed
+fixtures still run against every new extract, so a patch that moves anything the
+affinity rules read fails the tests and arrives as an issue for you to fix locally.
+
+**To do it by hand,** one command from the repository root:
 
 ```bash
 npm run update:master
