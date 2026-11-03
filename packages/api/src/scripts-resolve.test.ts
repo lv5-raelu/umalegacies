@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url';
 /**
  * THE SCRIPTS IMPORT MODULES THAT STILL EXIST.
  *
- * `scripts/check-roster.mjs` is this project's oracle harness: it compares every
- * per-grandparent affinity on the builder's real roster against a transcription
- * of hakuraku's independent implementation. It is the strongest correctness
- * check the project has, and it CANNOT run in CI -- it needs `master.mdb` and
- * `data.json`, neither of which is committed and neither of which should be.
+ * `scripts/check-roster.mjs` is this project's oracle harness over the
+ * builder's own roster: it compares every Individual Affinity against a
+ * transcription of hakuraku's independent implementation. It CANNOT run in CI
+ * -- it needs `master.mdb` and `data.json`, neither of which is committed and
+ * neither of which should be. (Since 2026-11-03 the same comparison also runs
+ * in CI, over a public corpus, as src/affinity/oracle.test.ts; this script is
+ * still the only place it meets the builder's real lineages.)
  *
  * That is exactly why it rotted. PR #22 moved the engine into `packages/core`,
  * `../dist/affinity/engine.js` stopped existing, and the harness was dead for

@@ -1,15 +1,19 @@
 /**
- * Local-only correctness harness. Needs BOTH user files, so it never runs in
- * CI; the committed golden fixtures are what CI checks.
+ * Local correctness harness over YOUR roster. Needs BOTH user files, so it
+ * never runs in CI. CI runs the same oracle comparison over a committed public
+ * corpus instead (src/affinity/oracle.test.ts), alongside the golden fixtures.
  *
  *   npm run check:roster --workspace @umalegacies/api
  *
  * Three checks over every lineage in data.json:
  *
- *   1. ORACLE. Compares this project's per-grandparent Individual Affinity
- *      against a transcription of hakuraku's own affinity functions. This is
- *      the real correctness test: hakuraku is an independent implementation
- *      whose displayed numbers the builder verified against the running game.
+ *   1. ORACLE. Compares all six of this project's Individual Affinities --
+ *      both parents and all four grandparents -- against a transcription of
+ *      hakuraku's own affinity functions (src/affinity/hakuraku-oracle.ts).
+ *      hakuraku is an independent implementation whose displayed numbers the
+ *      builder verified against the running game. The same comparison runs in
+ *      CI over a public uma.moe corpus (src/affinity/oracle.test.ts); this is
+ *      that check over YOUR roster, which only your machine has.
  *
  *   2. IDENTITY. sum(individualAffinity) === 2*pairTotal - base(T,10) - base(T,20).
  *      An accounting TAUTOLOGY, not a correctness test: both sides derive from
@@ -17,23 +21,9 @@
  *
  *   3. INVARIANT. Every node's value equals the sum of its children.
  *
- * ---------------------------------------------------------------------------
- * The oracle below is transcribed from ayaliz/hakuraku's
- * src/data/VeteransHelper.ts (calculateGrandparentAffinity,
- * sumSharedRelationPoints, calculateSharedG1RaceAffinity).
- *
- *   MIT License. Copyright (c) 2021 SSHZ.ORG
- *   Full text: NOTICE.md at the repository root.
- *
- * Transcribed rather than imported because hakuraku is a React application
- * whose data layer loads a protobuf UMDatabase, not a library. Two deliberate
- * differences, both documented in docs/designs/:
- *   - card_id -> chara_id joins card_data here; hakuraku uses card_id/100,
- *     which is wrong for 9100101 and 9101101.
- *   - the G1 saddle set is win_saddle_type = 3 here; hakuraku derives it as
- *     "exactly one race instance, and that race has grade 100". Verified
- *     2026-09-10 to select the identical 47 saddles.
- * ---------------------------------------------------------------------------
+ * The hakuraku transcription, its MIT notice and its two deliberate
+ * differences live in src/affinity/hakuraku-oracle.ts, shared with the CI test,
+ * so the two cannot drift apart.
  */
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, existsSync } from 'node:fs';
@@ -47,6 +37,7 @@ import { explain, MasterData } from '@umalegacies/core';
 // Still the API's, because reading the SQL extract is a node:sqlite job and
 // nothing in core may name a Node API.
 import { readTables } from '../dist/master/master-extract.js';
+import { HakurakuOracle } from '../dist/affinity/hakuraku-oracle.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
@@ -67,61 +58,18 @@ const db = new DatabaseSync(masterPath, { readOnly: true });
 const master = new MasterData(readTables(db));
 const roster = JSON.parse(readFileSync(dataPath, 'utf8'));
 
-// ------------------------------------------------- the oracle (see notice above)
-const relationPoints = new Map(
-  db.prepare('SELECT relation_type, relation_point FROM succession_relation').all()
-    .map((r) => [r.relation_type, r.relation_point]),
-);
-const charaRelationTypes = new Map();
-for (const r of db.prepare('SELECT relation_type, chara_id FROM succession_relation_member').all()) {
-  if (!charaRelationTypes.has(r.chara_id)) charaRelationTypes.set(r.chara_id, new Set());
-  charaRelationTypes.get(r.chara_id).add(r.relation_type);
-}
-const g1Saddles = new Set(
-  db.prepare('SELECT id FROM single_mode_wins_saddle WHERE win_saddle_type = 3').all().map((r) => r.id),
-);
-const G1_RACE_AFFINITY_VALUE = 3;
-
-const sumSharedRelationPoints = (setA, setB, setC) => {
-  let total = 0;
-  for (const rt of setA) {
-    if (setB.has(rt) && (setC === undefined || setC.has(rt))) {
-      total += relationPoints.get(rt) ?? 0;
-    }
-  }
-  return total;
-};
-
-const sharedG1RaceAffinity = (winsA, winsB) => {
-  const b = new Set(winsB ?? []);
-  let shared = 0;
-  for (const id of new Set(winsA ?? [])) {
-    if (g1Saddles.has(id) && b.has(id)) shared++;
-  }
-  return shared * G1_RACE_AFFINITY_VALUE;
-};
-
-/** hakuraku's calculateGrandparentAffinity, transcribed. */
-const oracleGrandparentAffinity = (gp, parent, targetCharaId) => {
-  if (!gp) return 0;
-  const gpCharaId = master.charaIdFor(gp.card_id);
-  const parentCharaId = master.charaIdFor(parent.card_id);
-  const targetRelations = charaRelationTypes.get(targetCharaId) ?? new Set();
-  const parentRelations = charaRelationTypes.get(parentCharaId) ?? new Set();
-  // The self-link: an empty relation set when the grandparent IS the trainee,
-  // which zeroes the base term and leaves the race bonus untouched.
-  const gpRelations =
-    gpCharaId && gpCharaId !== targetCharaId
-      ? (charaRelationTypes.get(gpCharaId) ?? new Set())
-      : new Set();
-  const treeBase = sumSharedRelationPoints(targetRelations, parentRelations, gpRelations);
-  const raceBonus = sharedG1RaceAffinity(parent.win_saddle_id_array, gp.win_saddle_id_array);
-  return treeBase + raceBonus;
-};
+// ------------------------------------------------------------- the oracle
+const all = (sql) => db.prepare(sql).all();
+const oracle = new HakurakuOracle({
+  succession_relation: all('SELECT relation_type, relation_point FROM succession_relation'),
+  succession_relation_member: all('SELECT relation_type, chara_id FROM succession_relation_member'),
+  single_mode_wins_saddle: all('SELECT id, win_saddle_type FROM single_mode_wins_saddle'),
+  card_data: all('SELECT id, chara_id FROM card_data'),
+});
 
 // ------------------------------------------------------------------- run
 const GRANDPARENTS = [11, 12, 21, 22];
-const PARENT_OF = { 11: 10, 12: 10, 21: 20, 22: 20 };
+const SLOTS = [10, 11, 12, 20, 21, 22];
 
 let checked = 0, skipped = 0;
 const oracleMismatches = [];
@@ -158,15 +106,17 @@ for (const entry of roster) {
   );
   checked++;
 
-  // 1. oracle
-  for (const gp of GRANDPARENTS) {
-    const slot = slots.get(gp);
-    if (!slot) continue;
-    const want = oracleGrandparentAffinity(slot, slots.get(PARENT_OF[gp]), traineeCharaId);
-    const got = result.individualAffinity[gp].value;
-    if (want !== got) {
+  // 1. oracle, all six slots
+  const want = oracle.individualAffinities(
+    traineeCharaId,
+    { ...ref(10), parents: [ref(11), ref(12)] },
+    { ...ref(20), parents: [ref(21), ref(22)] },
+  );
+  for (const slot of SLOTS) {
+    const got = result.individualAffinity[slot]?.value ?? 0;
+    if (want[slot] !== got) {
       oracleMismatches.push(
-        `lineage ${entry.trained_chara_id} slot ${gp}: ours ${got}, hakuraku ${want}`,
+        `lineage ${entry.trained_chara_id} slot ${slot}: ours ${got}, hakuraku ${want[slot]}`,
       );
     }
   }
@@ -193,7 +143,7 @@ const report = (label, failures) => {
 
 console.log(`\n${checked} lineages checked, ${skipped} skipped\n`);
 let bad = 0;
-bad += report(`oracle: per-grandparent affinity matches hakuraku (${checked * 4} comparisons)`, oracleMismatches);
+bad += report(`oracle: all six affinities match hakuraku (${checked * 6} comparisons)`, oracleMismatches);
 bad += report('identity: sum(IA) === 2*pairTotal - trainee base terms', identityFailures);
 bad += report('invariant: every node value === sum of its children', invariantFailures);
 console.log();
