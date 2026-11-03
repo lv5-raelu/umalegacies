@@ -78,7 +78,7 @@ const TABLES = [
   // Category 5 is keyed by CARD id and holds the bracketed costume alone
   // ("[Special Dreamer]"); category 4 is the same label with the character
   // name already appended, which would force splitting a string to get either
-  // half back. All 111 cards have a row in 5, and 80 of them belong to a
+  // half back. All 114 cards have a row in 5, and 84 of them belong to a
   // character with more than one card, so without this the trainee picker
   // lists "Oguri Cap" three times identically.
   // Category 172 holds spark DESCRIPTIONS ("A Spark that increases Guts and max
@@ -111,9 +111,9 @@ const TABLES = [
   // sashi/oikomi are the four running styles -- and the values are 1-8 for
   // G through S.
   //
-  // PROJECTED AND DEDUPLICATED. The table has one row per card per rarity, 352
-  // in all, and the aptitudes are identical across a card's rarities: 109 cards
-  // give exactly 109 distinct rows, checked on every extraction by `unique`.
+  // PROJECTED AND DEDUPLICATED. The table has one row per card per rarity, 361
+  // in all, and the aptitudes are identical across a card's rarities: 112 cards
+  // give exactly 112 distinct rows, checked on every extraction by `unique`.
   // Carrying the stat-growth columns beside them would be 17 more per row for
   // nothing that is read.
   {

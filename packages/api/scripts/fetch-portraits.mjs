@@ -152,7 +152,7 @@ async function fetchOne([cardId, charaId]) {
   }
 }
 
-/** A small pool with a pause between requests. 111 cards is not a reason to hammer anyone. */
+/** A small pool with a pause between requests. 114 cards is not a reason to hammer anyone. */
 const queue = [...wanted];
 await Promise.all(
   Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
