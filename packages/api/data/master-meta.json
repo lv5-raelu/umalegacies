@@ -1,0 +1,19 @@
+{
+  "generatedBy": "packages/api/scripts/build-master-extract.mjs -- do not edit by hand",
+  "source": {
+    "sha256": "e5364f1ceff23d31e4cd99359a70327612cd50083de97aea25cb84db0681fba8",
+    "extracted": "2026-11-03"
+  },
+  "game": {
+    "appVersion": "1.35.3",
+    "resourceVersion": "10008400",
+    "cdnName": "HBKZJDH2HQXIKJSLFSFONM3VSF6M4V7A"
+  },
+  "counts": {
+    "cards": 114,
+    "playableCards": 112,
+    "characters": 70,
+    "charactersWithSeveralCards": 40,
+    "ambiguousCards": 82
+  }
+}
