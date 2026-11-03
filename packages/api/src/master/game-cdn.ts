@@ -366,10 +366,107 @@ export const isSqlite = (data: Uint8Array): boolean =>
 
 export interface FetchedMaster {
   bytes: Uint8Array;
+  /** The CDN's content address for this exact file. Same name, same bytes. */
+  cdnName: string;
   /** The four URLs walked, in order, so a failure can say which hop broke. */
   path: string[];
   /** What the CDN sent before decompression. */
   compressedBytes: number;
+}
+
+export interface LiveMaster {
+  /**
+   * The CDN's name for the live master.mdb: base32(SHA-1(checksum, size, name)).
+   *
+   * A CONTENT ADDRESS, which is what makes it the right thing to compare. The
+   * game's resource version moves for any asset patch, master.mdb or not, so
+   * "the version changed" would mean downloading 5 MB for nothing every time a
+   * texture is fixed. This name changes exactly when the file does.
+   */
+  cdnName: string;
+  /** The three manifest URLs walked to find it. */
+  path: string[];
+}
+
+type Getter = (url: string) => Promise<Uint8Array>;
+
+/**
+ * `fetch`, retried when the NETWORK fails and never when the server answers.
+ *
+ * Found on the first unattended-style run: a request to a healthy host failed
+ * with a bare "fetch failed" and succeeded a second later. Run daily by a
+ * scheduler, that is a failure notification about nothing. So a thrown error --
+ * a connection that never produced an answer -- is tried up to three times with
+ * a growing pause. An HTTP error is an answer, and it is reported at once: a 403
+ * or 404 will not improve by asking again, and asking again is not polite.
+ */
+export async function fetchWithRetry(
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit,
+  { attempts = 3, pauseMs = 2000 }: { attempts?: number; pauseMs?: number } = {},
+): Promise<Response> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchImpl(url, init);
+    } catch (error) {
+      if (attempt >= attempts) {
+        throw new Error(`${(error as Error).message} (${url}, ${attempts} attempts)`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, pauseMs * attempt));
+    }
+  }
+}
+
+function getter(fetchImpl: typeof fetch, path: string[]): Getter {
+  return async (url) => {
+    path.push(url);
+    const response = await fetchWithRetry(fetchImpl, url, {
+      headers: { 'User-Agent': USER_AGENT, Accept: '*/*', 'Accept-Encoding': 'identity' },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status} from ${url}`);
+    return new Uint8Array(await response.arrayBuffer());
+  };
+}
+
+function finder(path: readonly string[]) {
+  return (entries: ManifestEntry[], match: (name: string) => boolean, what: string) => {
+    const entry = entries.find((e) => match(e.name.toLowerCase()));
+    if (!entry) {
+      throw new Error(
+        `No ${what} entry in the manifest at ${path.at(-1)}. ` +
+          `It holds: ${entries.slice(0, 12).map((e) => e.name).join(', ')}` +
+          (entries.length > 12 ? `, ...(${entries.length})` : ''),
+      );
+    }
+    return entry;
+  };
+}
+
+async function walkToMaster(resourceVersion: string, get: Getter, path: string[]): Promise<ManifestEntry> {
+  const find = finder(path);
+  const root = manifestEntries(parseBsv(decodeLz4(await get(rootManifestUrl(resourceVersion)))));
+  const platform = find(root, (n) => n === PLATFORM.toLowerCase(), `'${PLATFORM}' platform`);
+
+  const bundles = manifestEntries(parseBsv(maybeLz4(await get(manifestUrl(platform.hname)))));
+  const master = find(bundles, (n) => n === 'master', "'master' bundle");
+
+  const files = manifestEntries(parseBsv(maybeLz4(await get(manifestUrl(master.hname)))));
+  return find(files, (n) => n.includes('master.mdb'), 'master.mdb');
+}
+
+/**
+ * Which master.mdb is live, without downloading it: three manifests, under a
+ * kilobyte between them. What the daily check runs; the 5 MB download only
+ * happens when this name differs from the one the repository last recorded.
+ */
+export async function liveMasterName(
+  resourceVersion: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<LiveMaster> {
+  const path: string[] = [];
+  const entry = await walkToMaster(resourceVersion, getter(fetchImpl, path), path);
+  return { cdnName: entry.hname, path };
 }
 
 /**
@@ -385,39 +482,13 @@ export async function fetchMasterMdb(
   fetchImpl: typeof fetch = fetch,
 ): Promise<FetchedMaster> {
   const path: string[] = [];
-  const get = async (url: string): Promise<Uint8Array> => {
-    path.push(url);
-    const response = await fetchImpl(url, {
-      headers: { 'User-Agent': USER_AGENT, Accept: '*/*', 'Accept-Encoding': 'identity' },
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status} from ${url}`);
-    return new Uint8Array(await response.arrayBuffer());
-  };
-  const find = (entries: ManifestEntry[], match: (name: string) => boolean, what: string) => {
-    const entry = entries.find((e) => match(e.name.toLowerCase()));
-    if (!entry) {
-      throw new Error(
-        `No ${what} entry in the manifest at ${path.at(-1)}. ` +
-          `It holds: ${entries.slice(0, 12).map((e) => e.name).join(', ')}` +
-          (entries.length > 12 ? `, ...(${entries.length})` : ''),
-      );
-    }
-    return entry;
-  };
-
-  const root = manifestEntries(parseBsv(decodeLz4(await get(rootManifestUrl(resourceVersion)))));
-  const platform = find(root, (n) => n === PLATFORM.toLowerCase(), `'${PLATFORM}' platform`);
-
-  const bundles = manifestEntries(parseBsv(maybeLz4(await get(manifestUrl(platform.hname)))));
-  const master = find(bundles, (n) => n === 'master', "'master' bundle");
-
-  const files = manifestEntries(parseBsv(maybeLz4(await get(manifestUrl(master.hname)))));
-  const mdb = find(files, (n) => n.includes('master.mdb'), 'master.mdb');
+  const get = getter(fetchImpl, path);
+  const mdb = await walkToMaster(resourceVersion, get, path);
 
   const compressed = await get(genericUrl(mdb.hname));
   const bytes = maybeLz4(compressed);
   if (!isSqlite(bytes)) {
     throw new Error(`What ${path.at(-1)} decompressed to is not a SQLite database`);
   }
-  return { bytes, path, compressedBytes: compressed.length };
+  return { bytes, cdnName: mdb.hname, path, compressedBytes: compressed.length };
 }
