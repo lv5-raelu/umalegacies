@@ -82,7 +82,7 @@ db.exec(readFileSync(extractPath, 'utf8'));
  * nobody can train them, so they can never be a veteran or an ancestor, and
  * gametora has never hosted them. Asking anyway made them the only two misses
  * on a run with no new cards -- and two misses out of two read as "every fetch
- * failed", so the daily game-data workflow's first test run failed on a patch
+ * failed", so the game-data workflow's first test run failed on a patch
  * that needed no portraits at all.
  */
 const picks = new Map();

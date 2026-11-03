@@ -1,6 +1,6 @@
 # Keeps the game data current without anyone copying master.mdb by hand.
 #
-# Once a day: ask which master.mdb is live -- three manifests from the game's
+# Every 6 hours: ask which master.mdb is live -- three manifests from the game's
 # CDN, under a kilobyte -- and stop if the repository already has it, which is
 # most days. When the game has changed it: download it, rebuild the extract,
 # master.json and the portraits, and run the tests.
@@ -23,10 +23,17 @@ name: Game data
 
 on:
   schedule:
-    # Daily at 04:23 UTC (12:23 in Singapore, where the site is served from).
-    # Off the hour on purpose: on-the-hour schedules are the ones GitHub delays
-    # most under load.
-    - cron: '23 4 * * *'
+    # Every 6 hours, at 00:30, 06:30, 12:30 and 18:30 UTC.
+    #
+    # EVERY 6 HOURS RATHER THAN DAILY, because nobody knows exactly when a
+    # Global patch lands, and a daily run at the wrong hour could leave the site
+    # a day behind the game. This bounds it at six hours whenever it lands. A
+    # run that finds nothing still bills a minute (GitHub rounds each job up),
+    # so four a day is ~120 of a private repo's 2,000 free minutes a month.
+    #
+    # Half past rather than on the hour: GitHub delays scheduled runs most at
+    # the start of the hour, and drops some under enough load.
+    - cron: '30 */6 * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -145,7 +152,7 @@ jobs:
           branch="game-data-${{ steps.fetch.outputs.resource_version }}"
           git push --force origin "HEAD:refs/heads/$branch"
           {
-            echo "The daily game-data run found a new master.mdb, but the tests failed, so"
+            echo "The scheduled game-data run found a new master.mdb, but the tests failed, so"
             echo "nothing was deployed. The live site is still on the data that last passed."
             echo
             echo '```'

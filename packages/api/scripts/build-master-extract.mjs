@@ -253,7 +253,7 @@ writeFileSync(outPath, sql);
  * `game` comes from the marker fetch:master writes beside master.mdb, and only
  * when the marker's sha256 is THIS file's: a master.mdb copied from a Steam
  * install afterwards must not inherit the downloaded one's version. Absent a
- * matching marker it is null, and the daily check reads null as "unknown, so
+ * matching marker it is null, and the scheduled check reads null as "unknown, so
  * fetch once and record it".
  */
 const markerPath = `${masterPath}.version`;

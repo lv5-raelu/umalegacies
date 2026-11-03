@@ -5,7 +5,7 @@
  *   node scripts/describe-master-change.mjs            # markdown body
  *   node scripts/describe-master-change.mjs --subject  # one-line commit subject
  *
- * WHY. The daily GitHub Action commits a game patch to master unattended, and
+ * WHY. The scheduled GitHub Action commits a game patch to master unattended, and
  * the commit is how the builder finds out it happened. "Update master data" says
  * nothing; "adds Hokko Tarumae and Satono Diamond [Jade's Prosperity]" says what
  * to go and look at. The same text heads the issue when the tests fail.
@@ -99,7 +99,7 @@ if (process.argv.includes('--subject')) {
 
 const lines = [];
 const fromVersion = oldMeta?.game?.appVersion ?? 'unknown';
-lines.push(`Game ${fromVersion} -> ${version}, fetched from the game's CDN by the daily game-data workflow.`);
+lines.push(`Game ${fromVersion} -> ${version}, fetched from the game's CDN by the scheduled game-data workflow.`);
 lines.push('');
 
 if (shown.length) {

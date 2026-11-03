@@ -289,7 +289,7 @@ carries the 12-digit trainer IDs of everyone you have borrowed an ancestor from.
 
 ### After a game update
 
-**Usually, nothing.** `.github/workflows/game-data.yml` checks once a day whether the
+**Usually, nothing.** `.github/workflows/game-data.yml` checks every 6 hours whether the
 game has shipped a new `master.mdb`. When it has, the workflow downloads it, rebuilds the
 extract, `master.json` and the portraits, and runs the tests:
 

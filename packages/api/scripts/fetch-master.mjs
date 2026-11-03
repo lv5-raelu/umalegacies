@@ -6,7 +6,7 @@
  *
  *   --skip-if-committed   stop, without downloading, when the live master.mdb is
  *                         the one packages/api/data/master-meta.json records.
- *                         What the daily GitHub Action runs.
+ *                         What the scheduled GitHub Action runs.
  *
  * Writes master.mdb at the repository root -- where build:master has always
  * looked -- or at MASTER_DB_PATH. Nothing it writes is committed: `master.mdb*`
