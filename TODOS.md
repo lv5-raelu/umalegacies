@@ -12,25 +12,6 @@ bottom. Reorganized into this layout on 2026-10-19; nothing was dropped.
 
 ---
 
-## Borrow (M7 release 2)
-
-### Rotate the uma.moe API key
-
-**What:** Rotate the uma.moe API key at `~/.umalegacies-uma-moe-key`.
-
-**Why:** It was pasted into a chat transcript on 2026-09-18. Recorded as "still true and
-still outstanding" when the rate-limit question below was answered on 2026-09-24.
-
-**Context:** The key lives outside the repo, mode 600, and authenticates the sanctioned
-server-to-server integration (`X-API-Key`). Split out of the completed rate-limit item
-during the 2026-10-19 reorganization so it is not buried under Completed.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** None
-
----
-
 ## Search (M7)
 
 ### Per-veteran affinity memoisation in the sweep
@@ -90,32 +71,6 @@ training toward.
 
 ---
 
-## Game data
-
-### Game-data counts quoted by hand in comments drift between patches
-
-**What:** Either stop quoting exact game-data counts (characters, playable cards, ambiguous
-cards, multi-costume characters, rarity rows) in code comments, or add a test that checks
-the quoted figures against values computed from the extract.
-
-**Why:** The counts are copied into about a dozen comments across README, core, types, api
-scripts, web and tests, and only the `roster.test.ts` assertions are checked. The
-2026-10-18 refresh updated 16 such lines, 9 of which had already gone stale through earlier
-patches (`35 of 68`, `105 cards`, `340 in all`), so each patch silently leaves some behind.
-
-**Context:** Raised by the maintainability reviewer during /ship of game-data-2026-10-18
-and deferred by the builder rather than changed inside a data PR. A guard test would grep
-phrases like "N of M characters" and compare them to `traineeOptions(extractMaster())`;
-the alternative keeps exact numbers only in the asserting tests and the README's
-"After a game update" section. Start by listing every quoted count with
-`git grep -nE '[0-9]+ of (the )?[0-9]+ (characters|cards)|[0-9]+ (playable )?cards'`.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** None
-
----
-
 ## Completed
 
 ### uma.moe's rate limit under real load
@@ -136,7 +91,7 @@ slow probe, not a load test.
 integrations should use an API key instead", and the OpenAPI spec calls `X-API-Key` "API
 key for server-to-server access and usage tracking". The key lives at
 `~/.umalegacies-uma-moe-key`, outside the repo, mode 600. It was pasted into a chat
-transcript on 2026-09-18 and should be rotated.
+transcript on 2026-09-18. (Rotation was later judged unnecessary; see below.)
 
 **Depends on:** Nothing. Can be answered any time before release 2 starts.
 
@@ -202,9 +157,10 @@ first refusal by construction; it is `uma-moe-probe`-shaped, not a load test. Th
 reason to re-run it. If release 2 ever does see a 429, the answer is already known to be
 absent from the headers, so back off on the status code alone.
 
-**Still true and still outstanding:** the key at `~/.umalegacies-uma-moe-key` was pasted
-into a chat transcript on 2026-09-18 and should be rotated. Now tracked as its own item
-under Borrow, above.
+**Rotation, decided 2026-11-05: not needed.** The key at `~/.umalegacies-uma-moe-key` was
+pasted into a chat transcript on 2026-09-18, and was to be rotated. The builder decided
+against it, so the item that tracked it (Borrow, "Rotate the uma.moe API key") is gone. The
+key stays outside the repo, mode 600, and server-side only.
 
 **Completed:** answered 2026-09-24 (no version; this repo does not version releases)
 
@@ -259,3 +215,28 @@ followed [[umalegacies-ask-the-tools-before-asking-memory]]: 2,500 records beat 
 anyone to recall a rule.
 
 **Completed:** answered 2026-09-21 (no version; this repo does not version releases)
+
+### Game-data counts quoted by hand in comments drift between patches
+
+**What:** Either stop quoting exact game-data counts (characters, playable cards, ambiguous
+cards, multi-costume characters, rarity rows) in code comments, or add a test that checks
+the quoted figures against values computed from the extract.
+
+**Why:** The counts are copied into about a dozen comments across README, core, types, api
+scripts, web and tests, and only the `roster.test.ts` assertions are checked. The
+2026-10-18 refresh updated 16 such lines, 9 of which had already gone stale through earlier
+patches (`35 of 68`, `105 cards`, `340 in all`), so each patch silently leaves some behind.
+
+**Context:** Raised by the maintainability reviewer during /ship of game-data-2026-10-18
+and deferred by the builder rather than changed inside a data PR. A guard test would grep
+phrases like "N of M characters" and compare them to `traineeOptions(extractMaster())`;
+the alternative keeps exact numbers only in the asserting tests and the README's
+"After a game update" section. Start by listing every quoted count with
+`git grep -nE '[0-9]+ of (the )?[0-9]+ (characters|cards)|[0-9]+ (playable )?cards'`.
+
+**Completed:** solved 2026-11-05 by the automated game-data work (PR #57), by the first
+alternative rather than the guard test. The exact counts are no longer quoted by hand:
+`packages/api/data/master-meta.json` holds them, computed in SQL from the extract on every
+`build:master`, and `roster.test.ts` asserts against that file. Comments say "most cards",
+"over half", "every card but two". Nothing needs updating per patch, which matters now that
+patches land unattended.
