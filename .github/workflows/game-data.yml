@@ -10,6 +10,11 @@
 #   tests fail  ->  push a branch, open an issue, deploy NOTHING. The live site
 #                   stays on the data that last passed.
 #
+# A SOURCE THAT IS DOWN is a warning, not a failure: if uma.moe's version
+# endpoint or the CDN answers 5xx or not at all, after retries, the run ends
+# green with a warning annotation and the next one (six hours later) tries
+# again. An answer that is WRONG -- a 4xx, a changed shape -- still fails.
+#
 # WHAT IT CANNOT DO: produce new expected values for the golden fixtures. The
 # fixtures themselves need no regenerating -- each carries its whole lineage, so
 # they run here unchanged -- but their expected values are fixed numbers read off
@@ -60,13 +65,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # The full history: the publish step rebases onto whatever master is
           # by then, and the describe step reads the committed data at HEAD.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
