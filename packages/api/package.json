@@ -16,6 +16,7 @@
     "pretypecheck": "npm run build --workspace @umalegacies/core --prefix ../..",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:roster": "node scripts/check-roster.mjs",
+    "build:oracle-corpus": "npm run build && node scripts/build-oracle-corpus.mjs",
     "build:fixtures": "node --import ts-node/esm scripts/build-fixtures.ts",
     "fetch:master": "npm run build && node scripts/fetch-master.mjs",
     "build:master": "node scripts/build-master-extract.mjs",
