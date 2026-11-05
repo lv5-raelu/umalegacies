@@ -4,6 +4,7 @@ import {
   decodeLz4,
   fetchMasterMdb,
   fetchWithRetry,
+  SourceUnavailableError,
   genericUrl,
   hnameOf,
   isLz4Frame,
@@ -244,7 +245,7 @@ describe('the whole chain, against a fake CDN', () => {
   });
 });
 
-describe('a network that fails for a moment', () => {
+describe('a source that is down for a moment', () => {
   it('retries a connection that never answered, and returns the answer when it comes', async () => {
     let calls = 0;
     const flaky = (async () => {
@@ -257,18 +258,43 @@ describe('a network that fails for a moment', () => {
     expect(calls).toBe(3);
   });
 
-  it('gives up after its attempts and says how many it made', async () => {
+  it('retries a 5xx too, and returns the answer when the server recovers', async () => {
+    // uma.moe answered 521 on a scheduled run and was fine minutes later.
+    let calls = 0;
+    const recovering = (async () => {
+      calls++;
+      return calls < 3 ? new Response(null, { status: 521 }) : new Response('ok');
+    }) as unknown as typeof fetch;
+    const response = await fetchWithRetry(recovering, 'https://example.test/', {}, { pauseMs: 1 });
+    expect(await response.text()).toBe('ok');
+    expect(calls).toBe(3);
+  });
+
+  it('gives up after its attempts, says how many it made, and says the source was down', async () => {
     const down = (async () => {
       throw new TypeError('fetch failed');
     }) as unknown as typeof fetch;
-    await expect(
-      fetchWithRetry(down, 'https://example.test/', {}, { attempts: 3, pauseMs: 1 }),
-    ).rejects.toThrow(/fetch failed .*3 attempts/);
+    const failure = fetchWithRetry(down, 'https://example.test/', {}, { attempts: 3, pauseMs: 1 });
+    await expect(failure).rejects.toThrow(/fetch failed .*3 attempts/);
+    await expect(failure).rejects.toBeInstanceOf(SourceUnavailableError);
   });
 
-  it('never retries an HTTP error, because a 404 is an answer', async () => {
+  it('gives up on a server that stays broken, naming the status it kept answering', async () => {
+    let calls = 0;
+    const broken = (async () => {
+      calls++;
+      return new Response(null, { status: 521 });
+    }) as unknown as typeof fetch;
+    const failure = fetchWithRetry(broken, 'https://example.test/', {}, { attempts: 4, pauseMs: 1 });
+    await expect(failure).rejects.toThrow(/HTTP 521 .*4 attempts/);
+    await expect(failure).rejects.toBeInstanceOf(SourceUnavailableError);
+    expect(calls).toBe(4);
+  });
+
+  it('never retries a 4xx, because a 404 is an answer', async () => {
     // Asking a server again after it has said no will not change its mind, and
-    // is the kind of thing that gets a client blocked.
+    // is the kind of thing that gets a client blocked. It also means the source
+    // changed, which is not "down" and must not be waved through as such.
     let calls = 0;
     const refuses = (async () => {
       calls++;

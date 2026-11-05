@@ -391,14 +391,33 @@ export interface LiveMaster {
 type Getter = (url: string) => Promise<Uint8Array>;
 
 /**
- * `fetch`, retried when the NETWORK fails and never when the server answers.
+ * The source did not answer, or said it is broken: a connection that never
+ * produced a response, or a 5xx. Distinct from every other failure because it is
+ * the one kind that fixes itself. The scheduled run treats it as "try again at
+ * the next schedule"; a 4xx, or an answer in the wrong shape, means the source
+ * CHANGED, and stays a failure someone has to look at.
+ */
+export class SourceUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SourceUnavailableError';
+  }
+}
+
+/**
+ * `fetch`, retried when the source is DOWN and never when it has answered.
  *
- * Found on the first unattended-style run: a request to a healthy host failed
- * with a bare "fetch failed" and succeeded a second later. Run daily by a
- * scheduler, that is a failure notification about nothing. So a thrown error --
- * a connection that never produced an answer -- is tried up to three times with
- * a growing pause. An HTTP error is an answer, and it is reported at once: a 403
- * or 404 will not improve by asking again, and asking again is not polite.
+ * Two things are down. A connection that never produced an answer (found on the
+ * first unattended-style run: a bare "fetch failed" against a healthy host,
+ * gone a second later). And a 5xx, which is the server saying it is broken just
+ * now -- uma.moe's /api/ver answered 521, Cloudflare's "origin is not
+ * responding", during a scheduled run, and for a pipeline whose next attempt is
+ * six hours away that was a failure email about someone else's outage. Both are
+ * retried with a growing pause (pauseMs, then twice it, ...) and, if the source
+ * is still down after the last attempt, thrown as SourceUnavailableError.
+ *
+ * A 4xx is an answer and is returned at once: a 403 or 404 will not improve by
+ * asking again, and asking again is not polite.
  */
 export async function fetchWithRetry(
   fetchImpl: typeof fetch,
@@ -407,14 +426,18 @@ export async function fetchWithRetry(
   { attempts = 3, pauseMs = 2000 }: { attempts?: number; pauseMs?: number } = {},
 ): Promise<Response> {
   for (let attempt = 1; ; attempt++) {
+    let down: string;
     try {
-      return await fetchImpl(url, init);
+      const response = await fetchImpl(url, init);
+      if (response.status < 500) return response;
+      down = `HTTP ${response.status}`;
     } catch (error) {
-      if (attempt >= attempts) {
-        throw new Error(`${(error as Error).message} (${url}, ${attempts} attempts)`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, pauseMs * attempt));
+      down = (error as Error).message;
     }
+    if (attempt >= attempts) {
+      throw new SourceUnavailableError(`${down} (${url}, ${attempts} attempts)`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, pauseMs * attempt));
   }
 }
 

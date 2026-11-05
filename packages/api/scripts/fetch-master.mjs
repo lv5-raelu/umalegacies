@@ -25,14 +25,22 @@
  *
  * THE VERSION comes from uma.moe's public `/api/ver`, which needs no key; it is
  * what uma.moe's own resource server polls for the same purpose. If that is
- * ever down, `--resource-version` takes the number directly.
+ * ever down, `--resource-version` takes the number directly. When it or the CDN is
+ * down after retries (a 5xx, or no answer), the run exits 0 with a warning; see
+ * skipBecauseDown.
  */
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchMasterMdb, fetchWithRetry, liveMasterName, USER_AGENT } from '../dist/master/game-cdn.js';
+import {
+  fetchMasterMdb,
+  fetchWithRetry,
+  liveMasterName,
+  SourceUnavailableError,
+  USER_AGENT,
+} from '../dist/master/game-cdn.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
@@ -42,7 +50,12 @@ const staging = `${target}.download`;
 const backup = `${target}.old`;
 const committedMeta = resolve(here, '../data/master-meta.json');
 
-const VERSION_URL = 'https://uma.moe/api/ver';
+// The two overrides exist so the outage path can be exercised against a local
+// server; nothing in the workflow sets them.
+const VERSION_URL = process.env.GAME_DATA_VERSION_URL ?? 'https://uma.moe/api/ver';
+// 4 attempts, pausing 20 s, 40 s, then 60 s: two minutes for a brief outage to
+// pass, short enough that a long one does not hold the runner.
+const RETRY = { attempts: 4, pauseMs: Number(process.env.GAME_DATA_RETRY_PAUSE_MS ?? 20_000) };
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -91,19 +104,16 @@ async function liveVersion() {
   const override = versionFlag();
   if (override) return { app_version: 'unknown', resource_version: override };
 
-  let response;
-  try {
-    response = await fetchWithRetry(fetch, VERSION_URL, {
-      headers: { 'User-Agent': USER_AGENT, 'Cache-Control': 'no-cache' },
-    });
-  } catch (error) {
-    throw new Error(
-      `Could not reach ${VERSION_URL} (${error.message}). ` +
-        'Pass the version directly with --resource-version.',
-    );
-  }
+  // A SourceUnavailableError passes through untouched: the code below tells "down" from
+  // "changed" by its type.
+  const response = await fetchWithRetry(
+    fetch,
+    VERSION_URL,
+    { headers: { 'User-Agent': USER_AGENT, 'Cache-Control': 'no-cache' } },
+    RETRY,
+  );
   if (!response.ok) {
-    throw new Error(`${VERSION_URL} answered ${response.status}. Pass --resource-version instead.`);
+    throw new Error(`${VERSION_URL} answered ${response.status}.`);
   }
   const body = await response.json();
   if (!/^\d+$/.test(String(body?.resource_version ?? ''))) {
@@ -138,6 +148,24 @@ function verify(path) {
   }
 }
 
+/**
+ * A source that is DOWN is not a failure. uma.moe or the game's CDN answered 5xx,
+ * or not at all, after every retry; nothing has been touched, and the next
+ * scheduled run in six hours asks again. Under Actions it is a warning
+ * annotation on the run rather than a red X and an email. A source that
+ * ANSWERED wrongly (a 4xx, a body in the wrong shape, a manifest without
+ * master.mdb) is not this: it means the thing changed, and it still fails.
+ *
+ * The cost of this: a source gone for good would show only as warnings. Each one
+ * is on the run's summary page, and the site simply stops updating.
+ */
+function skipBecauseDown(error, what) {
+  const text = `${what} is unavailable: ${error.message}. Nothing was changed; the next scheduled run will try again.`;
+  console.log(process.env.GITHUB_ACTIONS ? `::warning title=Game data check skipped::${text}` : text);
+  output({ changed: 'false', unavailable: 'true' });
+  process.exit(0);
+}
+
 const started = Date.now();
 let version;
 let live;
@@ -145,9 +173,10 @@ try {
   version = await liveVersion();
   live = await liveMasterName(version.resource_version);
 } catch (error) {
+  if (error instanceof SourceUnavailableError) skipBecauseDown(error, 'The version or CDN source');
   // A message, not a stack trace: this is read in a CI log or a terminal by
   // someone deciding whether to act, and the stack says nothing to them.
-  console.error(`Could not find the live master.mdb: ${error.message}`);
+  console.error(`Could not find the live master.mdb: ${error.message} Pass --resource-version to name it directly.`);
   process.exit(1);
 }
 const have = readMarker();
@@ -199,6 +228,7 @@ let fetched;
 try {
   fetched = await fetchMasterMdb(version.resource_version);
 } catch (error) {
+  if (error instanceof SourceUnavailableError) skipBecauseDown(error, 'The game CDN');
   console.error(`Download failed: ${error.message}`);
   console.error('The existing master.mdb, if any, was left untouched.');
   process.exit(1);
