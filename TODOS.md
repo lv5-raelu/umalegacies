@@ -71,6 +71,56 @@ training toward.
 
 ---
 
+## Roster (web)
+
+### Rebuild a saved roster after a game patch instead of asking for data.json again
+
+**What:** When a visit finds the saved roster was built from older game data, resend the
+saved inputs to `/roster/resolve`, refetch the trainee list, store the result under the new
+master hash, re-apply the saved selection, and say "The game data was updated, so your
+roster was refreshed." Today `App.tsx`'s restore effect wipes the roster and the selection
+and asks the user to load their file again.
+
+**Why:** Game data now updates unattended (PR #57), on patch day, roughly every one to two
+weeks going by Sep 24, Oct 7, Oct 18 and Oct 27. Every one of those makes every user
+re-upload data.json, for data the browser already holds.
+
+**Pros:** No re-upload, ever, for a patch. Nothing new leaves the browser: the saved
+`veterans` are exactly the slimmed payload `loadFile` sent on upload (score, card ids,
+spark ids, race wins). It also makes the narrower fix unnecessary -- the extract hash
+covers the whole file, header included, so a patch that changes master.mdb but none of the
+12 tables we read still changes it; with a cheap rebuild that stops mattering.
+
+**Cons:** The optimistic restore shows the old roster before `/master/meta` answers, so on
+patch day the old numbers show for a moment and are then replaced, where today they are
+replaced by the drop zone. Judged acceptable: the check is a 440-byte, CDN-cached request,
+and holding every reload on it would slow all visits to protect one.
+
+**Context:** Looked into on 2026-11-06 and deferred by the builder. What makes it
+possible, all in the IndexedDB record (`CachedRoster`, `roster/cache-policy.ts`):
+- `veterans` is `RosterVeteranInput[]`, the `/roster/resolve` request body.
+- `skipped` and `fileName` come from parsing the file, not from game data, so they stay
+  valid.
+- `restoreSelection()` already re-checks every stored choice against whatever roster it
+  is given and drops only what no longer checks out.
+
+The plan:
+1. On `stale-master`, rebuild as above rather than clear.
+2. If the rebuild fails (offline, 5xx), hide the roster but KEEP the stored record, so the
+   next visit tries again. Never show the old numbers as current.
+3. A tab left open across a patch still needs a reload (its `master.json` is the old one).
+   Change the "Load the file again" message and the `masterChanged` banner to offer a
+   Reload button; step 1 does the rest after the reload.
+4. The web package has no jsdom, so put the decision (use, rebuild, hide) in a pure
+   function beside `inspectCache` and test every branch there; check the wiring in the
+   browser.
+
+**Effort:** M (mostly `App.tsx`, plus `cache-policy.ts` and its tests)
+**Priority:** P2
+**Depends on:** None
+
+---
+
 ## Completed
 
 ### uma.moe's rate limit under real load
